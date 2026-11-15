@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Turns on diagnostic messages so the seed summary shows up in `dotnet test` output (AC6). -->
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\OrderRouter.Api\OrderRouter.Api.csproj" />
   </ItemGroup>
 
