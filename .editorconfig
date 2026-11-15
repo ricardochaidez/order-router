@@ -61,3 +61,8 @@ dotnet_naming_rule.public_members_pascal_case.severity = warning
 dotnet_naming_symbols.public_members.applicable_kinds = class, struct, enum, property, method, event, delegate
 dotnet_naming_symbols.public_members.applicable_accessibilities = public, internal, protected, protected_internal
 dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# EF Core generated migrations: never hand-edited, so exempt from style rules (OR-004).
+[**/Persistence/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

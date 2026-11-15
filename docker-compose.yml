@@ -1,0 +1,23 @@
+# Local development stack (OR-004). OR-007 adds the API service and .env.example.
+# Nothing here migrates or seeds the database: that is an explicit, separate step (SC-22, SC-33).
+services:
+  postgres:
+    # Pinned to a specific tag (multi-arch, runs on Apple Silicon) so every machine uses the same server.
+    image: postgres:18.1
+    environment:
+      POSTGRES_DB: orderrouter
+      POSTGRES_USER: orderrouter
+      # Dev-only default; this file is never used in production.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orderrouter-dev-only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderrouter -d orderrouter"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -85,6 +85,20 @@ public class LayerDependencyTests
         Assert.DoesNotContain("OrderRouter.DataNormalizer", ReadProjectReferenceNames(csprojPath));
     }
 
+    // Keeps EF Core / Npgsql (and any other library) out of the domain for good (ADR-0002).
+    [Fact]
+    public void PackageReferences_ForDomain_AreEmpty()
+    {
+        var csprojPath = Path.Combine(FindRepositoryRoot(), "src", "OrderRouter.Domain", "OrderRouter.Domain.csproj");
+
+        var packages = XDocument.Load(csprojPath)
+            .Descendants("PackageReference")
+            .Select(reference => (string?)reference.Attribute("Include"))
+            .ToArray();
+
+        Assert.Empty(packages);
+    }
+
     private static string[] ReadProjectReferenceNames(string csprojPath)
         => [.. XDocument.Load(csprojPath)
             .Descendants("ProjectReference")
