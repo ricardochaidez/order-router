@@ -1,0 +1,63 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{json,csproj,props,targets,slnx,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# Namespaces and usings (csharp.md: file-scoped namespaces, usings outside the namespace)
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+
+# Braces always go on their own line
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+
+# Null checks: prefer `is null` / `is not null`
+csharp_style_prefer_pattern_matching = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning
+csharp_style_prefer_not_pattern = true:suggestion
+
+# Pattern matching and switch expressions
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+
+# Prefer nameof over string literals
+dotnet_style_prefer_simplified_interpolated_strings = true:suggestion
+
+# Naming: interfaces are I-prefixed
+dotnet_naming_rule.interfaces_start_with_i.symbols = interfaces
+dotnet_naming_rule.interfaces_start_with_i.style = begins_with_i
+dotnet_naming_rule.interfaces_start_with_i.severity = warning
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+# Naming: private fields are camelCase
+dotnet_naming_rule.private_fields_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_camel_case.style = camel_case
+dotnet_naming_rule.private_fields_camel_case.severity = warning
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private, private_protected
+dotnet_naming_style.camel_case.capitalization = camel_case
+
+# Naming: public/internal members and types are PascalCase
+dotnet_naming_rule.public_members_pascal_case.symbols = public_members
+dotnet_naming_rule.public_members_pascal_case.style = pascal_case
+dotnet_naming_rule.public_members_pascal_case.severity = warning
+dotnet_naming_symbols.public_members.applicable_kinds = class, struct, enum, property, method, event, delegate
+dotnet_naming_symbols.public_members.applicable_accessibilities = public, internal, protected, protected_internal
+dotnet_naming_style.pascal_case.capitalization = pascal_case

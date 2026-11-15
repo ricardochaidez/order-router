@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- Shared settings for every project in the solution, so layers can't drift apart. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- TreatWarningsAsErrors stays off for now: the skeleton is new and rules are still being tuned.
+         Revisit once the codebase is warning-clean. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

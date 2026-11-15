@@ -27,8 +27,10 @@ If something is ambiguous or conflicts, stop and ask
 
 -- Opus or Fable
 ## Plan creation
-Analyze the tickets in Docs/Tickets and create a plan in phases. In the plan add instruction that after completing each phase any applicable tests should pass and after each phase is completed it should be marked as done. Ask the engineer before starting the next phase. For each plan any AI instructions or skills must be followed.
-We have products, suppliers and sample order data in Docs/Data folder.
+Analyze requirement of this ticket and create a plan in phases. In the plan add instruction that after completing each phase any applicable tests should pass and after each phase is completed it should be marked as done. Ask the engineer before starting the next phase. For each plan any AI instructions or skills must be followed.
+
+Add this plan in "Plans" folder using the ticket number and description as file name.
+
 If something is ambiguous or conflicts, stop and ask
 
 -- Sonnet

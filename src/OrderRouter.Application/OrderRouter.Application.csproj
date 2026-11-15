@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\OrderRouter.Domain\OrderRouter.Domain.csproj" />
+  </ItemGroup>
+</Project>
