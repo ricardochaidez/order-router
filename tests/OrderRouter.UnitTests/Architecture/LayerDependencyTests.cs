@@ -67,6 +67,31 @@ public class LayerDependencyTests
         Assert.Empty(forbidden);
     }
 
+    [Fact]
+    public void ProjectReferences_ForDataNormalizerTool_AreDomainOnly()
+    {
+        var csprojPath = Path.Combine(FindRepositoryRoot(), "tools", "OrderRouter.DataNormalizer", "OrderRouter.DataNormalizer.csproj");
+
+        Assert.Equal(["OrderRouter.Domain"], ReadProjectReferenceNames(csprojPath));
+    }
+
+    // The tool is an offline utility; if a src project referenced it, it would ship with the API.
+    [Theory]
+    [MemberData(nameof(Layers))]
+    public void ProjectReferences_ForLayer_DoNotIncludeDataNormalizerTool(string layer)
+    {
+        var csprojPath = Path.Combine(FindRepositoryRoot(), "src", $"OrderRouter.{layer}", $"OrderRouter.{layer}.csproj");
+
+        Assert.DoesNotContain("OrderRouter.DataNormalizer", ReadProjectReferenceNames(csprojPath));
+    }
+
+    private static string[] ReadProjectReferenceNames(string csprojPath)
+        => [.. XDocument.Load(csprojPath)
+            .Descendants("ProjectReference")
+            .Select(reference => (string)reference.Attribute("Include")!)
+            .Select(include => Path.GetFileNameWithoutExtension(include.Replace('\\', '/')))
+            .Order()];
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

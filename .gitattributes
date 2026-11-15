@@ -1,0 +1,2 @@
+# Keep generated seed files byte-stable on every OS (OR-003 AC13).
+Docs/Data/Seed/*.csv text eol=lf

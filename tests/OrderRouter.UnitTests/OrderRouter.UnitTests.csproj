@@ -27,4 +27,9 @@
     <ProjectReference Include="..\..\src\OrderRouter.Api\OrderRouter.Api.csproj" />
   </ItemGroup>
 
+  <!-- The offline normalizer tool is unit-tested here; the API never references it. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\OrderRouter.DataNormalizer\OrderRouter.DataNormalizer.csproj" />
+  </ItemGroup>
+
 </Project>

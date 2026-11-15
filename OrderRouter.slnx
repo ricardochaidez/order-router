@@ -9,4 +9,7 @@
     <Project Path="tests/OrderRouter.IntegrationTests/OrderRouter.IntegrationTests.csproj" />
     <Project Path="tests/OrderRouter.UnitTests/OrderRouter.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/OrderRouter.DataNormalizer/OrderRouter.DataNormalizer.csproj" />
+  </Folder>
 </Solution>
