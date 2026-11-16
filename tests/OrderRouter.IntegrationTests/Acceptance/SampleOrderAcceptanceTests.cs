@@ -31,7 +31,7 @@ public class SampleOrderAcceptanceTests(ReferenceDataFixture fixture)
 
         Assert.True(reply.Json.GetProperty("feasible").GetBoolean());
         Assert.Equal("routed", reply.Json.GetProperty("status").GetString());
-        Assert.Equal(["SUP-0810"], reply.SupplierIds);
+        Assert.Equal(Or023Expectations.Ord001, reply.SupplierIds);
         Assert.Equal(2, reply.Items.Length);
         Assert.All(reply.Items, item => Assert.Equal("local", item.GetProperty("fulfillment_mode").GetString()));
     }
@@ -47,7 +47,7 @@ public class SampleOrderAcceptanceTests(ReferenceDataFixture fixture)
 
         Assert.True(reply.Json.GetProperty("feasible").GetBoolean());
         Assert.Equal("routed", reply.Json.GetProperty("status").GetString());
-        Assert.Equal(["SUP-0375", "SUP-042"], reply.SupplierIds.Order(StringComparer.Ordinal));
+        Assert.Equal(Or023Expectations.Ord002, reply.SupplierIds.Order(StringComparer.Ordinal));
         var groups = reply.Json.GetProperty("routing").EnumerateArray().ToDictionary(group => group.GetProperty("supplier_id").GetString()!);
         Assert.Equal(["HB-FUL-018", "PL-ELEC-043", "CM-BED-048"], Codes(groups["SUP-0375"]));
         Assert.Equal(["BP-AUTO-077"], Codes(groups["SUP-042"]));
@@ -65,7 +65,7 @@ public class SampleOrderAcceptanceTests(ReferenceDataFixture fixture)
 
         Assert.True(reply.Json.GetProperty("feasible").GetBoolean());
         Assert.Equal("routed", reply.Json.GetProperty("status").GetString());
-        Assert.Contains(Assert.Single(reply.SupplierIds), new[] { "SUP-023", "SUP-065" });
+        Assert.Contains(Assert.Single(reply.SupplierIds), Or023Expectations.Ord003Tied);
         Assert.Equal(3, reply.Items.Length);
         Assert.All(reply.Items, item => Assert.Equal("mail", item.GetProperty("fulfillment_mode").GetString()));
     }

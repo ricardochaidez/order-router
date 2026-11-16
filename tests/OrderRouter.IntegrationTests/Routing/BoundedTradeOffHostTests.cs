@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.FileProviders;
 using OrderRouter.IntegrationTests.Authentication;
 
 namespace OrderRouter.IntegrationTests.Routing;
@@ -33,19 +32,6 @@ public class BoundedTradeOffHostTests(ReferenceDataFixture fixture)
                 "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] },
                 "Parameters": { "QualityUpliftThreshold": {{threshold}} } } } }
             """;
-
-    private sealed class TempExperimentsFile : IDisposable
-    {
-        private readonly string directory = Directory.CreateTempSubdirectory("experiments-").FullName;
-
-        public TempExperimentsFile(string json) => Write(json);
-
-        public IFileProvider Provider => new PhysicalFileProvider(directory);
-
-        public void Write(string json) => File.WriteAllText(Path.Combine(directory, "experiments.json"), json);
-
-        public void Dispose() => Directory.Delete(directory, recursive: true);
-    }
 
     private WebApplicationFactory<Program> Host(TempExperimentsFile file)
         => AuthApiFactory.Create(fixture.ConnectionString)

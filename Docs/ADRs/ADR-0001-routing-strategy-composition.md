@@ -189,6 +189,10 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 
 `BoundedTradeOffPolicy` (EXP-1 treatment) is an immutable policy that `RoutingPolicyFactory` builds per request from `Parameters.SimilarityBand` and `Parameters.QualityUpliftThreshold`, so it never captures configuration. The uplift is measured against the plan `StrictPriorityPolicy` would pick; the best plan with one more shipment wins when its quality is at least the threshold above that plan. Both shipment-count groups are ranked by the same internal `PlanRanking` helper (the band applies within a count, ADR-0003). The policy never selects a plan with two or more extra shipments. No treatment arm throws any more, so the "EXP-1 treatment returns 500" risk is gone.
 
+## Implementation note (OR-024)
+
+The combination matrix exists: `tests/OrderRouter.IntegrationTests/Acceptance/ExperimentCombinationMatrixTests.cs` routes four orders through the real host for each of the 8 arm combinations, with the arms pinned through a temp `experiments.json` and a fixed `IRandomSource`. The table of expected results is in the class docs. One interaction was found, and it is expected behaviour, not a defect: the EXP-2 prior raises the one-shipment baseline that EXP-1 measures its uplift against, so a plan that is worth an extra shipment while an unrated generalist counts as 0 is not worth it once that generalist counts as 6.5 (uplift 1.5 below the 2.0 threshold). No other interaction showed (EXP-3 changes only the outcome status of an order with an unfulfillable line). The decision is unchanged. The sentinel data has no rated competitor for the unrated suppliers, so the EXP-2 and EXP-1 x EXP-2 scenarios use five test-only suppliers added to a throwaway database, not to the shared seed. OR-020 (dependency warnings) is not implemented yet, so re-run the matrix when it lands.
+
 ## Links
 
 - Depends on [ADR-0005](ADR-0005-experiment-assignment.md): produces the `ExperimentAssignment` (arms + parameters, reloadable at runtime) this ADR composes.

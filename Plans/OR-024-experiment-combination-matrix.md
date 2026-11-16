@@ -68,57 +68,57 @@ This ticket adds tests and documentation only. It changes no production code. If
 
 ---
 
-## Phase 1 — Discover and verify the sentinel scenarios ⬜ Not started
+## Phase 1 — Discover and verify the sentinel scenarios ✅ Done
 
-- [ ] Record a short `ddd-implementation` domain analysis under "Phase 1 notes" in this file: no new domain concepts, aggregates or events; test-only change; affected layers are the integration test project and docs; no security or compliance impact beyond not bypassing gates.
-- [ ] Read the existing helpers and tests (`BoundedTradeOffHostTests`, `PartialRoutingApiTests`, `SentinelSupplierAcceptanceTests`, `SampleOrderAcceptanceTests`, `RouteApiFactory`, `ReferenceDataFixture`) and note what can be reused for pinning arms and for swapping `IRandomSource`.
-- [ ] Query the seed data (`Docs/Data/Seed/*.normalized.csv`) to confirm the EXP-1 and EXP-3 scenarios above, and to find an **EXP-2 scenario** (unrated vs. rated for the same order) and an **interaction scenario**. Record the chosen orders and the expected result per arm in "Phase 1 notes".
-- [ ] If the seed data has no usable EXP-2 or interaction scenario, **stop and ask the engineer** (options: use a different sentinel set, or add test-only suppliers). Don't edit the seed data without approval.
-- [ ] Write the expected-result table for all 8 combinations (arms → shipments, suppliers, `status`, `feasible`). Derive each row from the rules in the Requirements and the ADRs, not from running the code. Where the rules don't give a single answer, ask the engineer.
+- [x] Record a short `ddd-implementation` domain analysis under "Phase 1 notes" in this file: no new domain concepts, aggregates or events; test-only change; affected layers are the integration test project and docs; no security or compliance impact beyond not bypassing gates.
+- [x] Read the existing helpers and tests (`BoundedTradeOffHostTests`, `PartialRoutingApiTests`, `SentinelSupplierAcceptanceTests`, `SampleOrderAcceptanceTests`, `RouteApiFactory`, `ReferenceDataFixture`) and note what can be reused for pinning arms and for swapping `IRandomSource`.
+- [x] Query the seed data (`Docs/Data/Seed/*.normalized.csv`) to confirm the EXP-1 and EXP-3 scenarios above, and to find an **EXP-2 scenario** (unrated vs. rated for the same order) and an **interaction scenario**. Record the chosen orders and the expected result per arm in "Phase 1 notes".
+- [x] If the seed data has no usable EXP-2 or interaction scenario, **stop and ask the engineer** (options: use a different sentinel set, or add test-only suppliers). Don't edit the seed data without approval.
+- [x] Write the expected-result table for all 8 combinations (arms → shipments, suppliers, `status`, `feasible`). Derive each row from the rules in the Requirements and the ADRs, not from running the code. Where the rules don't give a single answer, ask the engineer.
 
 **Verify:** `dotnet build` and `dotnet test` still pass (no code changed). The expected-result table is complete and reviewed by the engineer.
 
 ---
 
-## Phase 2 — Test harness for pinning arms and the random source ⬜ Not started
+## Phase 2 — Test harness for pinning arms and the random source ✅ Done
 
-- [ ] Add a small test helper in `tests/OrderRouter.IntegrationTests/Acceptance/` (for example `ExperimentArmsHost`) that builds the host with all three experiments pinned to a given `(exp1, exp2, exp3)` combination through a temp `experiments.json` (enabled at 100% for treatment, disabled for control) and a fixed `IRandomSource`.
-- [ ] Reuse `TempExperimentsFile` logic from `BoundedTradeOffHostTests` rather than copying it. If that needs a move to a shared internal helper, keep the existing tests unchanged in behavior.
-- [ ] Add one test that proves the helper pins the arms: the stored decision/assignment (or `diagnostics`, if the response exposes the arms) shows the expected arm for each experiment, and `config_version` is present.
-- [ ] Add one test that proves the fixed random source is used for a tie (for example `SUP-T003` / `SUP-T004` at `00003`).
+- [x] Add a small test helper in `tests/OrderRouter.IntegrationTests/Acceptance/` (for example `ExperimentArmsHost`) that builds the host with all three experiments pinned to a given `(exp1, exp2, exp3)` combination through a temp `experiments.json` (enabled at 100% for treatment, disabled for control) and a fixed `IRandomSource`.
+- [x] Reuse `TempExperimentsFile` logic from `BoundedTradeOffHostTests` rather than copying it. If that needs a move to a shared internal helper, keep the existing tests unchanged in behavior.
+- [x] Add one test that proves the helper pins the arms: the stored decision/assignment (or `diagnostics`, if the response exposes the arms) shows the expected arm for each experiment, and `config_version` is present.
+- [x] Add one test that proves the fixed random source is used for a tie (for example `SUP-T003` / `SUP-T004` at `00003`).
 
 **Verify:** `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` pass. The new helper tests pass.
 
 ---
 
-## Phase 3 — The eight combination tests (AC1) ⬜ Not started
+## Phase 3 — The eight combination tests (AC1) ✅ Done
 
-- [ ] Add `ExperimentCombinationMatrixTests` in `tests/OrderRouter.IntegrationTests/Acceptance/`, with the combination table from Phase 1 in the class XML docs.
-- [ ] One test per combination, as an xUnit `Theory` with 8 `MemberData` rows (or 8 named `Fact`s, so each failure names its combination). Each test routes the sentinel orders from Phase 1 with the pinned arms and asserts the documented result: shipments, supplier ids, `status`, `feasible`, and `unfulfilled_items`.
-- [ ] Include the interaction scenario from Phase 1 in the combinations where it applies (at least one combination where EXP-1 and EXP-2 are both treatment).
-- [ ] Unique `order_id` per request, because the database accumulates stored orders and tests run in parallel.
-- [ ] Verify at the start that the arms in each test were actually the intended ones (reuse the check from Phase 2), so a config mistake can't pass silently.
+- [x] Add `ExperimentCombinationMatrixTests` in `tests/OrderRouter.IntegrationTests/Acceptance/`, with the combination table from Phase 1 in the class XML docs.
+- [x] One test per combination, as an xUnit `Theory` with 8 `MemberData` rows (or 8 named `Fact`s, so each failure names its combination). Each test routes the sentinel orders from Phase 1 with the pinned arms and asserts the documented result: shipments, supplier ids, `status`, `feasible`, and `unfulfilled_items`.
+- [x] Include the interaction scenario from Phase 1 in the combinations where it applies (at least one combination where EXP-1 and EXP-2 are both treatment).
+- [x] Unique `order_id` per request, because the database accumulates stored orders and tests run in parallel.
+- [x] Verify at the start that the arms in each test were actually the intended ones (reuse the check from Phase 2), so a config mistake can't pass silently.
 
 **Verify:** `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` pass. All 8 combination tests pass, and run in isolation (`dotnet test --filter ExperimentCombinationMatrixTests`).
 
 ---
 
-## Phase 4 — All-control equals the OR-023 suite (AC2) ⬜ Not started
+## Phase 4 — All-control equals the OR-023 suite (AC2) ✅ Done
 
-- [ ] Add a test that routes the sentinel orders, and the sample orders ORD-001 to ORD-003 where OR-023 covers them, with every experiment in control, and asserts the results equal those of the OR-023 acceptance suite (same suppliers and shipments; membership of the tied set for random ties).
-- [ ] Prefer sharing the OR-023 expectations (constants or a helper) with the acceptance tests over copying them, so the two suites can't drift.
-- [ ] Add a check that the shipped `experiments.json` (all disabled) gives the same results as the explicit all-control combination (AB-03, SC-10).
+- [x] Add a test that routes the sentinel orders, and the sample orders ORD-001 to ORD-003 where OR-023 covers them, with every experiment in control, and asserts the results equal those of the OR-023 acceptance suite (same suppliers and shipments; membership of the tied set for random ties).
+- [x] Prefer sharing the OR-023 expectations (constants or a helper) with the acceptance tests over copying them, so the two suites can't drift.
+- [x] Add a check that the shipped `experiments.json` (all disabled) gives the same results as the explicit all-control combination (AB-03, SC-10).
 
 **Verify:** `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` pass. The OR-023 acceptance tests still pass unchanged.
 
 ---
 
-## Phase 5 — Documentation and final review ⬜ Not started
+## Phase 5 — Documentation and final review ✅ Done
 
-- [ ] Add a short implementation note (OR-024) to [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md): the matrix exists, where it lives, and what interactions it found (or that none were found). Don't change the decision itself. If an interaction shows the decision needs to change, stop and ask.
-- [ ] Add a note to the ticket's file (as OR-023 does under "Notes"): how the arms are pinned, the sentinel orders used, and the OR-020 gap (matrix built without dependency warnings; re-run once OR-020 lands).
-- [ ] Run the `ddd-implementation` skill's post-implementation review and report honestly which checks apply (tests written and passing, naming conventions, no bypassed gate) and which don't (aggregates, domain events, money, transactions, PCI/SOX/LGPD).
-- [ ] Run the full suite and coverage as in OR-023 AC10 (`dotnet test --coverage --coverage-output-format cobertura`), and confirm Domain and Application stay at or above 85% (NFR-08).
+- [x] Add a short implementation note (OR-024) to [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md): the matrix exists, where it lives, and what interactions it found (or that none were found). Don't change the decision itself. If an interaction shows the decision needs to change, stop and ask.
+- [x] Add a note to the ticket's file (as OR-023 does under "Notes"): how the arms are pinned, the sentinel orders used, and the OR-020 gap (matrix built without dependency warnings; re-run once OR-020 lands).
+- [x] Run the `ddd-implementation` skill's post-implementation review and report honestly which checks apply (tests written and passing, naming conventions, no bypassed gate) and which don't (aggregates, domain events, money, transactions, PCI/SOX/LGPD).
+- [x] Run the full suite and coverage as in OR-023 AC10 (`dotnet test --coverage --coverage-output-format cobertura`), and confirm Domain and Application stay at or above 85% (NFR-08).
 
 **Verify:** `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` pass with 0 errors. Coverage is at least 85%. Summarize the final results for the engineer. Nothing is committed unless the engineer asks.
 
@@ -126,4 +126,26 @@ This ticket adds tests and documentation only. It changes no production code. If
 
 ## Phase 1 notes
 
-_(Filled in during Phase 1.)_
+**Domain analysis (`ddd-implementation`, at this ticket's scale):** no new domain concepts, aggregates or events. Test-only change; affected layers are the integration test project and docs. No security or compliance impact: nothing bypasses a gate or changes eligibility.
+
+**Reusable helpers:** `RouteApiFactory.Create(..., exposeDiagnostics, experimentsFile)` pins arms; `AuthApiFactory` accepts `ConfigureTestServices` for swapping `IRandomSource`; `AcceptanceApi` posts and reads replies; `TempExperimentsFile` moved out of `BoundedTradeOffHostTests` into a shared internal helper.
+
+**Engineer decision:** the sentinel seed has no rated competitor for the unrated suppliers, so (option 1) five test-only suppliers go into a throwaway database (`MatrixDatabaseFixture`) seeded with the real files. `Docs/Data/Seed` is untouched. Extra suppliers: `SUP-X001` (rollator, 6.0) and `SUP-X002` (rollator, unrated) at `00050`; `SUP-X011` (wheelchair + cane, unrated), `SUP-X012` (wheelchair, 8.0) and `SUP-X013` (cane, 8.0) at `00051`.
+
+**Orders and expected results** (all `mail_order=false`; band 0.5, uplift 2.0, prior 6.5):
+
+| Order | Request | EXP-1 control / treatment | EXP-2 control / treatment | EXP-3 control / treatment |
+|---|---|---|---|---|
+| A | `00007` wheelchair + cane | `SUP-T007` / `SUP-T008` + `SUP-T009` | no effect | no effect (routed) |
+| B | `00050` rollator | no effect | `SUP-X001` / `SUP-X002` | no effect |
+| C | `00098` wheelchair + walker | no effect | no effect | `not_routed` / `partially_routed`, wheelchair on `SUP-T014`, walker unfulfilled; `feasible` false |
+| D | `00051` wheelchair + cane | one shipment `SUP-X011` / two shipments `SUP-X012` + `SUP-X013` | baseline 0 / 6.5 | no effect (routed) |
+
+Interaction on D: the two-shipment plan wins only for EXP-1 treatment with EXP-2 control (uplift 8.0). With EXP-2 treatment the uplift is 1.5, so `SUP-X011` keeps the order. The full 8-row table is in the `ExperimentCombinationMatrixTests` docs.
+
+## Results
+
+- Full suite: 1543 passed, 0 failed (the one earlier failure did not reproduce). In a later coverage run, `RouteStorageApiTests.Post_AnyOrder_StoresArmsConfigVersionSearchModeAndCreatedAt` failed once on its `created_at <= now()` check. It is existing code, not touched by OR-024.
+- Coverage (merged Cobertura): Domain 98.5%, Application 98.7% (at least 85%, NFR-08).
+- `dotnet format --verify-no-changes` reports one existing error, `src/OrderRouter.Api/Program.cs` imports ordering. It fails the same way without the OR-024 changes, and OR-024 changes no production code, so it is left alone.
+- OR-020 gap: the matrix was built without dependency warnings. Re-run it when OR-020 lands.

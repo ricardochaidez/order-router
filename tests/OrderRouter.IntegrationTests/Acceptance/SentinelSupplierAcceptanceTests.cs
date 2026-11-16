@@ -30,7 +30,7 @@ public class SentinelSupplierAcceptanceTests(ReferenceDataFixture fixture)
 
         var reply = await AcceptanceApi.PostCreatedAsync(factory, path, AcceptanceApi.Body(AcceptanceApi.NewOrderId(), "00001", false, (wheelchair, 1)));
 
-        Assert.Equal(["SUP-T001"], reply.SupplierIds);
+        Assert.Equal(Or023Expectations.ExclusiveWheelchair, reply.SupplierIds);
         Assert.Equal("local", Assert.Single(reply.Items).GetProperty("fulfillment_mode").GetString());
     }
 
@@ -43,7 +43,7 @@ public class SentinelSupplierAcceptanceTests(ReferenceDataFixture fixture)
 
         var reply = await AcceptanceApi.PostCreatedAsync(factory, path, AcceptanceApi.Body(AcceptanceApi.NewOrderId(), "00005", false, (walker, 1)));
 
-        Assert.Equal(["SUP-T005"], reply.SupplierIds);
+        Assert.Equal(Or023Expectations.LocalPreferenceWalker, reply.SupplierIds);
     }
 
     [Theory]
@@ -69,7 +69,7 @@ public class SentinelSupplierAcceptanceTests(ReferenceDataFixture fixture)
 
         var reply = await AcceptanceApi.PostCreatedAsync(factory, path, AcceptanceApi.Body(AcceptanceApi.NewOrderId(), "00007", false, (wheelchair, 1), (cane, 1), (walker, 1)));
 
-        Assert.Equal(["SUP-T007"], reply.SupplierIds);
+        Assert.Equal(Or023Expectations.Generalist, reply.SupplierIds);
         Assert.Equal(3, reply.Items.Length);
     }
 
@@ -84,7 +84,7 @@ public class SentinelSupplierAcceptanceTests(ReferenceDataFixture fixture)
         {
             var reply = await AcceptanceApi.PostCreatedAsync(factory, path, AcceptanceApi.Body(AcceptanceApi.NewOrderId(), "00003", false, (cane, 1)));
 
-            Assert.Contains(Assert.Single(reply.SupplierIds), new[] { "SUP-T003", "SUP-T004" });
+            Assert.Contains(Assert.Single(reply.SupplierIds), Or023Expectations.TiedCane);
         }
     }
 
@@ -100,7 +100,7 @@ public class SentinelSupplierAcceptanceTests(ReferenceDataFixture fixture)
             var reply = await AcceptanceApi.PostCreatedAsync(factory, path, AcceptanceApi.Body(AcceptanceApi.NewOrderId(), "00040", false, (rollator, 1)));
 
             Assert.True(reply.Json.GetProperty("feasible").GetBoolean());
-            Assert.Contains(Assert.Single(reply.SupplierIds), new[] { "SUP-T011", "SUP-T012" });
+            Assert.Contains(Assert.Single(reply.SupplierIds), Or023Expectations.TiedUnratedRollator);
         }
     }
 
