@@ -1,6 +1,7 @@
 using OrderRouter.Application.Routing.Contracts;
+using OrderRouter.Application.Routing.Mappers;
 
-namespace OrderRouter.Application.Routing.Storage;
+namespace OrderRouter.Application.Routing.Storage.Mappers;
 
 /// <summary>
 /// Rebuilds the v1 decision from a stored order (FR-21, ADR-0007). It must produce the same <c>routing</c>,

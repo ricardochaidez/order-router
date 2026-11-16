@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace OrderRouter.Infrastructure.Persistence.RoutingOrders;
+namespace OrderRouter.Infrastructure.Persistence.RoutingOrders.Configurations;
 
 /// <summary>Maps <see cref="RoutingOrderRow"/> to <c>routing_orders</c> with explicit snake_case names (ADR-0007).</summary>
 internal sealed class RoutingOrderRowConfiguration : IEntityTypeConfiguration<RoutingOrderRow>

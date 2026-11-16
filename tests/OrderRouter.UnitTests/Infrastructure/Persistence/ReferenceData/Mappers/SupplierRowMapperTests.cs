@@ -1,8 +1,9 @@
 using OrderRouter.Domain.Common;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Infrastructure.Persistence.ReferenceData;
+using OrderRouter.Infrastructure.Persistence.ReferenceData.Mappers;
 
-namespace OrderRouter.UnitTests.Infrastructure.Persistence.ReferenceData;
+namespace OrderRouter.UnitTests.Infrastructure.Persistence.ReferenceData.Mappers;
 
 public class SupplierRowMapperTests
 {

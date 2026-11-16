@@ -1,7 +1,7 @@
 using OrderRouter.Domain.Common;
 using OrderRouter.Domain.ReferenceData;
 
-namespace OrderRouter.Infrastructure.Persistence.ReferenceData;
+namespace OrderRouter.Infrastructure.Persistence.ReferenceData.Mappers;
 
 /// <summary>
 /// Maps persistence rows to domain objects through the OR-002 constructors, which stay the only place

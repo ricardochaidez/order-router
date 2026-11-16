@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace OrderRouter.Infrastructure.Persistence.ReferenceData;
+namespace OrderRouter.Infrastructure.Persistence.ReferenceData.Configurations;
 
 /// <summary>Maps <see cref="SupplierRow"/> to <c>suppliers</c> with explicit snake_case names (ADR-0002).</summary>
 internal sealed class SupplierRowConfiguration : IEntityTypeConfiguration<SupplierRow>

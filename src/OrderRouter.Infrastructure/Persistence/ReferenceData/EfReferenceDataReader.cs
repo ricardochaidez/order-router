@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Infrastructure.Persistence.ReferenceData.Mappers;
 
 namespace OrderRouter.Infrastructure.Persistence.ReferenceData;
 

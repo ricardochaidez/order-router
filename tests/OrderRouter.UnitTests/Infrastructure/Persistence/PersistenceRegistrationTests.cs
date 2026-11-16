@@ -21,7 +21,7 @@ public class PersistenceRegistrationTests
         using var provider = new ServiceCollection().AddOrderRouterDatabase(unreachable).BuildServiceProvider(validateScopes: true);
         using var scope = provider.CreateScope();
 
-        Assert.IsType<EfCapabilityResolver>(scope.ServiceProvider.GetRequiredService<ICapabilityResolver>());
+        Assert.IsType<EfProductCatalog>(scope.ServiceProvider.GetRequiredService<IProductCatalog>());
         Assert.IsType<EfReferenceDataReader>(scope.ServiceProvider.GetRequiredService<IReferenceDataReader>());
     }
 
@@ -30,7 +30,7 @@ public class PersistenceRegistrationTests
     {
         var services = new ServiceCollection().AddOrderRouterDatabase(unreachable);
 
-        Assert.Equal(ServiceLifetime.Scoped, services.Single(descriptor => descriptor.ServiceType == typeof(ICapabilityResolver)).Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, services.Single(descriptor => descriptor.ServiceType == typeof(IProductCatalog)).Lifetime);
         Assert.Equal(ServiceLifetime.Scoped, services.Single(descriptor => descriptor.ServiceType == typeof(IReferenceDataReader)).Lifetime);
     }
 

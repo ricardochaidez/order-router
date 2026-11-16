@@ -3,7 +3,7 @@ using OrderRouter.Domain.Eligibility;
 using OrderRouter.Domain.Routing;
 using OrderRouter.Domain.Routing.Policies;
 
-namespace OrderRouter.Application.Routing;
+namespace OrderRouter.Application.Routing.Mappers;
 
 /// <summary>
 /// Maps a <see cref="RoutingDecision"/> to the v1 envelope (FR-14, FR-15, FR-16, ADR-0004). It never sets

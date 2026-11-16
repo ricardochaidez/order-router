@@ -3,7 +3,7 @@ using OrderRouter.Domain.Common;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing.Experiments;
 
-namespace OrderRouter.Infrastructure.Experiments;
+namespace OrderRouter.Infrastructure.Experiments.Mappers;
 
 /// <summary>
 /// Turns <see cref="ExperimentsOptions"/> into the immutable domain snapshot. The startup check and the reload path

@@ -5,7 +5,7 @@ namespace OrderRouter.UnitTests.Architecture;
 /// <summary>Guards AC4: the OR-006 read-path files never write and never track entities.</summary>
 public class ReadPathBoundaryTests
 {
-    private static readonly string[] readPathFiles = ["EfCapabilityResolver.cs", "EfReferenceDataReader.cs", "SupplierRowMapper.cs"];
+    private static readonly string[] readPathFiles = ["EfProductCatalog.cs", "EfReferenceDataReader.cs", Path.Combine("Mappers", "SupplierRowMapper.cs")];
 
     private static readonly string[] forbidden =
         ["SaveChanges", "ExecuteUpdate", "ExecuteDelete", "ExecuteSql", ".Add(", ".Update(", ".Remove(", ".Attach("];
@@ -24,7 +24,7 @@ public class ReadPathBoundaryTests
     }
 
     [Theory]
-    [InlineData("EfCapabilityResolver.cs")]
+    [InlineData("EfProductCatalog.cs")]
     [InlineData("EfReferenceDataReader.cs")]
     public void ReadPathFile_EveryDbSetQuery_UsesAsNoTracking(string file)
     {

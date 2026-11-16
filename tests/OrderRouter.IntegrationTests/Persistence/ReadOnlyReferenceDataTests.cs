@@ -22,11 +22,10 @@ public class ReadOnlyReferenceDataTests(ReferenceDataFixture fixture)
             .AddInterceptors(interceptor)
             .Options;
         await using var context = new OrderRouterDbContext(options);
-        var resolver = new EfCapabilityResolver(context);
+        var catalog = new EfProductCatalog(context);
         var reader = new EfReferenceDataReader(context);
 
-        await resolver.ResolveAsync(["OX-PORT-024", " wc-std-001 ", "nope"], Token);
-        await resolver.ResolveAsync("OX-PORT-024", Token);
+        await catalog.FindByKeysAsync(ProductCodeLookup.For(["OX-PORT-024", " wc-std-001 ", "nope"]).Keys, Token);
         await reader.GetSuppliersHandlingAsync([new Category("wheelchair"), new Category("oxygen")], Token);
 
         Assert.NotEmpty(interceptor.Commands);

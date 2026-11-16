@@ -1,5 +1,6 @@
 using OrderRouter.Domain.Routing.Experiments;
 using OrderRouter.Infrastructure.Experiments;
+using OrderRouter.Infrastructure.Experiments.Mappers;
 
 namespace OrderRouter.UnitTests.Infrastructure.Experiments;
 

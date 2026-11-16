@@ -18,7 +18,7 @@ public static class PersistenceServiceCollectionExtensions
 
     /// <summary>
     /// Registers <see cref="OrderRouterDbContext"/> against PostgreSQL, plus the read-only reference-data ports
-    /// <see cref="ICapabilityResolver"/> and <see cref="IReferenceDataReader"/> (OR-006). It never opens a connection
+    /// <see cref="IProductCatalog"/> and <see cref="IReferenceDataReader"/> (OR-006). It never opens a connection
     /// and never applies migrations: migrating is an explicit step, not a startup side effect (SC-22, SC-33).
     /// The seeder is deliberately not registered.
     /// </summary>
@@ -38,7 +38,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddDbContext<OrderRouterDbContext>(options => options.UseNpgsql(connectionString));
 
         // Scoped, to match the DbContext lifetime they depend on.
-        services.AddScoped<ICapabilityResolver, EfCapabilityResolver>();
+        services.AddScoped<IProductCatalog, EfProductCatalog>();
         services.AddScoped<IReferenceDataReader, EfReferenceDataReader>();
 
         // The only writer the API has: it inserts into the stored-order tables, never into reference data (ADR-0007).

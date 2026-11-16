@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace OrderRouter.Infrastructure.Persistence.RoutingOrders;
+namespace OrderRouter.Infrastructure.Persistence.RoutingOrders.Configurations;
 
 /// <summary>
 /// Maps <see cref="RoutingOrderItemRow"/> to <c>routing_order_items</c> (ADR-0007). There is no foreign key to

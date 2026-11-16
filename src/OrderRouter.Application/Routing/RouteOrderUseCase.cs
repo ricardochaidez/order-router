@@ -3,6 +3,7 @@ using OrderRouter.Application.Interfaces;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Experiments;
 using OrderRouter.Application.Routing.Logging;
+using OrderRouter.Application.Routing.Mappers;
 using OrderRouter.Application.Routing.Storage;
 using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.ReferenceData;
@@ -17,7 +18,7 @@ namespace OrderRouter.Application.Routing;
 /// only reads reference data (OR-006); the only thing it writes is the new stored order.
 /// </summary>
 public sealed class RouteOrderUseCase(
-    ICapabilityResolver capabilityResolver,
+    IProductCatalog productCatalog,
     IReferenceDataReader referenceDataReader,
     IExperimentAssigner experimentAssigner,
     IRoutingPolicyFactory policyFactory,
@@ -33,8 +34,10 @@ public sealed class RouteOrderUseCase(
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        // One batch lookup per request (OR-006). A code missing from the result is unknown, never an error.
-        var resolutions = await capabilityResolver.ResolveAsync(command.Lines.Select(line => line.ProductCode), cancellationToken);
+        // One batch lookup per request (OR-006). The matching rules are the Domain's; the catalog only fetches.
+        // A code missing from the result is unknown, never an error.
+        var lookup = ProductCodeLookup.For(command.Lines.Select(line => line.ProductCode));
+        var resolutions = lookup.Resolve(await productCatalog.FindByKeysAsync(lookup.Keys, cancellationToken));
 
         var lines = command.Lines
             .Select(line => new OrderLine(

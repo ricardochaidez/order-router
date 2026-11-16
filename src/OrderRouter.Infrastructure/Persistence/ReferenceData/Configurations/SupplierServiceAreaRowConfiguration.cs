@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace OrderRouter.Infrastructure.Persistence.ReferenceData;
+namespace OrderRouter.Infrastructure.Persistence.ReferenceData.Configurations;
 
 /// <summary>Maps <see cref="SupplierServiceAreaRow"/> to <c>supplier_service_areas</c> (ADR-0002).</summary>
 internal sealed class SupplierServiceAreaRowConfiguration : IEntityTypeConfiguration<SupplierServiceAreaRow>

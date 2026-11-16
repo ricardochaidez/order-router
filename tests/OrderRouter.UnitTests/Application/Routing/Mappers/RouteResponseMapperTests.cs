@@ -1,5 +1,6 @@
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
+using OrderRouter.Application.Routing.Mappers;
 using OrderRouter.Domain.Eligibility;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing;
@@ -10,7 +11,7 @@ using OrderRouter.Domain.Routing.TieBreaking;
 using OrderRouter.UnitTests.Domain.Routing.TieBreaking;
 using static OrderRouter.UnitTests.Domain.Routing.TieBreaking.TieBreakTestData;
 
-namespace OrderRouter.UnitTests.Application.Routing;
+namespace OrderRouter.UnitTests.Application.Routing.Mappers;
 
 public class RouteResponseMapperTests
 {

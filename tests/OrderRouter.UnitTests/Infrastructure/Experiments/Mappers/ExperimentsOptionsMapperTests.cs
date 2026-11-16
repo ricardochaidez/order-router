@@ -1,8 +1,9 @@
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing.Experiments;
 using OrderRouter.Infrastructure.Experiments;
+using OrderRouter.Infrastructure.Experiments.Mappers;
 
-namespace OrderRouter.UnitTests.Infrastructure.Experiments;
+namespace OrderRouter.UnitTests.Infrastructure.Experiments.Mappers;
 
 public class ExperimentsOptionsMapperTests
 {

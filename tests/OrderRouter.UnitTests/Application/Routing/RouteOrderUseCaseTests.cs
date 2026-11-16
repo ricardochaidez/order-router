@@ -21,7 +21,7 @@ public class RouteOrderUseCaseTests
 {
     private static readonly CancellationToken token = CancellationToken.None;
 
-    private readonly FakeResolver resolver = new();
+    private readonly FakeCatalog catalog = new();
     private readonly FakeReader reader = new();
     private readonly FakeAssigner assigner = new();
     private readonly CapturingPolicyFactory policyFactory = new();
@@ -40,7 +40,7 @@ public class RouteOrderUseCaseTests
 
     private RouteOrderUseCase UseCase()
         => new(
-            resolver,
+            catalog,
             reader,
             assigner,
             policyFactory,
@@ -60,20 +60,20 @@ public class RouteOrderUseCaseTests
     [Fact]
     public async Task RouteAsync_ResolvesAllCodesInOneCall()
     {
-        resolver.Known["A"] = new Category("cane");
-        resolver.Known["B"] = new Category("cane");
+        catalog.Known["A"] = new Category("cane");
+        catalog.Known["B"] = new Category("cane");
         reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
 
         var response = await UseCase().RouteAsync(Command("A", "B", "A"), token);
 
-        Assert.Equal(1, resolver.BatchCalls);
-        Assert.Equal(["A", "B", "A"], resolver.LastCodes);
+        Assert.Equal(1, catalog.BatchCalls);
+        Assert.Equal(["a", "b"], catalog.LastKeys);
         Assert.Equal(RoutingStatus.Routed, response.Status);
         Assert.Equal(3, Assert.Single(response.Routing).Items.Count);
     }
 
     [Fact]
-    public async Task RouteAsync_CodeMissingFromResolverResult_IsUnknown()
+    public async Task RouteAsync_CodeMissingFromCatalog_IsUnknown()
     {
         var response = await UseCase().RouteAsync(Command("MISSING"), token);
 
@@ -96,9 +96,9 @@ public class RouteOrderUseCaseTests
     [Fact]
     public async Task RouteAsync_KnownProducts_ReadsSuppliersOnceForTheDistinctCategories()
     {
-        resolver.Known["A"] = new Category("cane");
-        resolver.Known["B"] = new Category("cane");
-        resolver.Known["C"] = new Category("walker");
+        catalog.Known["A"] = new Category("cane");
+        catalog.Known["B"] = new Category("cane");
+        catalog.Known["C"] = new Category("walker");
 
         await UseCase().RouteAsync(Command("A", "B", "C", "UNKNOWN"), token);
 
@@ -140,7 +140,7 @@ public class RouteOrderUseCaseTests
     [Fact]
     public async Task RouteAsync_ValidOrder_StoresOnceAndReturnsTheStoredId()
     {
-        resolver.Known["A"] = new Category("cane");
+        catalog.Known["A"] = new Category("cane");
         reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
 
         var response = await UseCase().RouteAsync(Command("A"), token);
@@ -238,7 +238,7 @@ public class RouteOrderUseCaseTests
     [Fact]
     public async Task RouteAsync_FlagOffByDefault_HasNoDiagnostics()
     {
-        resolver.Known["A"] = new Category("cane");
+        catalog.Known["A"] = new Category("cane");
 
         var response = await UseCase().RouteAsync(Command("A"), token);
 
@@ -251,7 +251,7 @@ public class RouteOrderUseCaseTests
     public async Task RouteAsync_FlagOn_ShowsTheArmsReasonsAndSearchMode()
     {
         exposeDiagnostics = true;
-        resolver.Known["A"] = new Category("cane");
+        catalog.Known["A"] = new Category("cane");
         reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
         assigner.Result = new ExperimentAssignment(
             new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
@@ -273,7 +273,7 @@ public class RouteOrderUseCaseTests
     [Fact]
     public async Task RouteAsync_FlagOn_StoresTheSameRecordAsFlagOff()
     {
-        resolver.Known["A"] = new Category("cane");
+        catalog.Known["A"] = new Category("cane");
 
         await UseCase().RouteAsync(Command("A"), token);
         exposeDiagnostics = true;
@@ -380,27 +380,29 @@ public class RouteOrderUseCaseTests
         }
     }
 
-    private sealed class FakeResolver : ICapabilityResolver
+    private sealed class FakeCatalog : IProductCatalog
     {
         public Dictionary<string, Category> Known { get; } = [];
 
         public int BatchCalls { get; private set; }
 
-        public List<string?> LastCodes { get; private set; } = [];
+        public List<string> LastKeys { get; private set; } = [];
 
-        public Task<IReadOnlyDictionary<string, CapabilityResolution>> ResolveAsync(IEnumerable<string?> productCodes, CancellationToken cancellationToken)
+        public Task<IReadOnlyList<Product>> FindByKeysAsync(IReadOnlyCollection<ProductCodeKey> keys, CancellationToken cancellationToken)
         {
             BatchCalls++;
-            LastCodes = [.. productCodes];
+            LastKeys = [.. keys.Select(key => key.Value)];
 
-            // Only known codes are returned, like a real resolver that omits nothing but tests the "missing means unknown" rule.
-            IReadOnlyDictionary<string, CapabilityResolution> result = Known.ToDictionary(entry => entry.Key, entry => CapabilityResolution.Resolved(entry.Value));
+            // Matches by key like the real catalog, so the use case goes through ProductCodeLookup end to end.
+            IReadOnlyList<Product> result =
+            [
+                .. Known
+                    .Where(entry => ProductCodeKey.TryCreate(entry.Key, out var key) && keys.Contains(key))
+                    .Select(entry => new Product(entry.Key, entry.Key, entry.Value)),
+            ];
 
             return Task.FromResult(result);
         }
-
-        public Task<CapabilityResolution> ResolveAsync(string? productCode, CancellationToken cancellationToken)
-            => throw new NotSupportedException("The use case must use the batch overload.");
     }
 
     private sealed class FakeReader : IReferenceDataReader

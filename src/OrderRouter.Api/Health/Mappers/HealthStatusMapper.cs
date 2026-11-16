@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace OrderRouter.Api.Health;
+namespace OrderRouter.Api.Health.Mappers;
 
 /// <summary>Maps an aggregate health status to the HTTP status code and plain-text body of <c>GET /health</c>.</summary>
 internal static class HealthStatusMapper

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace OrderRouter.Infrastructure.Persistence.RoutingOrders;
+namespace OrderRouter.Infrastructure.Persistence.RoutingOrders.Configurations;
 
 /// <summary>Maps <see cref="RoutingOrderWarningRow"/> to <c>routing_order_warnings</c> (ADR-0007).</summary>
 internal sealed class RoutingOrderWarningRowConfiguration : IEntityTypeConfiguration<RoutingOrderWarningRow>

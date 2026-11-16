@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using OrderRouter.Api.Health;
+using OrderRouter.Api.Health.Mappers;
 using OrderRouter.Infrastructure;
 
 namespace OrderRouter.Api.Controllers;

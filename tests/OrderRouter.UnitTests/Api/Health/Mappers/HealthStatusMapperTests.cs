@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using OrderRouter.Api.Health;
+using OrderRouter.Api.Health.Mappers;
 
-namespace OrderRouter.UnitTests.Api.Health;
+namespace OrderRouter.UnitTests.Api.Health.Mappers;
 
 public class HealthStatusMapperTests
 {

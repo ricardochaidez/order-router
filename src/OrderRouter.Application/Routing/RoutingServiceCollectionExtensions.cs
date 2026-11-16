@@ -17,7 +17,7 @@ namespace OrderRouter.Application.Routing;
 /// Registers the routing services. It lives in the Application layer so the Api host only references
 /// Application and Infrastructure (the layer rule, <c>LayerDependencyTests</c>) while the Domain types are wired here.
 /// The host binds <see cref="RoutingOptions"/> and <see cref="PlanSearchOptions"/>, and Infrastructure supplies
-/// <see cref="IRandomSource"/>, <see cref="ICapabilityResolver"/> and <see cref="IReferenceDataReader"/>.
+/// <see cref="IRandomSource"/>, <see cref="IProductCatalog"/> and <see cref="IReferenceDataReader"/>.
 /// The <see cref="IExperimentAssigner"/> is not registered here: Infrastructure supplies it (OR-016).
 /// </summary>
 public static class RoutingServiceCollectionExtensions

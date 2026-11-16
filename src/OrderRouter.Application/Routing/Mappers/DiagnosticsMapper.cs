@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Storage;
 
-namespace OrderRouter.Application.Routing;
+namespace OrderRouter.Application.Routing.Mappers;
 
 /// <summary>
 /// Builds <see cref="Diagnostics"/> from a stored order. POST and GET both call it with the stored record, so the two
