@@ -9,6 +9,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The health types are internal on purpose; the unit tests exercise them directly without a host. -->
+    <InternalsVisibleTo Include="OrderRouter.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\OrderRouter.Application\OrderRouter.Application.csproj" />
     <ProjectReference Include="..\OrderRouter.Infrastructure\OrderRouter.Infrastructure.csproj" />
   </ItemGroup>

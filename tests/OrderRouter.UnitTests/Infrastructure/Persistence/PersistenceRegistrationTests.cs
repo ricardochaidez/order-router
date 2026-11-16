@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Infrastructure;
 using OrderRouter.Infrastructure.Persistence;
 using OrderRouter.Infrastructure.Persistence.ReferenceData;
 using OrderRouter.Infrastructure.Persistence.Seeding;
@@ -38,4 +41,37 @@ public class PersistenceRegistrationTests
 
         Assert.Null(scope.ServiceProvider.GetService<ReferenceDataSeeder>());
     }
+
+    [Fact]
+    public void AddOrderRouterDatabaseHealthCheck_Always_RegistersPostgresqlCheckWithTheDependencyTag()
+    {
+        var services = new ServiceCollection();
+        services.AddOrderRouterDatabase(unreachable);
+        services.AddHealthChecks().AddOrderRouterDatabaseHealthCheck();
+        using var provider = services.BuildServiceProvider();
+
+        var registration = Assert.Single(provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations);
+
+        Assert.Equal("postgresql", registration.Name);
+        Assert.Equal(HealthStatus.Unhealthy, registration.FailureStatus);
+        Assert.Contains(HealthTags.Dependency, registration.Tags);
+    }
+
+    [Fact]
+    public async Task AddOrderRouterDatabaseHealthCheck_ServerUnreachable_ReportsUnhealthyWithoutThrowing()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddOrderRouterDatabase(unreachable);
+        services.AddHealthChecks().AddOrderRouterDatabaseHealthCheck();
+        await using var provider = services.BuildServiceProvider();
+
+        var report = await provider.GetRequiredService<HealthCheckService>().CheckHealthAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HealthStatus.Unhealthy, report.Status);
+    }
+
+    [Fact]
+    public void AddOrderRouterDatabaseHealthCheck_NullBuilder_Throws()
+        => Assert.Throws<ArgumentNullException>(() => PersistenceServiceCollectionExtensions.AddOrderRouterDatabaseHealthCheck(null!));
 }

@@ -1,0 +1,11 @@
+# Keep the build context small and free of secrets (OR-007).
+**/bin
+**/obj
+tests/
+tools/
+Docs/
+Plans/
+TestResults/
+.git
+.env
+.claude/

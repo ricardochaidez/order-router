@@ -10,6 +10,8 @@
 *.userosscache
 *.sln.docstates
 *.env
+# Local compose secrets (dev-only values, but still not committed); see .env.example.
+.env
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

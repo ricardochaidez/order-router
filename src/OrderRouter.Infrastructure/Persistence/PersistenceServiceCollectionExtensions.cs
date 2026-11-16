@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Infrastructure.Persistence.ReferenceData;
 
@@ -8,6 +9,11 @@ namespace OrderRouter.Infrastructure.Persistence;
 /// <summary>Dependency-injection registration for the PostgreSQL persistence layer.</summary>
 public static class PersistenceServiceCollectionExtensions
 {
+    /// <summary>Name the PostgreSQL health check is registered under.</summary>
+    public const string DatabaseHealthCheckName = "postgresql";
+
+    private static readonly TimeSpan healthCheckTimeout = TimeSpan.FromSeconds(5);
+
     /// <summary>
     /// Registers <see cref="OrderRouterDbContext"/> against PostgreSQL, plus the read-only reference-data ports
     /// <see cref="ICapabilityResolver"/> and <see cref="IReferenceDataReader"/> (OR-006). It never opens a connection
@@ -34,5 +40,37 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IReferenceDataReader, EfReferenceDataReader>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Adds the PostgreSQL reachability check, named <c>postgresql</c> and tagged <see cref="HealthTags.Dependency"/>.
+    /// It only opens a connection (<c>CanConnectAsync</c>); it never queries a table, so an empty or unmigrated
+    /// database is healthy (SC-23, SC-33, ADR-0002). A server that does not answer within five seconds is unhealthy.
+    /// </summary>
+    /// <param name="builder">The health-checks builder.</param>
+    /// <returns>The same builder, for chaining.</returns>
+    /// <example>
+    /// <code>
+    /// builder.Services.AddHealthChecks().AddOrderRouterDatabaseHealthCheck();
+    /// </code>
+    /// </example>
+    public static IHealthChecksBuilder AddOrderRouterDatabaseHealthCheck(this IHealthChecksBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.AddDbContextCheck<OrderRouterDbContext>(
+            name: DatabaseHealthCheckName,
+            failureStatus: HealthStatus.Unhealthy,
+            tags: [HealthTags.Dependency],
+            customTestQuery: CanConnectWithinTimeoutAsync);
+    }
+
+    private static async Task<bool> CanConnectWithinTimeoutAsync(OrderRouterDbContext context, CancellationToken cancellationToken)
+    {
+        // A hung server must not hang the endpoint: bound the probe, and let the timeout surface as Unhealthy.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(healthCheckTimeout);
+
+        return await context.Database.CanConnectAsync(timeout.Token);
     }
 }
