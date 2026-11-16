@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Infrastructure.Persistence.ReferenceData;
 
 namespace OrderRouter.Infrastructure.Persistence;
 
@@ -7,8 +9,10 @@ namespace OrderRouter.Infrastructure.Persistence;
 public static class PersistenceServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="OrderRouterDbContext"/> against PostgreSQL. It never opens a connection
+    /// Registers <see cref="OrderRouterDbContext"/> against PostgreSQL, plus the read-only reference-data ports
+    /// <see cref="ICapabilityResolver"/> and <see cref="IReferenceDataReader"/> (OR-006). It never opens a connection
     /// and never applies migrations: migrating is an explicit step, not a startup side effect (SC-22, SC-33).
+    /// The seeder is deliberately not registered.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="connectionString">Npgsql connection string, normally <c>ConnectionStrings:OrderRouter</c>.</param>
@@ -23,6 +27,12 @@ public static class PersistenceServiceCollectionExtensions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        return services.AddDbContext<OrderRouterDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<OrderRouterDbContext>(options => options.UseNpgsql(connectionString));
+
+        // Scoped, to match the DbContext lifetime they depend on.
+        services.AddScoped<ICapabilityResolver, EfCapabilityResolver>();
+        services.AddScoped<IReferenceDataReader, EfReferenceDataReader>();
+
+        return services;
     }
 }
