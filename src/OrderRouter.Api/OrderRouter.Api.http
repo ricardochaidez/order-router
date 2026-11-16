@@ -1,3 +1,10 @@
 @OrderRouter_Api_HostAddress = http://localhost:5019
 
 ###
+
+# Authenticate in Development with the dev key (set it with `dotnet user-secrets` or the .env file; never commit it).
+@devApiKey = {{$processEnv DEV_API_KEY}}
+
+### Any protected endpoint accepts the key in X-Api-Key (production uses a JWT bearer token instead)
+GET {{OrderRouter_Api_HostAddress}}/health
+X-Api-Key: {{devApiKey}}

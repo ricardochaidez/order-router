@@ -31,7 +31,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       # Overrides appsettings.Development.json: inside the compose network the host is "postgres", not localhost.
       ConnectionStrings__OrderRouter: Host=postgres;Port=5432;Database=orderrouter;Username=orderrouter;Password=${POSTGRES_PASSWORD:-orderrouter-dev-only}
-      # Dev-only placeholder. OR-008 binds this (or renames it here and in .env.example together).
+      # Dev-only placeholder for the X-Api-Key header (OR-008). Ignored outside Development.
       Authentication__DevApiKey: ${DEV_API_KEY:-}
 
 volumes:

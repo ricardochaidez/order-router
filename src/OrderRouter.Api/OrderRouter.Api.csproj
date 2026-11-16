@@ -2,15 +2,19 @@
 
   <PropertyGroup>
     <RootNamespace>OrderRouter.Api</RootNamespace>
+    <!-- Holds Authentication:DevApiKey locally (dotnet user-secrets), never appsettings files (SC-32). -->
+    <UserSecretsId>order-router-api-dev</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The health types are internal on purpose; the unit tests exercise them directly without a host. -->
     <InternalsVisibleTo Include="OrderRouter.UnitTests" />
+    <InternalsVisibleTo Include="OrderRouter.IntegrationTests" />
   </ItemGroup>
 
   <ItemGroup>

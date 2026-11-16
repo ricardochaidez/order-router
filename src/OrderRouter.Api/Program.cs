@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using OrderRouter.Api.Authentication;
 using OrderRouter.Api.Health;
 using OrderRouter.Infrastructure.Persistence;
 
@@ -8,6 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // OpenAPI document generation. Every endpoint added by later tickets is documented through it.
 builder.Services.AddOpenApi();
+
+// JWT bearer in production, plus the X-Api-Key dev key in Development only. The RouteCaller policy is also the
+// fallback, so every endpoint needs authentication unless it opts out with AllowAnonymous (FR-19).
+builder.AddOrderRouterAuthentication();
 
 // ConnectionStrings:OrderRouter comes from appsettings.Development.json in Development, or from the
 // ConnectionStrings__OrderRouter environment variable. There is deliberately no default elsewhere, so a
@@ -32,10 +37,15 @@ var app = builder.Build();
 // The OpenAPI document is only exposed in Development.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // Documentation only, and only mapped in Development, so it stays anonymous.
+    app.MapOpenApi().AllowAnonymous();
 }
 
 app.UseHttpsRedirection();
+
+// Authentication runs before anything else touches the request: no credentials, no validation, no routing.
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHealthEndpoint();
 
