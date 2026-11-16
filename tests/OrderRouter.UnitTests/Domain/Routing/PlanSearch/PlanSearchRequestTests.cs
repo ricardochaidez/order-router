@@ -110,6 +110,18 @@ public class PlanSearchRequestTests
         Assert.Contains("rating", exception.Message);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    public void SupplierCandidate_RatingBoundaries_AreAccepted(double rating)
+        => Assert.Equal((decimal)rating, new SupplierCandidate("S1", [cane], FulfillmentMode.Local, (decimal)rating).EffectiveRating);
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(10.01)]
+    public void SupplierCandidate_RatingOutsideRange_Throws(double rating)
+        => Assert.Throws<DomainValidationException>(() => new SupplierCandidate("S1", [cane], FulfillmentMode.Local, (decimal)rating));
+
     [Fact]
     public void SupplierCandidate_NullCategories_Throws()
     {

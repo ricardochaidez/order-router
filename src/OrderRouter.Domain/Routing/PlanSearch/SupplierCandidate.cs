@@ -7,7 +7,7 @@ namespace OrderRouter.Domain.Routing.PlanSearch;
 /// <summary>
 /// An eligible supplier as the plan search sees it. The caller (OR-015) has already applied the
 /// eligibility rules (OR-010) and the rating policy (OR-013), so the search never decides what an
-/// unrated supplier is worth.
+/// unrated supplier is worth (the control arm gives it 0, which is why the range starts at 0).
 /// </summary>
 public sealed record SupplierCandidate
 {
@@ -15,7 +15,7 @@ public sealed record SupplierCandidate
     /// <param name="supplierId">Opaque supplier id; trimmed.</param>
     /// <param name="eligibleCategories">Categories the supplier may fulfill; at least one.</param>
     /// <param name="mode">Local delivery or mail for this order (FR-09).</param>
-    /// <param name="effectiveRating">Rating after the policy filled in unrated suppliers, 1 to 10.</param>
+    /// <param name="effectiveRating">Rating after the policy filled in unrated suppliers, 0 to 10 (0 is an unrated supplier under the control arm).</param>
     /// <exception cref="DomainValidationException">One or more fields are invalid.</exception>
     public SupplierCandidate(
         string? supplierId,
@@ -42,9 +42,9 @@ public sealed record SupplierCandidate
             errors.Add($"fulfillment mode is not defined (received {mode})");
         }
 
-        if (effectiveRating is < 1m or > 10m)
+        if (effectiveRating is < 0m or > 10m)
         {
-            errors.Add($"effective rating must be between 1 and 10 inclusive (received {effectiveRating})");
+            errors.Add($"effective rating must be between 0 and 10 inclusive (received {effectiveRating})");
         }
 
         if (errors.Count > 0)
