@@ -5,7 +5,7 @@ namespace OrderRouter.Domain.Routing.PlanSearch;
 /// <summary>Everything the plan search needs: what is demanded, who can supply it, and two policy values.</summary>
 public sealed record PlanSearchRequest
 {
-    /// <summary>One bit per category in a <see cref="uint"/> mask (ADR-0003). OR-012 adds the greedy path above the 8-category limit.</summary>
+    /// <summary>One bit per category in a <see cref="uint"/> mask (ADR-0003). Orders above the exact-search limit (<see cref="PlanSearchLimits"/>) use the greedy path, which reuses the same masks.</summary>
     public const int MaxCategories = 32;
 
     /// <summary>Default for <see cref="SimilarityBand"/> (ADR-0001).</summary>

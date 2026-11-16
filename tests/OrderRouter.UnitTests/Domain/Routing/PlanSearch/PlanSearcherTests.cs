@@ -23,6 +23,8 @@ public class PlanSearcherTests
         var result = searcher.Search(request);
 
         Assert.Equal(1, result.MinimumShipments);
+        Assert.Equal(SearchMode.Exact, result.Mode);
+        Assert.Null(result.FallbackReason);
         var plan = Assert.Single(result.Plans);
         Assert.Equal(["SUP-T007"], Ids(plan));
         Assert.Equal(1, plan.ShipmentCount);

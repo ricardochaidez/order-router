@@ -4,11 +4,13 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using OrderRouter.Api.Authentication;
 using OrderRouter.Api.Health;
 using OrderRouter.Api.Routing;
 using OrderRouter.Application.Routing;
+using OrderRouter.Application.Routing.PlanSearch;
 using OrderRouter.Infrastructure.Persistence;
 
 // Composition root: the Api project is the only place that wires Application and Infrastructure
@@ -44,6 +46,13 @@ builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadReq
 // TEMPORARY: OR-015 replaces this registration with the real routing use case. Until then a valid request
 // returns 500 rather than a body that claims to be routed (fail safe).
 builder.Services.AddSingleton<IRouteOrderUseCase, RoutingNotAvailableUseCase>();
+
+// Plan-search guard rails from the PlanSearch section (NFR-05). Invalid limits stop the host at startup.
+builder.Services.AddOptions<PlanSearchOptions>()
+    .Bind(builder.Configuration.GetSection(PlanSearchOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<PlanSearchOptions>, PlanSearchOptionsValidator>();
+builder.Services.AddSingleton<IPlanSearchService, PlanSearchService>();
 
 // ConnectionStrings:OrderRouter comes from appsettings.Development.json in Development, or from the
 // ConnectionStrings__OrderRouter environment variable. There is deliberately no default elsewhere, so a

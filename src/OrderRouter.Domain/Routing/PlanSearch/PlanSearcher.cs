@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using OrderRouter.Domain.Eligibility;
 using OrderRouter.Domain.ReferenceData;
 
 namespace OrderRouter.Domain.Routing.PlanSearch;
@@ -10,17 +9,34 @@ namespace OrderRouter.Domain.Routing.PlanSearch;
 /// every plan still in the running, not the first one. Stateless: safe to share and to call concurrently.
 /// </summary>
 /// <remarks>
-/// Guard rails (work budget, the 8-category limit, greedy fallback) belong to OR-012 and wrap this class.
+/// Guard rails (ADR-0003, NFR-03): more categories than <see cref="PlanSearchLimits.MaxExactCategories"/>, or more
+/// checked combinations than <see cref="PlanSearchLimits.NodeBudget"/>, replace the result with the greedy one.
+/// Exact and greedy plans are never mixed.
 /// </remarks>
 public sealed class PlanSearcher
 {
-    /// <summary>Finds all plans that use the fewest suppliers, within the quality band of their own size.</summary>
+    private readonly GreedyPlanSearcher greedy = new();
+
+    /// <summary>Searches with <see cref="PlanSearchLimits.Default"/>.</summary>
     /// <param name="request">Demand, eligible candidates and policy values.</param>
+    /// <returns>See <see cref="Search(PlanSearchRequest, PlanSearchLimits)"/>.</returns>
+    public PlanSearchResult Search(PlanSearchRequest request) => Search(request, PlanSearchLimits.Default);
+
+    /// <summary>Finds all plans that use the fewest suppliers, within the quality band of their own size, or falls back to greedy.</summary>
+    /// <param name="request">Demand, eligible candidates and policy values.</param>
+    /// <param name="limits">The guard rails.</param>
     /// <returns>The plans, or an empty list when no cover exists (fail safe: never invent a plan).</returns>
-    public PlanSearchResult Search(PlanSearchRequest request)
+    public PlanSearchResult Search(PlanSearchRequest request, PlanSearchLimits limits)
     {
         var prepared = CandidatePreparer.Prepare(request);
         var categoryCount = prepared.Categories.Count;
+
+        // Guard rail 1: too many categories for the exact search; do not start it.
+        if (categoryCount > limits.MaxExactCategories)
+        {
+            return greedy.Search(prepared) with { FallbackReason = SearchFallbackReason.TooManyCategories };
+        }
+
         var full = categoryCount == 32 ? uint.MaxValue : (1u << categoryCount) - 1;
 
         if (prepared.Candidates.Aggregate(0u, (all, c) => all | c.Mask) != full)
@@ -29,6 +45,7 @@ public sealed class PlanSearcher
         }
 
         var plans = new List<Plan>();
+        var budget = new NodeBudget(limits.NodeBudget);
         var minimum = 0;
         var maxSize = Math.Min(categoryCount, prepared.Candidates.Count);
 
@@ -39,7 +56,13 @@ public sealed class PlanSearcher
                 break;
             }
 
-            var found = new SizeSearch(prepared, full, size, request.SimilarityBand).Run();
+            var found = new SizeSearch(prepared, full, size, request.SimilarityBand, budget).Run();
+
+            // Guard rail 2: out of budget. Drop every partial exact result and start greedy from scratch.
+            if (budget.Exceeded)
+            {
+                return greedy.Search(prepared) with { FallbackReason = SearchFallbackReason.NodeBudgetExceeded };
+            }
 
             if (found.Count == 0)
             {
@@ -60,6 +83,23 @@ public sealed class PlanSearcher
             .ToList();
 
         return new PlanSearchResult(ordered.AsReadOnly(), minimum);
+    }
+
+    /// <summary>Combinations checked so far, shared by every size of one request (cumulative, ADR-0003).</summary>
+    private sealed class NodeBudget(int limit)
+    {
+        private int used;
+
+        public bool Exceeded { get; private set; }
+
+        /// <summary>Counts one node; sets <see cref="Exceeded"/> once the count passes the limit.</summary>
+        public void Spend()
+        {
+            if (++used > limit)
+            {
+                Exceeded = true;
+            }
+        }
     }
 
     private sealed record Plan(int Size, decimal Quality, int LocalLines, string[] Suppliers)
@@ -93,11 +133,13 @@ public sealed class PlanSearcher
         private readonly uint[] suffixMask;
         private readonly decimal[][] suffixBest;
         private readonly int[] chosen;
+        private readonly NodeBudget budget;
         private readonly List<Plan> plans = [];
         private decimal bestQuality = -1m;
 
-        public SizeSearch(PreparedSearch prepared, uint full, int size, decimal band)
+        public SizeSearch(PreparedSearch prepared, uint full, int size, decimal band, NodeBudget budget)
         {
+            this.budget = budget;
             this.prepared = prepared;
             candidates = prepared.Candidates;
             this.full = full;
@@ -137,6 +179,13 @@ public sealed class PlanSearcher
 
         private void Extend(int start, int depth, uint covered)
         {
+            budget.Spend();
+
+            if (budget.Exceeded)
+            {
+                return;
+            }
+
             if (depth == size)
             {
                 if (covered == full)
@@ -165,6 +214,11 @@ public sealed class PlanSearcher
             {
                 chosen[depth] = i;
                 Extend(i + 1, depth + 1, covered | candidates[i].Mask);
+
+                if (budget.Exceeded)
+                {
+                    return;
+                }
             }
         }
 
@@ -217,7 +271,7 @@ public sealed class PlanSearcher
                         continue;
                     }
 
-                    var comparison = Compare(candidate, candidates[winners[0]]);
+                    var comparison = PlanScoring.Compare(candidate, candidates[winners[0]]);
 
                     if (comparison > 0)
                     {
@@ -235,15 +289,6 @@ public sealed class PlanSearcher
 
             var assignment = new int[categoryCount];
             Expand(options, assignment, 0);
-        }
-
-        private static int Compare(PreparedCandidate left, PreparedCandidate right)
-        {
-            var byRating = left.Rating.CompareTo(right.Rating);
-
-            return byRating != 0
-                ? byRating
-                : (left.Mode == FulfillmentMode.Local).CompareTo(right.Mode == FulfillmentMode.Local);
         }
 
         private void Expand(List<int>[] options, int[] assignment, int category)
@@ -270,21 +315,7 @@ public sealed class PlanSearcher
                 return;
             }
 
-            var weighted = 0m;
-            var local = 0;
-
-            for (var c = 0; c < categoryCount; c++)
-            {
-                var candidate = candidates[assignment[c]];
-                weighted += candidate.Rating * prepared.LineCounts[c];
-
-                if (candidate.Mode == FulfillmentMode.Local)
-                {
-                    local += prepared.LineCounts[c];
-                }
-            }
-
-            var quality = weighted / totalLines;
+            var (quality, local) = PlanScoring.Score(prepared, assignment.Select(index => candidates[index]).ToArray());
             var suppliers = assignment.Select(index => candidates[index].SupplierId).ToArray();
             plans.Add(new Plan(size, quality, local, suppliers));
             bestQuality = Math.Max(bestQuality, quality);
