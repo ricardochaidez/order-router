@@ -89,7 +89,7 @@ classDiagram
     }
     class ITieBreaker {
         <<interface>>
-        +Pick(IReadOnlyList~CandidatePlan~) CandidatePlan
+        +Pick(IReadOnlyList~CandidatePlan~) TieBreakResult
     }
     class IRandomSource {
         <<interface>>
@@ -143,6 +143,7 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 - Adding an arm (e.g., a weighted-score EXP-1 variant, §8.1) = one new class + one factory mapping. `OrderRoutingService` is unchanged (AB-06).
 - 3 seams × 2 arms = 6 small classes instead of 8 combined ones; growth is additive, not multiplicative.
 - The default `ExperimentArms` (all control) reproduces the written spec and the sentinel expectations (AB-03, SC-10).
+- `ITieBreaker.Pick` returns a `TieBreakResult` (chosen plan plus the tied candidates, and whether randomness was used) rather than a bare plan, so the decision log gets the audit data (OR-014, AB-04).
 - Randomness lives in one place (`ITieBreaker` → `IRandomSource`). Tests inject a fixed source for exact assertions (NFR-08a) and prove non-tied cases never call it (NFR-08d).
 - The decision log (AB-04) records the assignment (arms, reasons, `config_version`) plus the tied candidates returned by the tie-breaker.
 - Experiments are switched on/off and re-parameterized at runtime without touching routing code (SC-25).
