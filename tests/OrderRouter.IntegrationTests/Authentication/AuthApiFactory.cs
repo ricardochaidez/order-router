@@ -85,7 +85,7 @@ internal static class AuthApiFactory
 
                         return Results.Ok(context.User.FindFirst("sub")?.Value);
                     })
-                    .RequireRouteCaller());
+                    .RequireAuthorization(AuthorizationPolicyNames.RouteCaller));
             };
     }
 }

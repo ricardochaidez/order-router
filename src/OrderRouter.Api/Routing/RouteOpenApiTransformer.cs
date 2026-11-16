@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
-using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
+using OrderRouter.Api.Controllers;
 
 namespace OrderRouter.Api.Routing;
 
@@ -18,21 +18,23 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
     /// <inheritdoc />
     public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
     {
-        var metadata = context.Description.ActionDescriptor.EndpointMetadata;
+        var action = context.Description.ActionDescriptor;
+        // Each attribute route of an action is its own description, so the route name tells the canonical POST from the alias.
+        var routeName = action.AttributeRouteInfo?.Name;
 
-        if (metadata.OfType<IEndpointNameMetadata>().Any(name => name.EndpointName == RouteEndpoints.GetStoredOrderName))
+        if (routeName == RouteController.GetStoredOrderName)
         {
             DescribeGetStoredOrder(operation);
 
             return Task.CompletedTask;
         }
 
-        if (!metadata.OfType<RouteEnvelopeMetadata>().Any())
+        if (!action.EndpointMetadata.OfType<RouteEnvelopeAttribute>().Any())
         {
             return Task.CompletedTask;
         }
 
-        var isAlias = metadata.OfType<IEndpointNameMetadata>().Any(name => name.EndpointName == RouteEndpoints.AliasName);
+        var isAlias = routeName == RouteController.RouteOrderAliasName;
 
         operation.Summary = isAlias ? "Route an order (alias of the v1 endpoint)" : "Route an order";
         operation.Description = isAlias

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using OrderRouter.Api.Authentication;
@@ -65,22 +66,26 @@ public class RouteAliasTests(ReferenceDataFixture fixture)
         await using var factory = RouteApiFactory.Create(fixture.ConnectionString, new RecordingRouteUseCase());
         var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>().ToArray();
 
-        var v1 = endpoints.Single(endpoint => endpoint.RoutePattern.RawText == "/api/v1/route");
-        var alias = endpoints.Single(endpoint => endpoint.RoutePattern.RawText == "/api/route");
+        // Attribute-route templates have no leading slash; trimming keeps the check independent of how the route is declared.
+        var v1 = endpoints.Single(endpoint => endpoint.RoutePattern.RawText?.TrimStart('/') == "api/v1/route");
+        var alias = endpoints.Single(endpoint => endpoint.RoutePattern.RawText?.TrimStart('/') == "api/route");
 
         Assert.Equal(["POST"], v1.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods);
         Assert.Equal(["POST"], alias.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods);
-        Assert.NotNull(v1.Metadata.GetMetadata<RouteEnvelopeMetadata>());
-        Assert.NotNull(alias.Metadata.GetMetadata<RouteEnvelopeMetadata>());
+        Assert.NotNull(v1.Metadata.GetMetadata<RouteEnvelopeAttribute>());
+        Assert.NotNull(alias.Metadata.GetMetadata<RouteEnvelopeAttribute>());
         Assert.Equal(PolicyNames(v1), PolicyNames(alias));
         Assert.Contains(AuthorizationPolicyNames.RouteCaller, PolicyNames(v1));
-        Assert.Equal(ProducedStatusCodes(v1), ProducedStatusCodes(alias));
-        Assert.Equal([201, 400, 500], ProducedStatusCodes(v1));
+
+        // Controllers declare their responses with [ProducesResponseType], which MVC exposes through ApiExplorer.
+        var descriptions = factory.Services.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items.SelectMany(group => group.Items).ToArray();
+        Assert.Equal(ProducedStatusCodes(descriptions, "api/v1/route"), ProducedStatusCodes(descriptions, "api/route"));
+        Assert.Equal([201, 400, 500], ProducedStatusCodes(descriptions, "api/v1/route"));
     }
 
     private static string[] PolicyNames(Endpoint endpoint)
         => [.. endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(data => data.Policy ?? string.Empty).Order()];
 
-    private static int[] ProducedStatusCodes(Endpoint endpoint)
-        => [.. endpoint.Metadata.GetOrderedMetadata<IProducesResponseTypeMetadata>().Select(metadata => metadata.StatusCode).Order()];
+    private static int[] ProducedStatusCodes(IEnumerable<ApiDescription> descriptions, string path)
+        => [.. descriptions.Single(description => description.HttpMethod == "POST" && description.RelativePath == path).SupportedResponseTypes.Select(response => response.StatusCode).Order()];
 }

@@ -1,8 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.Options;
@@ -39,24 +37,30 @@ builder.Services.AddOpenApi(options => options.AddOperationTransformer<RouteOpen
 // fallback, so every endpoint needs authentication unless it opts out with AllowAnonymous (FR-19).
 builder.AddOrderRouterAuthentication();
 
-// One JSON naming policy for the whole API: snake_case properties and snake_case enum strings (FR-01, ADR-0004).
-// Unknown request fields stay ignored (tolerant reader, DQ-15) because UnmappedMemberHandling is left at Skip.
-builder.Services.ConfigureHttpJsonOptions(options =>
+// Controllers (Controllers/). [ApiController] validates the data annotations on the request DTOs before an action
+// runs; for actions marked [RouteEnvelope] the automatic 400 is written in the v1 envelope (SC-15) instead of
+// ValidationProblemDetails. Unknown request fields stay ignored (tolerant reader, DQ-15) because
+// UnmappedMemberHandling is left at Skip.
+builder.Services.AddControllers()
+    .AddJsonOptions(options => ConfigureJson(options.JsonSerializerOptions))
+    .ConfigureApiBehaviorOptions(RouteEnvelopeInvalidModelStateResponse.Configure);
+
+// The same JSON settings for everything written outside MVC: exception-handler ProblemDetails, and the OpenAPI
+// schemas, which Microsoft.AspNetCore.OpenApi always derives from these options.
+builder.Services.ConfigureHttpJsonOptions(options => ConfigureJson(options.SerializerOptions));
+
+// Unexpected faults become 500 ProblemDetails with no internals (CLAUDE.md). MVC's ProblemDetailsFactory (controller
+// 404s) adds "traceId" verbatim, while the host writer (500s) names it with the API's policy ("trace_id"). Renaming it
+// here gives every ProblemDetails the same shape under the one JSON naming policy.
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
 {
-    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+    var extensions = context.ProblemDetails.Extensions;
+
+    if (extensions.Remove("traceId", out var traceId))
+    {
+        extensions[JsonNamingPolicy.SnakeCaseLower.ConvertName("traceId")] = traceId;
+    }
 });
-
-// Built-in minimal-API validation (data annotations on the request DTOs). The writer is registered before
-// AddProblemDetails so it wins for the route endpoints and rewrites the 400 into the v1 envelope (SC-15).
-builder.Services.AddValidation();
-builder.Services.AddSingleton<IProblemDetailsWriter, RouteEnvelopeProblemDetailsWriter>();
-builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<MalformedBodyExceptionHandler>();
-
-// Throw on binding failures in every environment (the default is Development only), so the exception handler
-// always produces the same 400 envelope for malformed bodies.
-builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
 // Routing settings (FR-09): a bad nationwide ZIP range stops the host at startup.
 builder.Services.AddOptions<RoutingOptions>()
@@ -106,7 +110,7 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference().AllowAnonymous();
 }
 
-// Unexpected faults become 500 ProblemDetails with no internals (CLAUDE.md); malformed route bodies become 400.
+// Unexpected faults become 500 ProblemDetails with no internals (CLAUDE.md).
 app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
@@ -115,7 +119,15 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapHealthEndpoint();
-app.MapRouteEndpoints();
+// Attribute-routed controllers: RouteController and HealthController.
+app.MapControllers();
 
 app.Run();
+
+// One JSON naming policy for the whole API: snake_case properties and snake_case enum strings (FR-01, ADR-0004).
+// MVC and the rest of the host keep separate option instances, so both are configured from here to stay identical.
+static void ConfigureJson(JsonSerializerOptions options)
+{
+    options.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+}
