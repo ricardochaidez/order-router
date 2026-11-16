@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
+using Scalar.AspNetCore;
 using OrderRouter.Api.Authentication;
 using OrderRouter.Api.Health;
 using OrderRouter.Api.Routing;
@@ -64,11 +65,12 @@ builder.Services.AddHostedService<DependencyStartupCheck>();
 
 var app = builder.Build();
 
-// The OpenAPI document is only exposed in Development.
+// The OpenAPI document and the Scalar UI (/scalar) are only exposed in Development.
 if (app.Environment.IsDevelopment())
 {
     // Documentation only, and only mapped in Development, so it stays anonymous.
     app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
 // Unexpected faults become 500 ProblemDetails with no internals (CLAUDE.md); malformed route bodies become 400.
