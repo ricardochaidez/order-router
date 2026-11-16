@@ -9,7 +9,7 @@ namespace OrderRouter.IntegrationTests.Routing;
 
 /// <summary>
 /// OR-019 acceptance on the real host: a temp <c>experiments.json</c> puts every caller in the EXP-3 treatment arm.
-/// The status is 200 until OR-027 switches it to 201.
+/// A valid POST answers 201 Created (OR-027).
 /// </summary>
 public class PartialRoutingApiTests(ReferenceDataFixture fixture)
 {
@@ -54,10 +54,10 @@ public class PartialRoutingApiTests(ReferenceDataFixture fixture)
     [Fact]
     public async Task Post_OneRoutableAndOneUnknownLine_IsPartiallyRouted()
     {
-        // AC1; OR-027 changes 200 to 201.
+        // AC1: 201 Created since OR-027.
         var (status, json) = await PostAsync(Order("10015", routable, unknown));
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.Created, status);
         Assert.Equal("partially_routed", json.GetProperty("status").GetString());
         Assert.False(json.GetProperty("feasible").GetBoolean());
         var group = Assert.Single(json.GetProperty("routing").EnumerateArray());
@@ -75,7 +75,7 @@ public class PartialRoutingApiTests(ReferenceDataFixture fixture)
         // AC2
         var (status, json) = await PostAsync(Order("10015", unknown));
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.Created, status);
         Assert.Equal("not_routed", json.GetProperty("status").GetString());
         Assert.False(json.GetProperty("feasible").GetBoolean());
         Assert.Empty(json.GetProperty("routing").EnumerateArray());
@@ -88,7 +88,7 @@ public class PartialRoutingApiTests(ReferenceDataFixture fixture)
         // AC3
         var (status, json) = await PostAsync(Order("10015", routable));
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.Created, status);
         Assert.Equal("routed", json.GetProperty("status").GetString());
         Assert.True(json.GetProperty("feasible").GetBoolean());
         Assert.Empty(json.GetProperty("unfulfilled_items").EnumerateArray());

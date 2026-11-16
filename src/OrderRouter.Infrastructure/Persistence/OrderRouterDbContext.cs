@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OrderRouter.Infrastructure.Persistence.ReferenceData;
+using OrderRouter.Infrastructure.Persistence.RoutingOrders;
 
 namespace OrderRouter.Infrastructure.Persistence;
 
@@ -21,6 +22,15 @@ public sealed class OrderRouterDbContext(DbContextOptions<OrderRouterDbContext> 
 
     /// <summary>Rows of <c>products</c>.</summary>
     public DbSet<ProductRow> Products => Set<ProductRow>();
+
+    /// <summary>Rows of <c>routing_orders</c> (stored routing decisions, ADR-0007).</summary>
+    public DbSet<RoutingOrderRow> RoutingOrders => Set<RoutingOrderRow>();
+
+    /// <summary>Rows of <c>routing_order_items</c>.</summary>
+    public DbSet<RoutingOrderItemRow> RoutingOrderItems => Set<RoutingOrderItemRow>();
+
+    /// <summary>Rows of <c>routing_order_warnings</c>.</summary>
+    public DbSet<RoutingOrderWarningRow> RoutingOrderWarnings => Set<RoutingOrderWarningRow>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)

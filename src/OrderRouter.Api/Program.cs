@@ -12,6 +12,7 @@ using OrderRouter.Api.Health;
 using OrderRouter.Api.Routing;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.PlanSearch;
+using OrderRouter.Infrastructure.CallerHashing;
 using OrderRouter.Infrastructure.Experiments;
 using OrderRouter.Infrastructure.Persistence;
 using OrderRouter.Infrastructure.Randomness;
@@ -73,6 +74,9 @@ builder.Services.AddOrderRouterRouting();
 builder.Services.AddOrderRouterRandomness();
 // The experiment assigner (OR-016): the port is in Application, the reloadable-configuration adapter in Infrastructure.
 builder.Services.AddOrderRouterExperiments();
+// The caller hasher (OR-027): HMAC-SHA256 with CallerHashing:Secret. The secret comes from the environment or
+// user-secrets, never from a committed file; a missing secret stops the host at startup.
+builder.Services.AddOrderRouterCallerHashing(builder.Configuration);
 
 // ConnectionStrings:OrderRouter comes from appsettings.Development.json in Development, or from the
 // ConnectionStrings__OrderRouter environment variable. There is deliberately no default elsewhere, so a

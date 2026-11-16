@@ -30,7 +30,7 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
         operation.Description = isAlias
             ? "Alias of `POST /api/v1/route`, permanently pinned to v1. It shares the handler, authentication, validation " +
               "and response contract with the canonical path and never moves to a later version."
-            : "Validates the order and assigns each line item to a supplier. Every validation error is returned at once in " +
+            : "Validates the order, assigns each line item to a supplier and stores the decision. Every validation error is returned at once in " +
               "the same envelope as a successful response. Unknown request fields are ignored. The first response is authoritative.";
 
         if (operation.RequestBody?.Content is { } requestContent && requestContent.TryGetValue(json, out var request))
@@ -40,10 +40,12 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
 
         SetExamples(
             operation,
-            "200",
-            "The order was valid and routing ran. `status` and `feasible` say whether every item was routed; a business outcome such as \"could not route\" is a 200 with a body, not an error.",
+            "201",
+            "The order was valid, routing ran and the decision was stored. `id` is the stored order. `status` and `feasible` say whether every item was routed; a business outcome such as \"could not route\" is a 201 with a body, not an error.",
             ("routed", "Every item is assigned to a supplier.", RoutedExample()),
+            ("partially_routed", "Only with the EXP-3 treatment: the items that can be routed are, the rest are listed in `unfulfilled_items` and `feasible` is false.", PartiallyRoutedExample()),
             ("not_routed", "Nothing could be routed (here: an unknown product).", NotRoutedExample()));
+        AddLocationHeader(operation);
         SetExample(operation, "400", "The request is invalid. Every error is listed; the body uses the same envelope as a success.", InvalidExample());
 
         if (operation.Responses is not null && operation.Responses.TryGetValue("500", out var fault))
@@ -52,6 +54,23 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
         }
 
         return Task.CompletedTask;
+    }
+
+    // SC-30: the Location header points at the stored order on the v1 path, also on the alias.
+    private static void AddLocationHeader(OpenApiOperation operation)
+    {
+        // The interface exposes Headers read-only; the generator creates the concrete type, which allows it.
+        if (operation.Responses is null || !operation.Responses.TryGetValue("201", out var created) || created is not OpenApiResponse response)
+        {
+            return;
+        }
+
+        response.Headers ??= new Dictionary<string, IOpenApiHeader>();
+        response.Headers["Location"] = new OpenApiHeader
+        {
+            Description = "URL of the stored order: `/api/v1/route/{id}`. It always uses the v1 path, also when the alias was called.",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
     }
 
     private static void SetExample(OpenApiOperation operation, string status, string description, JsonNode example)
@@ -88,6 +107,7 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
 
     private static JsonNode RoutedExample() => JsonNode.Parse("""
         {
+          "id": "0193a1b2-7c3d-7e4f-8a9b-0c1d2e3f4a5b",
           "order_id": "ORD-EXAMPLE",
           "feasible": true,
           "status": "routed",
@@ -101,6 +121,27 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
           "unfulfilled_items": [],
           "warnings": [],
           "errors": []
+        }
+        """)!;
+
+    private static JsonNode PartiallyRoutedExample() => JsonNode.Parse("""
+        {
+          "id": "0193a1b2-7c3d-7e4f-8a9b-0c1d2e3f4a5d",
+          "order_id": "ORD-EXAMPLE",
+          "feasible": false,
+          "status": "partially_routed",
+          "routing": [
+            { "supplier_id": "SUP-0810", "supplier_name": "Example Supplier",
+              "items": [
+                { "product_code": "WC-STD-001", "quantity": 1, "category": "wheelchair", "fulfillment_mode": "local" }
+              ] }
+          ],
+          "unfulfilled_items": [
+            { "product_code": "XX-UNKNOWN-999", "quantity": 1, "category": null,
+              "reason_code": "UNKNOWN_PRODUCT", "message": "Product code 'XX-UNKNOWN-999' was not found in the catalog." }
+          ],
+          "warnings": [],
+          "errors": [ "Product code 'XX-UNKNOWN-999' was not found in the catalog." ]
         }
         """)!;
 
@@ -121,6 +162,7 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
 
     private static JsonNode NotRoutedExample() => JsonNode.Parse("""
         {
+          "id": "0193a1b2-7c3d-7e4f-8a9b-0c1d2e3f4a5c",
           "order_id": "ORD-EXAMPLE",
           "feasible": false,
           "status": "not_routed",

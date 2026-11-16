@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using OrderRouter.Application.Routing.Logging;
 using OrderRouter.Application.Routing.PlanSearch;
 using OrderRouter.Domain.Eligibility;
 using OrderRouter.Domain.ReferenceData;
@@ -32,6 +34,12 @@ public static class RoutingServiceCollectionExtensions
         services.AddSingleton<ITieBreaker, UniformRandomTieBreaker>();
         services.AddSingleton(provider => new SupplierEligibility(ZipRange.Parse(provider.GetRequiredService<IOptions<RoutingOptions>>().Value.NationwideZipRange)));
         services.AddSingleton<OrderRoutingService>();
+
+        // The decision log (AB-04): one event per stored order. It only needs an ILogger, so it is a singleton.
+        services.AddSingleton<IRoutingDecisionLog, LoggerRoutingDecisionLog>();
+
+        // The creation time of a stored order; tests replace it to fix the clock (OR-027).
+        services.TryAddSingleton(TimeProvider.System);
 
         // Scoped, like the EF ports it depends on.
         services.AddScoped<IRouteOrderUseCase, RouteOrderUseCase>();

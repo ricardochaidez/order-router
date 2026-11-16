@@ -1,5 +1,7 @@
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Experiments;
+using OrderRouter.Application.Routing.Logging;
+using OrderRouter.Application.Routing.Storage;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing;
 using OrderRouter.Domain.Routing.Policies;
@@ -8,15 +10,20 @@ namespace OrderRouter.Application.Routing;
 
 /// <summary>
 /// Orchestrates one routing request: resolves products and loads suppliers (the only I/O), then hands the
-/// pure rules to <see cref="OrderRoutingService"/> and maps the decision to the v1 envelope. It holds no
-/// business rule (the Domain has all of them, ADR-0001) and only reads reference data (OR-006).
+/// pure rules to <see cref="OrderRoutingService"/> and maps the decision to the v1 envelope. It then stores the
+/// decision before answering (FR-20, ADR-0007) and writes the decision log event (AB-04). It holds no business rule (the Domain has all of them, ADR-0001) and
+/// only reads reference data (OR-006); the only thing it writes is the new stored order.
 /// </summary>
 public sealed class RouteOrderUseCase(
     ICapabilityResolver capabilityResolver,
     IReferenceDataReader referenceDataReader,
     IExperimentAssigner experimentAssigner,
     IRoutingPolicyFactory policyFactory,
-    OrderRoutingService routingService) : IRouteOrderUseCase
+    OrderRoutingService routingService,
+    ICallerHasher callerHasher,
+    IRoutingOrderStore orderStore,
+    IRoutingDecisionLog decisionLog,
+    TimeProvider timeProvider) : IRouteOrderUseCase
 {
     /// <inheritdoc />
     public async Task<RouteResponse> RouteAsync(RouteOrderCommand command, CancellationToken cancellationToken)
@@ -46,6 +53,23 @@ public sealed class RouteOrderUseCase(
 
         var decision = routingService.Route(new OrderToRoute(command.CustomerZip, command.MailOrder, lines), suppliers, policy);
 
-        return RouteResponseMapper.Map(command.OrderId, decision);
+        var response = RouteResponseMapper.Map(command.OrderId, decision);
+
+        // FR-20, SC-29: every valid POST is stored under a new server-generated UUIDv7, retries included. The save
+        // happens before the answer, so an id is never returned for an order that cannot be read back. A failed save
+        // throws and the host turns it into a 500 with no id. The raw caller ID is hashed here and never stored
+        // (NFR-11); a caller with no ID is stored with a null hash, so nobody can read that order back (fail safe).
+        var id = Guid.CreateVersion7();
+        var callerHash = command.CallerId is { } callerId ? callerHasher.Hash(callerId) : null;
+
+        await orderStore.SaveAsync(
+            StoredRoutingOrderFactory.Create(id, command, callerHash, timeProvider.GetUtcNow(), decision, response),
+            cancellationToken);
+
+        // AB-04, ADR-0005, ADR-0007: the decision event is written only after the order is saved, with its id, so the
+        // log never shows an order that does not exist. The raw caller ID is not an input of the entry (NFR-11).
+        decisionLog.Record(RoutingDecisionLogEntryFactory.Create(id, command.OrderId, callerHash, command.CustomerZip.Value, decision));
+
+        return response with { Id = id };
     }
 }

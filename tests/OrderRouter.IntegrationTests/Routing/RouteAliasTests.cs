@@ -75,7 +75,7 @@ public class RouteAliasTests(ReferenceDataFixture fixture)
         Assert.Equal(PolicyNames(v1), PolicyNames(alias));
         Assert.Contains(AuthorizationPolicyNames.RouteCaller, PolicyNames(v1));
         Assert.Equal(ProducedStatusCodes(v1), ProducedStatusCodes(alias));
-        Assert.Equal([200, 400, 500], ProducedStatusCodes(v1));
+        Assert.Equal([201, 400, 500], ProducedStatusCodes(v1));
     }
 
     private static string[] PolicyNames(Endpoint endpoint)

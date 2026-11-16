@@ -35,6 +35,7 @@ internal static class AuthApiFactory
         {
             builder.UseEnvironment(environment);
             builder.UseSetting("ConnectionStrings:OrderRouter", connectionString);
+            builder.UseSetting("CallerHashing:Secret", TestCallerHashing.Secret);
             builder.UseSetting("Authentication:Jwt:Authority", testAuthority);
             builder.UseSetting("Authentication:Jwt:Audience", TestJwt.Audience);
 

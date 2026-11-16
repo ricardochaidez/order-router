@@ -25,17 +25,37 @@ public class RouteOpenApiTests(ReferenceDataFixture fixture)
         Assert.Equal("ORD-EXAMPLE", request.GetProperty("example").GetProperty("order_id").GetString());
 
         var responses = post.GetProperty("responses");
-        foreach (var status in new[] { "200", "400", "401", "500" })
+        foreach (var status in new[] { "201", "400", "401", "500" })
         {
             Assert.True(responses.TryGetProperty(status, out _), $"missing {status}");
         }
 
-        var examples = responses.GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("examples");
+        var examples = responses.GetProperty("201").GetProperty("content").GetProperty("application/json").GetProperty("examples");
         Assert.Equal("routed", examples.GetProperty("routed").GetProperty("value").GetProperty("status").GetString());
+        Assert.Equal("partially_routed", examples.GetProperty("partially_routed").GetProperty("value").GetProperty("status").GetString());
         Assert.Equal("not_routed", examples.GetProperty("not_routed").GetProperty("value").GetProperty("status").GetString());
+        Assert.All(["routed", "partially_routed", "not_routed"], name => Assert.True(examples.GetProperty(name).GetProperty("value").TryGetProperty("id", out _), $"{name} example has no id"));
         var invalid = responses.GetProperty("400").GetProperty("content").GetProperty("application/json").GetProperty("example");
         Assert.Equal(2, invalid.GetProperty("errors").GetArrayLength());
         Assert.NotEmpty(post.GetProperty("security").EnumerateArray());
+    }
+
+    // AC9: the 201 documents the Location header on both paths, with the same status codes and examples.
+    [Theory]
+    [InlineData("/api/v1/route")]
+    [InlineData("/api/route")]
+    public async Task Document_BothPaths_Document201WithLocationAnd400And401And500(string path)
+    {
+        var document = await GetDocumentAsync();
+
+        var responses = document.GetProperty("paths").GetProperty(path).GetProperty("post").GetProperty("responses");
+
+        Assert.Equal(["201", "400", "401", "500"], responses.EnumerateObject().Select(response => response.Name).Order());
+        Assert.True(responses.GetProperty("201").GetProperty("headers").TryGetProperty("Location", out var location));
+        Assert.Contains("/api/v1/route/{id}", location.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Equal(
+            ["not_routed", "partially_routed", "routed"],
+            responses.GetProperty("201").GetProperty("content").GetProperty("application/json").GetProperty("examples").EnumerateObject().Select(example => example.Name).Order());
     }
 
     [Fact]

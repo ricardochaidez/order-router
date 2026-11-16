@@ -8,7 +8,7 @@ using OrderRouter.Application.Routing.Experiments;
 namespace OrderRouter.Api.Routing;
 
 /// <summary>
-/// Maps <c>POST /api/v1/route</c> (canonical) and <c>POST /api/route</c> (alias pinned to v1). Both run the same
+/// Maps <c>POST /api/v1/route</c> (canonical) and <c>POST /api/route</c> (alias pinned to v1); both answer 201 Created. Both run the same
 /// handler, auth policy and validation, so they cannot drift (ADR-0004).
 /// </summary>
 internal static class RouteEndpoints
@@ -36,11 +36,11 @@ internal static class RouteEndpoints
             .WithTags("Routing")
             .RequireRouteCaller()
             .WithMetadata(RouteEnvelopeMetadata.Instance)
-            // 200 is inferred from the handler's Ok<RouteResponse> return type.
+            // 201 is inferred from the handler's Created<RouteResponse> return type; the examples and the Location header are added by RouteOpenApiTransformer.
             .Produces<RouteResponse>(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-    private static async Task<Ok<RouteResponse>> HandleAsync(RouteRequest request, ClaimsPrincipal user, IRouteOrderUseCase useCase, CancellationToken cancellationToken)
+    private static async Task<Created<RouteResponse>> HandleAsync(RouteRequest request, ClaimsPrincipal user, IRouteOrderUseCase useCase, CancellationToken cancellationToken)
     {
         // The request already passed validation at the edge (FR-03); the command factory only guards invariants.
         var command = RouteOrderCommand.Create(
@@ -53,7 +53,11 @@ internal static class RouteEndpoints
 
         var response = await useCase.RouteAsync(command, cancellationToken);
 
-        // 200 until OR-027 switches this to 201 + Location.
-        return TypedResults.Ok(response);
+        // SC-30: a valid POST creates a stored order, so it answers 201 Created. Location always points at the v1 path,
+        // also for the alias, which is POST-only (ADR-0004, ADR-0007). The id is set by the use case after the save;
+        // without it there is nothing to point at, which is a programming error and becomes a 500.
+        var id = response.Id ?? throw new InvalidOperationException("The routing use case returned a response without a stored order id.");
+
+        return TypedResults.Created($"/api/v1/route/{id}", response);
     }
 }

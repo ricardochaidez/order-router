@@ -5,7 +5,7 @@
 | **Status** | proposed |
 | **Deciders** | Architecture (author), Product stakeholder |
 | **Date** | 2026-11-15 |
-| **Technical Story** | Candidate **C-02** in [Order-Router-Technical-Requirements.md §13](../BusinessRequirements/Order-Router-Technical-Requirements.md#13-candidate-adrs). Requirements: FR-11, FR-13, FR-14, FR-18, AB-03, AB-06, §7.3, §8.1, SC-25 |
+| **Technical Story** | Candidate **C-02** in [Order-Router-Technical-Requirements.md §13](../BusinessRequirements/Order-Router-Technical-Requirements.md#13-candidate-adrs). Requirements: FR-11, FR-13, FR-14, AB-03, AB-06, §7.3, §8.1, SC-25 |
 
 ## Context and Problem Statement
 
@@ -15,7 +15,7 @@ The router ranks candidate plans with five keys (§7.3): feasibility, fewer ship
 |---|---|---|
 | EXP-1 consolidation vs quality | Strict priority (fewer shipments always wins) | Bounded trade-off (one extra shipment if quality improves by ≥ `quality_uplift_threshold`) |
 | EXP-2 unrated suppliers | Unrated ranks below all rated | Cold-start prior (`unrated_prior`) |
-| EXP-3 unfulfillable items | All-or-nothing | Partial routing + dependency warnings |
+| EXP-3 unfulfillable items | All-or-nothing | Partial routing |
 
 The experiments are independent (each is salted separately, AB-01), so one order can land in any of **2 × 2 × 2 = 8 combinations**. AB-06 requires that adding an arm does not change the routing core.
 
@@ -49,7 +49,7 @@ Chosen option: **"3. Composed policies, one interface per experiment dimension"*
 |---|---|---|---|
 | `IEffectiveRatingPolicy` (EXP-2) | What rating to use for an unrated supplier | `UnratedLastPolicy` (0) | `ColdStartPriorPolicy` (`unrated_prior`, default 6.5) |
 | `IPlanSelectionPolicy` (EXP-1) | How shipment count and quality combine (keys 2–4); how many extra shipments plan search must explore | `StrictPriorityPolicy` (max extra = 0) | `BoundedTradeOffPolicy` (max extra = 1, `quality_uplift_threshold`) |
-| `IUnfulfillablePolicy` (EXP-3) | What to do when at least one item has no eligible supplier | `AllOrNothingPolicy` | `PartialRoutingPolicy` (+ `DependencyWarningEvaluator`, FR-18) |
+| `IUnfulfillablePolicy` (EXP-3) | What to do when at least one item has no eligible supplier | `AllOrNothingPolicy` | `PartialRoutingPolicy` |
 | `ITieBreaker` (shared) | Key 5: full tie after keys 1–4 | `UniformRandomTieBreaker(IRandomSource)` | same |
 
 AB-06 says "each arm is a separate strategy implementation behind one interface". We read that as **one interface per experiment**, which is what this option does. A single interface for all three experiments would force option 2.
@@ -183,7 +183,7 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 
 ## Implementation note (OR-019)
 
-`PartialRoutingPolicy` (EXP-3 treatment) is a stateless singleton behind `IUnfulfillablePolicy`; enabling it took one line in `RoutingPolicyFactory`. It never routes an unfulfilled line, and no plan means `not_routed`. HTTP 201 comes with OR-027, dependency warnings with OR-020. The EXP-1 treatment still throws in the factory (500 for targeted requests) until OR-017.
+`PartialRoutingPolicy` (EXP-3 treatment) is a stateless singleton behind `IUnfulfillablePolicy`; enabling it took one line in `RoutingPolicyFactory`. It never routes an unfulfilled line, and no plan means `not_routed`. HTTP 201 comes with OR-027. The EXP-1 treatment still throws in the factory (500 for targeted requests) until OR-017.
 
 ## Links
 

@@ -153,7 +153,7 @@ public class ExperimentAssignmentHostTests(ReferenceDataFixture fixture)
 
         public async Task<ExperimentAssignment> AssignmentForAsync(string body, string? token = null, string? apiKey = null)
         {
-            Assert.Equal(HttpStatusCode.OK, await PostAsync(body, token, apiKey));
+            Assert.Equal(HttpStatusCode.Created, await PostAsync(body, token, apiKey));
 
             return Recorder.Last;
         }

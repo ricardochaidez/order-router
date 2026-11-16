@@ -25,13 +25,15 @@ public class OrderRouterDbContextModelTests
     }
 
     [Fact]
-    public void Model_Always_ContainsExactlyTheFourReferenceTables()
+    public void Model_Always_ContainsTheReferenceTablesAndTheStoredOrderTables()
     {
         using var context = CreateContext();
 
         var tables = context.GetService<IDesignTimeModel>().Model.GetRelationalModel().Tables.Select(table => table.Name).Order();
 
-        Assert.Equal(["products", "supplier_categories", "supplier_service_areas", "suppliers"], tables);
+        Assert.Equal(
+            ["products", "routing_order_items", "routing_order_warnings", "routing_orders", "supplier_categories", "supplier_service_areas", "suppliers"],
+            tables);
     }
 
     // AC3 / SC-09: mail-only is derived from the configurable nationwide range, never stored.

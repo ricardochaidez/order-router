@@ -204,11 +204,11 @@ public class RouteValidationTests(ReferenceDataFixture fixture)
 
     [Theory]
     [MemberData(nameof(RouteApiFactory.Paths), MemberType = typeof(RouteApiFactory))]
-    public async Task Post_ValidOrderWithExtraFields_Returns200AndRoutesTheOrder(string path)
+    public async Task Post_ValidOrderWithExtraFields_Returns201AndRoutesTheOrder(string path)
     {
         var (status, json, useCase) = await PostAsync(path, RouteApiFactory.ValidBody);
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.Created, status);
         var command = Assert.Single(useCase.Commands);
         Assert.Equal("ORD-EXAMPLE", command.OrderId);
         Assert.Equal("10015", command.CustomerZip.Value);
@@ -230,7 +230,7 @@ public class RouteValidationTests(ReferenceDataFixture fixture)
     {
         var (status, _, useCase) = await PostAsync(path, """{ "order_id": "A", "customer_zip": "10015", "items": [ { "product_code": "A", "quantity": 1 } ] }""");
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.Created, status);
         Assert.False(Assert.Single(useCase.Commands).MailOrder);
     }
 
@@ -240,7 +240,7 @@ public class RouteValidationTests(ReferenceDataFixture fixture)
     {
         var (status, _, useCase) = await PostAsync(path, Body(items: """[ { "product_code": "XX-UNKNOWN-999", "quantity": 1 } ]"""));
 
-        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(HttpStatusCode.Created, status);
         Assert.Equal("XX-UNKNOWN-999", Assert.Single(Assert.Single(useCase.Commands).Lines).ProductCode);
     }
 

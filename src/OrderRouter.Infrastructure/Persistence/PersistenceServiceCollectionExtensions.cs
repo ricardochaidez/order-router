@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OrderRouter.Application.Routing.Storage;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Infrastructure.Persistence.ReferenceData;
+using OrderRouter.Infrastructure.Persistence.RoutingOrders;
 
 namespace OrderRouter.Infrastructure.Persistence;
 
@@ -38,6 +40,9 @@ public static class PersistenceServiceCollectionExtensions
         // Scoped, to match the DbContext lifetime they depend on.
         services.AddScoped<ICapabilityResolver, EfCapabilityResolver>();
         services.AddScoped<IReferenceDataReader, EfReferenceDataReader>();
+
+        // The only writer the API has: it inserts into the stored-order tables, never into reference data (ADR-0007).
+        services.AddScoped<IRoutingOrderStore, EfRoutingOrderStore>();
 
         return services;
     }

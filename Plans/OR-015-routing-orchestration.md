@@ -3,7 +3,7 @@
 **Ticket:** [Docs/Tickets/OR-015-routing-orchestration.md](../Docs/Tickets/OR-015-routing-orchestration.md)
 **Depends on:** OR-005 (seeder), OR-009 (endpoint, envelope, `IRouteOrderUseCase` seam), OR-012 (`IPlanSearchService`), OR-014 (`ITieBreaker`, `SystemRandomSource`). All done.
 **References:** [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md) (pipeline, `OrderRoutingService`, `RoutingDecision`); [ADR-0004](../Docs/ADRs/ADR-0004-response-contract-evolution.md) (envelope, `feasible` from `status`); Technical Requirements FR-09, FR-10, FR-14, FR-15, FR-16, DEV-10, §4.3, §6.2, §9.2, §9.4; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
-**Feeds:** OR-016 (replaces the all-control assignment), OR-019/OR-020 (partial routing, warnings), OR-021 (decision log reads `RoutingDecision`), OR-022 (`search_mode`), OR-023 (acceptance suite), OR-027 (stores the decision, 200 → 201).
+**Feeds:** OR-016 (replaces the all-control assignment), OR-019 (partial routing), OR-021 (decision log reads `RoutingDecision`), OR-022 (`search_mode`), OR-023 (acceptance suite), OR-027 (stores the decision, 200 → 201).
 
 > **Save location:** Phase 0 copies this plan to `Plans/OR-015-routing-orchestration.md`. Update that file as each phase is done.
 
@@ -11,7 +11,7 @@
 
 Every routing building block exists: capability resolution (OR-006), eligibility (OR-010), plan search with guard rails (OR-011/012), control policies (OR-013) and the random tie-breaker (OR-014). But `POST /api/v1/route` still runs the placeholder `RoutingNotAvailableUseCase`, which returns 500. OR-015 connects the pieces. It resolves the products, finds eligible suppliers, searches plans, applies the policies and the tie-break, and maps the result to the v1 envelope. Until OR-016 lands, every request uses `ExperimentAssignment.AllControl`. Success returns **200** for now; OR-027 changes it to 201 and updates the 200 assertions written here.
 
-Out of scope: experiment assigner (OR-016), treatment arms (OR-017–019), dependency warnings (OR-020; `warnings` stays empty), decision log (OR-021), `diagnostics`/`search_mode` in the body (OR-022), storing the decision, `id`, 201 and `Location` (OR-027), reference-data cache (ADR-0006).
+Out of scope: experiment assigner (OR-016), treatment arms (OR-017–019), decision log (OR-021), `diagnostics`/`search_mode` in the body (OR-022), storing the decision, `id`, 201 and `Location` (OR-027), reference-data cache (ADR-0006).
 
 ### Decisions confirmed with the engineer
 
@@ -168,7 +168,6 @@ tests/OrderRouter.IntegrationTests/Routing/      RouteOrderEndToEndTests (AC1–
   - **not verified:** decision log (OR-021), storage and 201 (OR-027), treatment arms, coverage % if it was not measured.
 - [x] Record follow-ups (don't do them here):
   - OR-016 replaces `ExperimentAssignment.AllControl` in `RouteOrderUseCase`;
-  - OR-020 fills `warnings`;
   - OR-021 logs `RoutingDecision`, including `TieBreak`;
   - OR-022 exposes `SearchMode`;
   - OR-027 switches to 201 + `Location` and updates this ticket's 200 assertions;
@@ -184,7 +183,6 @@ tests/OrderRouter.IntegrationTests/Routing/      RouteOrderEndToEndTests (AC1–
 
 **Follow-ups (not done here)**
 - OR-016 replaces `ExperimentAssignment.AllControl` in `RouteOrderUseCase`.
-- OR-020 fills `warnings`.
 - OR-021 logs `RoutingDecision`, including `TieBreak`.
 - OR-022 exposes `SearchMode`.
 - OR-027 switches to 201 + `Location` and updates the 200 assertions in `RouteOrderEndToEndTests`.

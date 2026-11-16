@@ -21,7 +21,7 @@ namespace OrderRouter.Application.Routing.Contracts;
 /// </example>
 public sealed record RouteResponse
 {
-    /// <summary>Stored order id. Omitted until OR-027 stores decisions, and always omitted on 400.</summary>
+    /// <summary>Stored order id (UUIDv7, FR-20). Always present on 201 and omitted on 400.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Guid? Id { get; init; }
 

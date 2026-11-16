@@ -42,16 +42,19 @@ public class SchemaMigrationTests
 
     // AC1
     [Fact]
-    public async Task MigrateAsync_OnEmptyDatabase_CreatesTheFourTablesAndBothIndexes()
+    public async Task MigrateAsync_OnEmptyDatabase_CreatesTheReferenceDataTablesAndTheirIndexes()
     {
         await using var database = await CreateMigratedDatabaseAsync();
 
         var tables = await database.QueryAsync(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1", Token);
         var indexes = await database.QueryAsync(
-            "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname LIKE 'ix\\_%' ORDER BY 1", Token);
+            "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename LIKE 'supplier%' AND indexname LIKE 'ix\\_%' ORDER BY 1", Token);
 
-        Assert.Equal(["__EFMigrationsHistory", "products", "supplier_categories", "supplier_service_areas", "suppliers"], tables);
+        // The stored-order tables (OR-026) are checked in RoutingOrderTablesTests.
+        Assert.Equal(
+            ["__EFMigrationsHistory", "products", "routing_order_items", "routing_order_warnings", "routing_orders", "supplier_categories", "supplier_service_areas", "suppliers"],
+            tables);
         Assert.Collection(
             indexes,
             first => Assert.EndsWith("ON public.supplier_categories USING btree (category, supplier_id)", first, StringComparison.Ordinal),

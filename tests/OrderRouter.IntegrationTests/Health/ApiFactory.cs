@@ -17,6 +17,7 @@ internal static class ApiFactory
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:OrderRouter", connectionString);
+            builder.UseSetting("CallerHashing:Secret", TestCallerHashing.Secret);
 
             if (configureServices is not null)
             {

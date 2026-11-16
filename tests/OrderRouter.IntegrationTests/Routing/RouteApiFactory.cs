@@ -57,6 +57,8 @@ internal static class RouteApiFactory
 /// <summary>Records the commands it receives and returns a fixed response.</summary>
 internal sealed class RecordingRouteUseCase(RouteResponse? response = null) : IRouteOrderUseCase
 {
+    // A real use case returns the id of the stored order (OR-027); the endpoint refuses to answer without one.
+    private readonly Guid storedId = response?.Id ?? Guid.CreateVersion7();
     private readonly List<RouteOrderCommand> commands = [];
 
     public IReadOnlyList<RouteOrderCommand> Commands => commands;
@@ -65,7 +67,7 @@ internal sealed class RecordingRouteUseCase(RouteResponse? response = null) : IR
     {
         commands.Add(command);
 
-        return Task.FromResult(response ?? new RouteResponse { OrderId = command.OrderId, Status = RoutingStatus.NotRouted });
+        return Task.FromResult((response ?? new RouteResponse { OrderId = command.OrderId, Status = RoutingStatus.NotRouted }) with { Id = storedId });
     }
 }
 

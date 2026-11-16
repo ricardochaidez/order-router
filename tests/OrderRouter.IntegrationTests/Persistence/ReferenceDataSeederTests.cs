@@ -4,7 +4,7 @@ using OrderRouter.Infrastructure.Persistence.Seeding;
 namespace OrderRouter.IntegrationTests.Persistence;
 
 /// <summary>
-/// Runs the seeder on throwaway databases (AC1-AC6, AC8). Needs `docker compose up -d`.
+/// Runs the seeder on throwaway databases (AC1-AC6, AC8; OR-026 AC4). Needs `docker compose up -d`.
 /// </summary>
 public class ReferenceDataSeederTests
 {
@@ -62,7 +62,7 @@ public class ReferenceDataSeederTests
         Assert.Equal(suppliers.Sum(supplier => supplier.ServiceArea.Segments.Count).ToString(), await CountAsync(database, "supplier_service_areas"));
         Assert.Equal(suppliers.Count, summary.SuppliersLoaded);
         Assert.Equal(["14"], await database.QueryAsync("SELECT count(*) FROM suppliers WHERE supplier_id LIKE 'SUP-T0__'", Token));
-        Assert.Equal(["InitialReferenceDataSchema"], (await database.QueryAsync("SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\"", Token))
+        Assert.Equal(["InitialReferenceDataSchema", "AddRoutingOrderTables"], (await database.QueryAsync("SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\"", Token))
             .Select(id => id[(id.IndexOf('_', StringComparison.Ordinal) + 1)..]).ToList());
     }
 
@@ -86,6 +86,42 @@ public class ReferenceDataSeederTests
         Assert.Equal(["True"], await database.QueryAsync("SELECT count(*) = count(DISTINCT product_code) FROM products", Token));
         Assert.Equal(["0"], await database.QueryAsync(
             $"SELECT count(*) FROM suppliers WHERE seeded_at <> '{time.Now:O}'::timestamptz", Token));
+    }
+
+    // OR-026 AC4 / ADR-0007: stored orders are history; a re-seed never touches them, even when it renames or drops the supplier.
+    [Fact]
+    public async Task SeedAsync_WithStoredOrders_LeavesTheOrderTablesUnchanged()
+    {
+        await using var database = await ThrowawayDatabase.CreateAsync(Token);
+        using var a = FileA();
+        await Seed(database, a.Files);
+        var id = Guid.CreateVersion7();
+        await database.ExecuteAsync(
+            "INSERT INTO routing_orders (id, order_id, caller_hash, customer_zip, mail_order, status, feasible, experiment_arms, config_version, search_mode, created_at) " +
+            $"VALUES ('{id}', 'ORD-1', 'hash', '02130', false, 'routed', true, '{{}}', 'v1', 'exact', '2026-01-01T00:00:00Z');" +
+            $"INSERT INTO routing_order_items (routing_order_id, line_number, product_code, quantity, category, supplier_id, supplier_name, fulfillment_mode) VALUES ('{id}', 1, 'P1', 1, 'cane', 'S1', 'Acme', 'local');" +
+            $"INSERT INTO routing_order_warnings (routing_order_id, ordinal, code, message, unfulfilled_product_codes, affected_product_codes) VALUES ('{id}', 1, 'W', 'm', ARRAY['A'], ARRAY['B'])",
+            Token);
+        var before = await OrderSnapshotAsync(database);
+        using var renamedAndDropped = SeedFiles.Create(["S1,Acme Renamed,10001,walker,,n"], ["P1,Cane,cane"]);
+
+        await Seed(database, renamedAndDropped.Files);
+        var after = await OrderSnapshotAsync(database);
+
+        Assert.Equal(["Acme Renamed"], await database.QueryAsync("SELECT name FROM suppliers WHERE supplier_id = 'S1'", Token));
+        Assert.Equal(3, before.Count);
+        Assert.Equal(before, after);
+        Assert.Contains(after, row => row.Contains("|Acme|", StringComparison.Ordinal));
+    }
+
+    private static async Task<List<string>> OrderSnapshotAsync(ThrowawayDatabase database)
+    {
+        var rows = new List<string>();
+        rows.AddRange(await database.QueryAsync("SELECT 'O|' || id || '|' || order_id || '|' || coalesce(caller_hash, '') || '|' || status || '|' || created_at FROM routing_orders ORDER BY 1", Token));
+        rows.AddRange(await database.QueryAsync("SELECT 'I|' || line_number || '|' || product_code || '|' || coalesce(supplier_id, '') || '|' || coalesce(supplier_name, '') || '|' || coalesce(fulfillment_mode, '') FROM routing_order_items ORDER BY 1", Token));
+        rows.AddRange(await database.QueryAsync("SELECT 'W|' || ordinal || '|' || code || '|' || array_to_string(unfulfilled_product_codes, ',') FROM routing_order_warnings ORDER BY 1", Token));
+
+        return rows;
     }
 
     // AC3

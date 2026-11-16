@@ -12,6 +12,8 @@ Everything below is development only.
 4. Check it: `curl -i http://localhost:8080/health` returns `200 Healthy` when PostgreSQL is reachable and `503 Unhealthy` when it is not. The OpenAPI document is at `http://localhost:8080/openapi/v1.json`.
 5. Create and seed the reference data by running the integration tests: `dotnet test`. Neither the API nor `docker compose` migrates or seeds the database, so a fresh volume has no tables until you do this.
 
+Every valid `POST /api/v1/route` is stored and answers `201 Created` with the order's `id` and a `Location` header. The caller is stored only as an HMAC hash, so the API needs a secret: `CALLER_HASHING_SECRET` in `.env` for Docker (the `.env.example` value is a dev-only placeholder), or `dotnet user-secrets set "CallerHashing:Secret" "<value>" --project src/OrderRouter.Api` for `dotnet run`. Without it the API refuses to start. If you copied `.env.example` before this setting existed, add the line to your `.env` and run `docker compose up -d --force-recreate api`.
+
 `/health` only checks that PostgreSQL is reachable, so an empty database is healthy. If PostgreSQL is not reachable when the API starts, the API exits with an error.
 
 ## Authenticate

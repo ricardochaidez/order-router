@@ -172,6 +172,7 @@ public class AuthenticationTests(ReferenceDataFixture fixture)
             builder.UseEnvironment("Production");
             builder.UseSetting("ConnectionStrings:OrderRouter", fixture.ConnectionString);
             builder.UseSetting("Authentication:Jwt:Authority", "");
+            builder.UseSetting("CallerHashing:Secret", TestCallerHashing.Secret);
         });
 
         var exception = Assert.ThrowsAny<Exception>(() => factory.CreateClient());

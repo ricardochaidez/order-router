@@ -17,7 +17,7 @@ namespace OrderRouter.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -119,6 +119,163 @@ namespace OrderRouter.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderItemRow", b =>
+                {
+                    b.Property<Guid>("RoutingOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("routing_order_id");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_number");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("FulfillmentMode")
+                        .HasColumnType("text")
+                        .HasColumnName("fulfillment_mode");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("product_code");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("ReasonCode")
+                        .HasColumnType("text")
+                        .HasColumnName("reason_code");
+
+                    b.Property<string>("SupplierId")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierName")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_name");
+
+                    b.HasKey("RoutingOrderId", "LineNumber");
+
+                    b.ToTable("routing_order_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_routing_order_items_fulfillment_mode", "fulfillment_mode IS NULL OR fulfillment_mode IN ('local', 'mail')");
+
+                            t.HasCheckConstraint("ck_routing_order_items_line_number", "line_number >= 1");
+
+                            t.HasCheckConstraint("ck_routing_order_items_quantity", "quantity >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CallerHash")
+                        .HasColumnType("text")
+                        .HasColumnName("caller_hash");
+
+                    b.Property<string>("ConfigVersion")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("config_version");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomerZip")
+                        .IsRequired()
+                        .HasColumnType("char(5)")
+                        .HasColumnName("customer_zip");
+
+                    b.Property<string>("ExperimentArms")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("experiment_arms");
+
+                    b.Property<bool>("Feasible")
+                        .HasColumnType("boolean")
+                        .HasColumnName("feasible");
+
+                    b.Property<bool>("MailOrder")
+                        .HasColumnType("boolean")
+                        .HasColumnName("mail_order");
+
+                    b.Property<string>("OrderId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("SearchMode")
+                        .HasColumnType("text")
+                        .HasColumnName("search_mode");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_routing_orders_order_id");
+
+                    b.ToTable("routing_orders", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_routing_orders_search_mode", "search_mode IS NULL OR search_mode IN ('exact', 'greedy')");
+
+                            t.HasCheckConstraint("ck_routing_orders_status", "status IN ('routed', 'partially_routed', 'not_routed')");
+                        });
+                });
+
+            modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderWarningRow", b =>
+                {
+                    b.Property<Guid>("RoutingOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("routing_order_id");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer")
+                        .HasColumnName("ordinal");
+
+                    b.PrimitiveCollection<string[]>("AffectedProductCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("affected_product_codes");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.PrimitiveCollection<string[]>("UnfulfilledProductCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("unfulfilled_product_codes");
+
+                    b.HasKey("RoutingOrderId", "Ordinal");
+
+                    b.ToTable("routing_order_warnings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_routing_order_warnings_ordinal", "ordinal >= 1");
+                        });
+                });
+
             modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.ReferenceData.SupplierCategoryRow", b =>
                 {
                     b.HasOne("OrderRouter.Infrastructure.Persistence.ReferenceData.SupplierRow", "Supplier")
@@ -141,11 +298,36 @@ namespace OrderRouter.Infrastructure.Persistence.Migrations
                     b.Navigation("Supplier");
                 });
 
+            modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderItemRow", b =>
+                {
+                    b.HasOne("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderRow", null)
+                        .WithMany("Items")
+                        .HasForeignKey("RoutingOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderWarningRow", b =>
+                {
+                    b.HasOne("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderRow", null)
+                        .WithMany("Warnings")
+                        .HasForeignKey("RoutingOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.ReferenceData.SupplierRow", b =>
                 {
                     b.Navigation("Categories");
 
                     b.Navigation("ServiceAreas");
+                });
+
+            modelBuilder.Entity("OrderRouter.Infrastructure.Persistence.RoutingOrders.RoutingOrderRow", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Warnings");
                 });
 #pragma warning restore 612, 618
         }

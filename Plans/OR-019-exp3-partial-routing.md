@@ -3,7 +3,7 @@
 **Ticket:** [Docs/Tickets/OR-019-exp3-partial-routing.md](../Docs/Tickets/OR-019-exp3-partial-routing.md)
 **Depends on:** OR-016 (done: assigner, `ExperimentArms.Exp3PartialRouting`). OR-027 (not done; see decision below).
 **References:** [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md); [ADR-0004](../Docs/ADRs/ADR-0004-response-contract-evolution.md); Technical Requirements FR-14, §8.1 EXP-3, SC-04, SC-05, SC-10; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
-**Feeds / related:** OR-020 (dependency warnings, FR-18), OR-021 (decision log), OR-024 (combination matrix), OR-025 (README), OR-027 (HTTP 201).
+**Feeds / related:** OR-021 (decision log), OR-024 (combination matrix), OR-025 (README), OR-027 (HTTP 201).
 
 > **Save location:** Phase 0 copies this plan to `Plans/OR-019-exp3-partial-routing.md`. Update that file as each phase is done.
 
@@ -20,7 +20,7 @@ Most plumbing already exists:
 
 So the change is one new Domain class, one factory line, and tests. No Application, Infrastructure or Api production change is expected.
 
-Out of scope: dependency warnings (OR-020; `Warnings` stays `[]`), the decision log (OR-021), storing the decision and returning 201 (OR-027), the combination matrix (OR-024), README (OR-025). EXP-1 treatment (OR-017) is a separate ticket.
+Out of scope: the decision log (OR-021), storing the decision and returning 201 (OR-027), the combination matrix (OR-024), README (OR-025). EXP-1 treatment (OR-017) is a separate ticket.
 
 ### Decision made with the engineer
 - **AC1 says 201, the endpoint returns 200 today** (`RouteEndpoints.cs` comment: "200 until OR-027 switches this to 201"). OR-027 is a dependency but not implemented. **Chosen:** do not block. Tests assert the body fields and HTTP 200, with a comment that OR-027 changes it to 201 (OR-027 already says it updates the 200 assertions). Record this as a known gap in the Phase 3 result.
@@ -111,15 +111,15 @@ Out of scope: dependency warnings (OR-020; `Warnings` stays `[]`), the decision 
 
 ## Phase 3: Docs and post-implementation review ✅ Done
 
-- [x] ADR-0001 (and ADR-0004 if it fits): short implementation note (OR-019): `PartialRoutingPolicy` is stateless; one factory line; HTTP 201 comes with OR-027; dependency warnings come with OR-020; EXP-1 treatment still 500s until OR-017.
+- [x] ADR-0001 (and ADR-0004 if it fits): short implementation note (OR-019): `PartialRoutingPolicy` is stateless; one factory line; HTTP 201 comes with OR-027; EXP-1 treatment still 500s until OR-017.
 - [x] Run the `ddd-implementation` §5 review and report honestly:
   - **met:** rule in Domain behind an existing seam, OCP (one factory line), no config read, immutable policy, fail safe (no plan never routes);
   - **N/A, with reasons:** aggregates, domain events, money, persistence, authorization, API surface change;
-  - **not verified:** 201 + `Location` (OR-027), dependency warnings (OR-020), decision log count (OR-021), combination matrix (OR-024), coverage % if not measured.
-- [x] Record follow-ups (don't do them here): OR-017 replaces the last factory throw; OR-020 adds warnings; OR-021 logs unfulfilled count; OR-024 EXP-3 × other arms; OR-025 documents EXP-3.
+  - **not verified:** 201 + `Location` (OR-027), decision log count (OR-021), combination matrix (OR-024), coverage % if not measured.
+- [x] Record follow-ups (don't do them here): OR-017 replaces the last factory throw; OR-021 logs unfulfilled count; OR-024 EXP-3 × other arms; OR-025 documents EXP-3.
 - [x] Final run: `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes`, all green.
 
-**Result:** ADR-0001 note added. §5 review: met = rule in Domain behind an existing seam, one factory line, no config read, immutable policy, fail safe. N/A = aggregates, events, money, persistence, authorization, API surface. Not verified = 201 + `Location` (OR-027), warnings (OR-020), decision log count (OR-021), combination matrix (OR-024), coverage %. Follow-ups: OR-017 replaces the last factory throw; OR-020 warnings; OR-021 log unfulfilled count; OR-024 EXP-3 x other arms; OR-025 README.
+**Result:** ADR-0001 note added. §5 review: met = rule in Domain behind an existing seam, one factory line, no config read, immutable policy, fail safe. N/A = aggregates, events, money, persistence, authorization, API surface. Not verified = 201 + `Location` (OR-027), decision log count (OR-021), combination matrix (OR-024), coverage %. Follow-ups: OR-017 replaces the last factory throw; OR-021 log unfulfilled count; OR-024 EXP-3 x other arms; OR-025 README.
 
 ---
 

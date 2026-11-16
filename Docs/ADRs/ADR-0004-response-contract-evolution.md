@@ -5,7 +5,7 @@
 | **Status** | proposed |
 | **Deciders** | Architecture (author), Product stakeholder |
 | **Date** | 2026-11-15 |
-| **Technical Story** | Candidate **C-06** in [Order-Router-Technical-Requirements.md §13](../BusinessRequirements/Order-Router-Technical-Requirements.md#13-candidate-adrs). Requirements: BR-15..BR-18, FR-01, FR-14, FR-15, FR-16, FR-18, DEV-02, SC-05, SC-15, AB-05, OQ-08, §9 |
+| **Technical Story** | Candidate **C-06** in [Order-Router-Technical-Requirements.md §13](../BusinessRequirements/Order-Router-Technical-Requirements.md#13-candidate-adrs). Requirements: BR-15..BR-18, FR-01, FR-14, FR-15, FR-16, DEV-02, SC-05, SC-15, AB-05, OQ-08, §9 |
 
 ## Context and Problem Statement
 
@@ -13,7 +13,6 @@ The spec defines a small response: `feasible`, `routing[]`, `errors[]` (BR-17, B
 
 - **Partial routing** (EXP-3 treatment, SC-04/SC-05): `status: "partially_routed"` with `feasible: false`.
 - **Unfulfilled items with reason codes** in both EXP-3 arms (FR-14).
-- **Dependency warnings** (FR-18, SC-08).
 - The same envelope for **400** responses (SC-15).
 - Possibly **experiment diagnostics** (AB-05, OQ-08, still open).
 

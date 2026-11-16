@@ -33,6 +33,8 @@ services:
       ConnectionStrings__OrderRouter: Host=postgres;Port=5432;Database=orderrouter;Username=orderrouter;Password=${POSTGRES_PASSWORD:-orderrouter-dev-only}
       # Dev-only placeholder for the X-Api-Key header (OR-008). Ignored outside Development.
       Authentication__DevApiKey: ${DEV_API_KEY:-}
+      # HMAC key for the caller hash (OR-027). No default on purpose: copy .env.example to .env, or the API refuses to start.
+      CallerHashing__Secret: ${CALLER_HASHING_SECRET:-}
       # File-change events do not reliably reach a container through a bind mount, so poll for experiments.json edits (OR-016, ADR-0005).
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
     volumes:

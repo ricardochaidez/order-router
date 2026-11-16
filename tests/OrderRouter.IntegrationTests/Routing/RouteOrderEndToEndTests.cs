@@ -7,7 +7,7 @@ namespace OrderRouter.IntegrationTests.Routing;
 
 /// <summary>
 /// OR-015 acceptance: the real host, real use case and the seeded reference data, on both paths (ADR-0004).
-/// Each test asserts 200 and <c>feasible == (status == "routed")</c>; OR-027 changes 200 to 201.
+/// Each test asserts 201 (the order is stored, OR-027) and <c>feasible == (status == "routed")</c>.
 /// </summary>
 public class RouteOrderEndToEndTests(ReferenceDataFixture fixture)
 {
@@ -38,7 +38,7 @@ public class RouteOrderEndToEndTests(ReferenceDataFixture fixture)
         using var response = await client.SendAsync(RouteApiFactory.Post(path, body), Token);
         var text = await response.Content.ReadAsStringAsync(Token);
 
-        Assert.True(response.StatusCode == HttpStatusCode.OK, $"Expected 200 but got {(int)response.StatusCode}: {text}");
+        Assert.True(response.StatusCode == HttpStatusCode.Created, $"Expected 201 but got {(int)response.StatusCode}: {text}");
         var json = JsonDocument.Parse(text).RootElement.Clone();
         Assert.Equal(json.GetProperty("status").GetString() == "routed", json.GetProperty("feasible").GetBoolean());
 
@@ -113,7 +113,9 @@ public class RouteOrderEndToEndTests(ReferenceDataFixture fixture)
         });
         Assert.Empty(body.GetProperty("warnings").EnumerateArray());
         Assert.Empty(body.GetProperty("errors").EnumerateArray());
-        Assert.False(body.TryGetProperty("id", out _));
+
+        // OR-027: the stored order's id is returned (a UUIDv7).
+        Assert.Equal(7, Guid.Parse(body.GetProperty("id").GetString()!).Version);
     }
 
     [Theory]
