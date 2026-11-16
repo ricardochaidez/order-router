@@ -52,7 +52,8 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
             "The order was valid, routing ran and the decision was stored. `id` is the stored order. `status` and `feasible` say whether every item was routed; a business outcome such as \"could not route\" is a 201 with a body, not an error.",
             ("routed", "Every item is assigned to a supplier.", RoutedExample()),
             ("partially_routed", "Only with the EXP-3 treatment: the items that can be routed are, the rest are listed in `unfulfilled_items` and `feasible` is false.", PartiallyRoutedExample()),
-            ("not_routed", "Nothing could be routed (here: an unknown product).", NotRoutedExample()));
+            ("not_routed", "Nothing could be routed (here: an unknown product).", NotRoutedExample()),
+            ("routed_with_diagnostics", "Only when `Routing:ExposeDiagnostics` is on (off by default): the optional `diagnostics` object is added. Clients must not depend on it.", WithDiagnostics(RoutedExample())));
         AddLocationHeader(operation);
         SetExample(operation, "400", "The request is invalid. Every error is listed; the body uses the same envelope as a success.", InvalidExample());
 
@@ -79,7 +80,12 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
             id.Description = "The stored order id (UUID, the `id` of the POST response and the end of its `Location` header).";
         }
 
-        SetExample(operation, "200", "The stored order. `items` lists every requested line in request order, including lines that were not routed.", StoredOrderExample());
+        SetExamples(
+            operation,
+            "200",
+            "The stored order. `items` lists every requested line in request order, including lines that were not routed. The optional `diagnostics` object is present only when `Routing:ExposeDiagnostics` is on (off by default); clients must not depend on it.",
+            ("stored_order", "The default body, without diagnostics.", StoredOrderExample()),
+            ("stored_order_with_diagnostics", "With `Routing:ExposeDiagnostics` on: the same stored arms and search mode that POST showed for this order.", WithDiagnostics(StoredOrderExample())));
         SetExample(
             operation,
             "404",
@@ -186,6 +192,23 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
           "errors": []
         }
         """)!;
+
+    // AB-05, OQ-08: the optional diagnostics object (arms and reasons per experiment, search mode when a search ran).
+    private static JsonNode WithDiagnostics(JsonNode body)
+    {
+        body["diagnostics"] = JsonNode.Parse("""
+            {
+              "experiment_arms": {
+                "exp1_consolidation_vs_quality": { "arm": "control", "reason": "disabled" },
+                "exp2_unrated_suppliers": { "arm": "control", "reason": "disabled" },
+                "exp3_partial_routing": { "arm": "control", "reason": "disabled" }
+              },
+              "search_mode": "exact"
+            }
+            """);
+
+        return body;
+    }
 
     private static JsonNode NotFoundExample() => JsonNode.Parse("""
         {

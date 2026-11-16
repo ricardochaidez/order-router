@@ -1,8 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.FileProviders;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.IntegrationTests.Authentication;
@@ -18,9 +21,14 @@ internal static class RouteApiFactory
     /// <summary>The two paths that must behave identically (ADR-0004).</summary>
     public static TheoryData<string> Paths => ["/api/v1/route", "/api/route"];
 
-    /// <summary>Creates the host. Pass <paramref name="useCase"/> as <c>null</c> to keep the real routing use case (OR-015).</summary>
-    public static WebApplicationFactory<Program> Create(string connectionString, IRouteOrderUseCase? useCase)
-        => AuthApiFactory.Create(connectionString, configureServices: services =>
+    /// <summary>
+    /// Creates the host. Pass <paramref name="useCase"/> as <c>null</c> to keep the real routing use case (OR-015).
+    /// <paramref name="exposeDiagnostics"/> sets <c>Routing:ExposeDiagnostics</c> (OR-022, off by default), and
+    /// <paramref name="experimentsFile"/> adds an <c>experiments.json</c> source so a test can put an experiment on treatment.
+    /// </summary>
+    public static WebApplicationFactory<Program> Create(string connectionString, IRouteOrderUseCase? useCase, bool exposeDiagnostics = false, IFileProvider? experimentsFile = null)
+    {
+        var factory = AuthApiFactory.Create(connectionString, configureServices: services =>
         {
             if (useCase is not null)
             {
@@ -28,6 +36,17 @@ internal static class RouteApiFactory
                 services.AddSingleton(useCase);
             }
         });
+
+        return factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Routing:ExposeDiagnostics", exposeDiagnostics ? "true" : "false");
+
+            if (experimentsFile is not null)
+            {
+                builder.ConfigureAppConfiguration((_, config) => config.AddJsonFile(experimentsFile, "experiments.json", optional: false, reloadOnChange: true));
+            }
+        });
+    }
 
     /// <summary>An authenticated POST with a raw JSON body.</summary>
     public static HttpRequestMessage Post(string path, string? body, bool authenticated = true, string contentType = "application/json", string? token = null)

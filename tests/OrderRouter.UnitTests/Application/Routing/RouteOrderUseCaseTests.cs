@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Experiments;
@@ -27,6 +28,7 @@ public class RouteOrderUseCaseTests
     private readonly FakeStore store;
     private readonly FakeLog log;
     private static readonly DateTimeOffset now = new(2026, 11, 15, 10, 0, 0, TimeSpan.Zero);
+    private bool exposeDiagnostics;
 
     public RouteOrderUseCaseTests()
     {
@@ -47,7 +49,8 @@ public class RouteOrderUseCaseTests
             hasher,
             store,
             log,
-            new FixedClock(now));
+            new FixedClock(now),
+            Options.Create(new RoutingOptions { ExposeDiagnostics = exposeDiagnostics }));
 
     private static RouteOrderCommand Command(params string[] codes)
         => RouteOrderCommand.Create("ORD-1", "10015", false, [.. codes.Select(code => new RouteOrderLine(code, 1))]);
@@ -229,6 +232,71 @@ public class RouteOrderUseCaseTests
         Assert.Empty(hasher.Hashed);
     }
 
+    // AB-05, AC1: the default is off, so the field is absent.
+    [Fact]
+    public async Task RouteAsync_FlagOffByDefault_HasNoDiagnostics()
+    {
+        resolver.Known["A"] = new Category("cane");
+
+        var response = await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.False(new RoutingOptions().ExposeDiagnostics);
+        Assert.Null(response.Diagnostics);
+    }
+
+    // AC2: arms and reasons of the assignment, and the search mode of the decision.
+    [Fact]
+    public async Task RouteAsync_FlagOn_ShowsTheArmsReasonsAndSearchMode()
+    {
+        exposeDiagnostics = true;
+        resolver.Known["A"] = new Category("cane");
+        reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
+        assigner.Result = new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
+            RoutingParameters.Default,
+            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted),
+            "v-test");
+
+        var response = await UseCase().RouteAsync(Command("A"), token);
+
+        var diagnostics = Assert.IsType<Diagnostics>(response.Diagnostics);
+        Assert.Equal(new ExperimentDiagnostic("control", "disabled"), diagnostics.ExperimentArms["exp1_consolidation_vs_quality"]);
+        Assert.Equal(new ExperimentDiagnostic("treatment", "bucketed"), diagnostics.ExperimentArms["exp2_unrated_suppliers"]);
+        Assert.Equal(new ExperimentDiagnostic("control", "not_targeted"), diagnostics.ExperimentArms["exp3_partial_routing"]);
+        Assert.Equal(Assert.Single(store.Saved).SearchMode, diagnostics.SearchMode);
+        Assert.Equal("exact", diagnostics.SearchMode);
+    }
+
+    // The flag only changes the body: what is stored is the same either way.
+    [Fact]
+    public async Task RouteAsync_FlagOn_StoresTheSameRecordAsFlagOff()
+    {
+        resolver.Known["A"] = new Category("cane");
+
+        await UseCase().RouteAsync(Command("A"), token);
+        exposeDiagnostics = true;
+        await UseCase().RouteAsync(Command("A"), token);
+
+        var (off, on) = (store.Saved[0], store.Saved[1]);
+        Assert.Equal(off.ExperimentArmsJson, on.ExperimentArmsJson);
+        Assert.Equal(off.SearchMode, on.SearchMode);
+        Assert.Equal(off.ConfigVersion, on.ConfigVersion);
+        Assert.Equal(off.Status, on.Status);
+    }
+
+    // Decided with the engineer: no search ran, so search_mode is omitted but the arms are still shown.
+    [Fact]
+    public async Task RouteAsync_FlagOnAndNoKnownProduct_ShowsArmsWithoutSearchMode()
+    {
+        exposeDiagnostics = true;
+
+        var response = await UseCase().RouteAsync(Command("UNKNOWN"), token);
+
+        var diagnostics = Assert.IsType<Diagnostics>(response.Diagnostics);
+        Assert.Equal(3, diagnostics.ExperimentArms.Count);
+        Assert.Null(diagnostics.SearchMode);
+    }
+
     [Fact]
     public async Task RouteAsync_NullCommand_Throws()
         => await Assert.ThrowsAsync<ArgumentNullException>(() => UseCase().RouteAsync(null!, token));
@@ -303,7 +371,10 @@ public class RouteOrderUseCaseTests
         {
             Assignments.Add(assignment);
 
-            return new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+            // Control rules, but carrying the assignment it was given, so the decision (and the stored order) shows it.
+            var control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+
+            return new RoutingPolicy(control.Rating, control.Selection, control.Unfulfillable, assignment);
         }
     }
 

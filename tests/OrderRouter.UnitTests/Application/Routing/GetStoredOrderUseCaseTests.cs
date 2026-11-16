@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Storage;
@@ -12,7 +13,15 @@ public class GetStoredOrderUseCaseTests
     private readonly FakeHasher hasher = new();
     private readonly FakeReader reader = new();
 
-    private GetStoredOrderUseCase UseCase() => new(hasher, reader);
+    private bool exposeDiagnostics;
+
+    private GetStoredOrderUseCase UseCase() => new(hasher, reader, Options.Create(new RoutingOptions { ExposeDiagnostics = exposeDiagnostics }));
+
+    private const string armsJson = """
+        { "exp1_consolidation_vs_quality": { "arm": "treatment", "reason": "bucketed" },
+          "exp2_unrated_suppliers": { "arm": "control", "reason": "disabled" },
+          "exp3_partial_routing": { "arm": "control", "reason": "not_targeted" } }
+        """;
 
     private static StoredRoutingOrder Stored()
         => new(
@@ -61,6 +70,87 @@ public class GetStoredOrderUseCaseTests
     [Fact]
     public async Task GetAsync_ReaderMiss_ReturnsNull()
         => Assert.Null(await UseCase().GetAsync(id, "user-123", Token));
+
+    // AC1: off by default, so the field is absent.
+    [Fact]
+    public async Task GetAsync_FlagOffByDefault_HasNoDiagnostics()
+    {
+        reader.Result = Stored() with { ExperimentArmsJson = armsJson };
+
+        var response = await UseCase().GetAsync(id, "user-123", Token);
+
+        Assert.Null(response!.Diagnostics);
+    }
+
+    // AC3: the stored arms and search mode come back.
+    [Fact]
+    public async Task GetAsync_FlagOn_ShowsTheStoredArmsAndSearchMode()
+    {
+        exposeDiagnostics = true;
+        reader.Result = Stored() with { ExperimentArmsJson = armsJson, SearchMode = "greedy" };
+
+        var response = await UseCase().GetAsync(id, "user-123", Token);
+
+        var diagnostics = Assert.IsType<Diagnostics>(response!.Diagnostics);
+        Assert.Equal(new ExperimentDiagnostic("treatment", "bucketed"), diagnostics.ExperimentArms["exp1_consolidation_vs_quality"]);
+        Assert.Equal(new ExperimentDiagnostic("control", "not_targeted"), diagnostics.ExperimentArms["exp3_partial_routing"]);
+        Assert.Equal("greedy", diagnostics.SearchMode);
+    }
+
+    // AC3: POST and GET build diagnostics from the same stored record, so they are equal.
+    [Fact]
+    public async Task GetAsync_FlagOn_EqualsWhatPostBuildsFromTheSameStoredOrder()
+    {
+        exposeDiagnostics = true;
+        var stored = Stored() with { ExperimentArmsJson = armsJson };
+        reader.Result = stored;
+
+        var response = await UseCase().GetAsync(id, "user-123", Token);
+
+        var fromPost = DiagnosticsMapper.Map(stored);
+        Assert.Equal(fromPost.SearchMode, response!.Diagnostics!.SearchMode);
+        Assert.Equal(fromPost.ExperimentArms, response.Diagnostics.ExperimentArms);
+    }
+
+    [Fact]
+    public async Task GetAsync_FlagOnAndNoSearchRan_ShowsArmsWithoutSearchMode()
+    {
+        exposeDiagnostics = true;
+        reader.Result = Stored() with { ExperimentArmsJson = armsJson, SearchMode = null };
+
+        var response = await UseCase().GetAsync(id, "user-123", Token);
+
+        Assert.Equal(3, response!.Diagnostics!.ExperimentArms.Count);
+        Assert.Null(response.Diagnostics.SearchMode);
+    }
+
+    // A miss is a 404, so no diagnostics are built, even with damaged stored arms in play elsewhere.
+    [Fact]
+    public async Task GetAsync_FlagOnAndMiss_ReturnsNull()
+    {
+        exposeDiagnostics = true;
+
+        Assert.Null(await UseCase().GetAsync(id, "user-123", Token));
+    }
+
+    // Fail safe: damaged stored arms are a fault, never a guessed arm.
+    [Fact]
+    public async Task GetAsync_FlagOnAndDamagedArms_Throws()
+    {
+        exposeDiagnostics = true;
+        reader.Result = Stored();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => UseCase().GetAsync(id, "user-123", Token));
+    }
+
+    // The flag is the only gate: off, damaged arms are never parsed.
+    [Fact]
+    public async Task GetAsync_FlagOffAndDamagedArms_StillReturnsTheOrder()
+    {
+        reader.Result = Stored();
+
+        Assert.NotNull(await UseCase().GetAsync(id, "user-123", Token));
+    }
 
     private sealed class FakeHasher : ICallerHasher
     {

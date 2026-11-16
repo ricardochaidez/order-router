@@ -194,3 +194,11 @@ flowchart LR
 - `diagnostics.experiment_arms` comes from [ADR-0005](ADR-0005-experiment-assignment.md).
 - Status codes and error handling: organization standard C-08 (no ADR, SC-19).
 - Stored orders and the `GET` endpoint: [ADR-0007](ADR-0007-routing-decision-persistence.md).
+
+## Implementation notes (OR-022)
+
+- **Flag:** `Routing:ExposeDiagnostics` (`bool`, default `false`), read through `IOptions<RoutingOptions>`, so a change needs a restart. Off, the `diagnostics` property is absent from every body.
+- **Where:** the 201 of `POST /api/v1/route`, the same 201 on the `POST /api/route` alias, and the 200 of `GET /api/v1/route/{id}`. The 400 body and the 404 never have it (no order exists).
+- **Shape:** `experiment_arms` maps each experiment's snake_case name to `{ "arm", "reason" }`, exactly as stored; `search_mode` is `exact` or `greedy` and is **omitted** (never `null`) when no search ran. Nothing else is exposed: no caller ID or hash, no config version, no targeting rules.
+- **One source:** `DiagnosticsMapper` builds it from the `StoredRoutingOrder`. POST maps the record it just stored and GET maps the record it read, so the two cannot differ for the same order. Stored arms that cannot be read throw (a 500 with no internals) instead of guessing an arm.
+- **Contract:** additive within v1. Clients must not depend on the field (AB-05, OQ-08).

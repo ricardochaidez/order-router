@@ -54,7 +54,7 @@ public class RouteOpenApiTests(ReferenceDataFixture fixture)
         Assert.True(responses.GetProperty("201").GetProperty("headers").TryGetProperty("Location", out var location));
         Assert.Contains("/api/v1/route/{id}", location.GetProperty("description").GetString(), StringComparison.Ordinal);
         Assert.Equal(
-            ["not_routed", "partially_routed", "routed"],
+            ["not_routed", "partially_routed", "routed", "routed_with_diagnostics"],
             responses.GetProperty("201").GetProperty("content").GetProperty("application/json").GetProperty("examples").EnumerateObject().Select(example => example.Name).Order());
     }
 
@@ -100,12 +100,34 @@ public class RouteOpenApiTests(ReferenceDataFixture fixture)
         Assert.Equal(["200", "401", "404", "500"], get.GetProperty("responses").EnumerateObject().Select(response => response.Name).Order());
         Assert.NotEmpty(get.GetProperty("security").EnumerateArray());
         Assert.NotEmpty(get.GetProperty("summary").GetString()!);
-        var ok = get.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("example");
+        var ok = get.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("examples");
+        var withDiagnostics = ok.GetProperty("stored_order_with_diagnostics").GetProperty("value");
+        Assert.True(withDiagnostics.GetProperty("diagnostics").TryGetProperty("experiment_arms", out _));
+        Assert.False(ok.GetProperty("stored_order").GetProperty("value").TryGetProperty("diagnostics", out _));
+        ok = ok.GetProperty("stored_order").GetProperty("value");
         Assert.Equal("routed", ok.GetProperty("status").GetString());
         Assert.True(ok.TryGetProperty("created_at", out _));
         Assert.True(ok.TryGetProperty("items", out _));
         Assert.Equal(404, get.GetProperty("responses").GetProperty("404").GetProperty("content").GetProperty("application/problem+json").GetProperty("example").GetProperty("status").GetInt32());
         Assert.Contains("id", get.GetProperty("parameters").EnumerateArray().Select(parameter => parameter.GetProperty("name").GetString()));
+    }
+
+    // OR-022: diagnostics is documented as an optional object on both envelopes, and is never required.
+    [Theory]
+    [InlineData("RouteResponse")]
+    [InlineData("StoredOrderResponse")]
+    public async Task Document_Schemas_DiagnosticsIsAnOptionalObject(string schemaName)
+    {
+        var document = await GetDocumentAsync();
+
+        var schema = document.GetProperty("components").GetProperty("schemas").GetProperty(schemaName);
+
+        Assert.True(schema.GetProperty("properties").TryGetProperty("diagnostics", out _));
+        Assert.DoesNotContain("diagnostics", schema.GetProperty("required").EnumerateArray().Select(name => name.GetString()));
+        Assert.True(document.GetProperty("components").GetProperty("schemas").TryGetProperty("Diagnostics", out var diagnostics));
+        Assert.True(diagnostics.GetProperty("properties").TryGetProperty("experiment_arms", out _));
+        Assert.True(diagnostics.GetProperty("properties").TryGetProperty("search_mode", out _));
+        Assert.DoesNotContain("search_mode", diagnostics.TryGetProperty("required", out var required) ? required.EnumerateArray().Select(name => name.GetString()) : []);
     }
 
     // AC8, AC9: the alias is POST-only.

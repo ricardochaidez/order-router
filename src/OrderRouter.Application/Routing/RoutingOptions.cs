@@ -16,4 +16,11 @@ public sealed class RoutingOptions
     /// Configuration, not data: it is never stored (ADR-0002).
     /// </summary>
     public string NationwideZipRange { get; set; } = DefaultNationwideZipRange;
+
+    /// <summary>
+    /// When <see langword="true"/>, the 201 and the GET 200 bodies carry an optional <c>diagnostics</c> object
+    /// (experiment arms and the search mode). Off by default, and clients must not depend on it (AB-05, OQ-08).
+    /// It is read at startup, so a change needs a restart.
+    /// </summary>
+    public bool ExposeDiagnostics { get; set; }
 }

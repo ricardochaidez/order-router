@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Experiments;
 using OrderRouter.Application.Routing.Logging;
@@ -23,7 +24,8 @@ public sealed class RouteOrderUseCase(
     ICallerHasher callerHasher,
     IRoutingOrderStore orderStore,
     IRoutingDecisionLog decisionLog,
-    TimeProvider timeProvider) : IRouteOrderUseCase
+    TimeProvider timeProvider,
+    IOptions<RoutingOptions> routingOptions) : IRouteOrderUseCase
 {
     /// <inheritdoc />
     public async Task<RouteResponse> RouteAsync(RouteOrderCommand command, CancellationToken cancellationToken)
@@ -62,14 +64,20 @@ public sealed class RouteOrderUseCase(
         var id = Guid.CreateVersion7();
         var callerHash = command.CallerId is { } callerId ? callerHasher.Hash(callerId) : null;
 
-        await orderStore.SaveAsync(
-            StoredRoutingOrderFactory.Create(id, command, callerHash, timeProvider.GetUtcNow(), decision, response),
-            cancellationToken);
+        var stored = StoredRoutingOrderFactory.Create(id, command, callerHash, timeProvider.GetUtcNow(), decision, response);
+
+        await orderStore.SaveAsync(stored, cancellationToken);
 
         // AB-04, ADR-0005, ADR-0007: the decision event is written only after the order is saved, with its id, so the
         // log never shows an order that does not exist. The raw caller ID is not an input of the entry (NFR-11).
         decisionLog.Record(RoutingDecisionLogEntryFactory.Create(id, command.OrderId, callerHash, command.CustomerZip.Value, decision));
 
-        return response with { Id = id };
+        // AB-05, OQ-08: diagnostics are built from the record just stored (the same mapper GET uses) and only when the
+        // flag is on. Off, the field stays null and is omitted. What is stored and logged does not depend on the flag.
+        return response with
+        {
+            Id = id,
+            Diagnostics = routingOptions.Value.ExposeDiagnostics ? DiagnosticsMapper.Map(stored) : null,
+        };
     }
 }

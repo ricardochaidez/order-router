@@ -73,4 +73,11 @@ public sealed record StoredOrderResponse
         get => field;
         init => field = value ?? [];
     } = [];
+
+    /// <summary>
+    /// Optional evidence of how the order was routed: the experiment arms and the search mode. Present only when
+    /// <c>Routing:ExposeDiagnostics</c> is on, and omitted otherwise. Clients must not depend on it (AB-05, OQ-08).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Diagnostics? Diagnostics { get; init; }
 }

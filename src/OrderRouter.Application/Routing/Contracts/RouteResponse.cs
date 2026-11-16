@@ -63,6 +63,13 @@ public sealed record RouteResponse
         init => field = value ?? [];
     } = [];
 
+    /// <summary>
+    /// Optional evidence of how the order was routed: the experiment arms and the search mode. Present only when
+    /// <c>Routing:ExposeDiagnostics</c> is on, and omitted otherwise. Clients must not depend on it (AB-05, OQ-08).
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Diagnostics? Diagnostics { get; init; }
+
     /// <summary>Builds the 400 body: <c>not_routed</c> with every validation error (SC-15).</summary>
     /// <param name="errors">Every validation error, in a stable order.</param>
     public static RouteResponse Invalid(IReadOnlyList<string> errors)
