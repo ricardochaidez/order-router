@@ -8,3 +8,50 @@
 ### Any protected endpoint accepts the key in X-Api-Key (production uses a JWT bearer token instead)
 GET {{OrderRouter_Api_HostAddress}}/health
 X-Api-Key: {{devApiKey}}
+
+### Route an order: canonical v1 path (valid; returns 500 until OR-015 implements routing)
+POST {{OrderRouter_Api_HostAddress}}/api/v1/route
+X-Api-Key: {{devApiKey}}
+Content-Type: application/json
+
+{
+  "order_id": "ORD-EXAMPLE",
+  "customer_zip": "10015",
+  "mail_order": false,
+  "items": [
+    { "product_code": "WC-STD-001", "quantity": 1 },
+    { "product_code": "OX-PORT-024", "quantity": 1 }
+  ]
+}
+
+### Route an order: alias of v1, pinned to v1 (same handler, same contract)
+POST {{OrderRouter_Api_HostAddress}}/api/route
+X-Api-Key: {{devApiKey}}
+Content-Type: application/json
+
+{
+  "order_id": "ORD-EXAMPLE",
+  "customer_zip": "10015",
+  "mail_order": false,
+  "items": [ { "product_code": "WC-STD-001", "quantity": 1 } ]
+}
+
+### Invalid request: 400 with every error in the v1 envelope (missing customer_zip, empty items)
+POST {{OrderRouter_Api_HostAddress}}/api/v1/route
+X-Api-Key: {{devApiKey}}
+Content-Type: application/json
+
+{ "order_id": "ORD-BAD", "items": [] }
+
+### Malformed JSON: 400 in the same envelope
+POST {{OrderRouter_Api_HostAddress}}/api/v1/route
+X-Api-Key: {{devApiKey}}
+Content-Type: application/json
+
+{ not json
+
+### No credentials: 401 with WWW-Authenticate, nothing is validated
+POST {{OrderRouter_Api_HostAddress}}/api/v1/route
+Content-Type: application/json
+
+{ "order_id": "ORD-BAD", "items": [] }

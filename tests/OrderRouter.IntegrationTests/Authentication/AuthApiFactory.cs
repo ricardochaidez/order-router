@@ -29,7 +29,8 @@ internal static class AuthApiFactory
         string environment = "Development",
         string? devApiKey = null,
         ProbeCounter? probe = null,
-        Action<ILoggingBuilder>? configureLogging = null)
+        Action<ILoggingBuilder>? configureLogging = null,
+        Action<IServiceCollection>? configureServices = null)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
@@ -54,6 +55,7 @@ internal static class AuthApiFactory
                     options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(TestJwt.Configuration()));
 
                 services.AddSingleton<IStartupFilter>(new ProbeStartupFilter(probe ?? new ProbeCounter()));
+                configureServices?.Invoke(services);
             });
         });
 
