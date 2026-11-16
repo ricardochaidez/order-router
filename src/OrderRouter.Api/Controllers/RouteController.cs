@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderRouter.Api.Authentication;
 using OrderRouter.Api.Routing;
+using OrderRouter.Application.Interfaces;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.Application.Routing.Experiments;

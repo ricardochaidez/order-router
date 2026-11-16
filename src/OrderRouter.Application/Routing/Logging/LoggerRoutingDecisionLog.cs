@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using OrderRouter.Application.Interfaces;
 
 namespace OrderRouter.Application.Routing.Logging;
 

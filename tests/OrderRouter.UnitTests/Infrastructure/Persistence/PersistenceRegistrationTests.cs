@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
+using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Infrastructure;
 using OrderRouter.Infrastructure.Persistence;

@@ -1,4 +1,5 @@
-namespace OrderRouter.Application.Routing.Logging;
+using OrderRouter.Application.Routing.Logging;
+namespace OrderRouter.Application.Interfaces;
 
 /// <summary>
 /// Writes the decision log event of a stored routing order (AB-04, ADR-0005). It is the data source for later A/B

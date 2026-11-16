@@ -1,4 +1,4 @@
-using OrderRouter.Domain.Routing.TieBreaking;
+using OrderRouter.Domain.Interfaces;
 
 namespace OrderRouter.Infrastructure.Randomness;
 

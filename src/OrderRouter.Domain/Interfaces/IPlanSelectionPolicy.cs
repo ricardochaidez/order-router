@@ -1,6 +1,6 @@
 using OrderRouter.Domain.Routing.PlanSearch;
 
-namespace OrderRouter.Domain.Routing.Policies;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>EXP-1 seam: which of the candidate plans is best (ADR-0001).</summary>
 public interface IPlanSelectionPolicy

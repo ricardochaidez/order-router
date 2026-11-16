@@ -1,6 +1,7 @@
+using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
 
-namespace OrderRouter.Application.Routing;
+namespace OrderRouter.Application.Interfaces;
 
 /// <summary>
 /// Routes a validated order and returns the v1 envelope. OR-015 provides the real implementation; the Api only

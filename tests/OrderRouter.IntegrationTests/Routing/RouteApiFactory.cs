@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
+using OrderRouter.Application.Interfaces;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
 using OrderRouter.IntegrationTests.Authentication;

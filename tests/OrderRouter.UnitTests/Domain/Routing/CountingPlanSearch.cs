@@ -1,3 +1,4 @@
+using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.Routing.PlanSearch;
 
 namespace OrderRouter.UnitTests.Domain.Routing;

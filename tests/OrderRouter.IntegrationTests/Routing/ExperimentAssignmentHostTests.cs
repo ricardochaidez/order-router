@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using OrderRouter.Api.Authentication;
+using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.Routing.Experiments;
 using OrderRouter.Domain.Routing.Policies;
 using OrderRouter.IntegrationTests.Authentication;

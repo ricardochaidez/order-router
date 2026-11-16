@@ -1,6 +1,7 @@
+using OrderRouter.Application.Routing.Experiments;
 using OrderRouter.Domain.Routing.Experiments;
 
-namespace OrderRouter.Application.Routing.Experiments;
+namespace OrderRouter.Application.Interfaces;
 
 /// <summary>
 /// The vendor-agnostic port that decides the experiment arms for one request (SC-25, ADR-0005). Routing code

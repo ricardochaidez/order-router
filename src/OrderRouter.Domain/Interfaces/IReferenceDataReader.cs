@@ -1,4 +1,5 @@
-namespace OrderRouter.Domain.ReferenceData;
+using OrderRouter.Domain.ReferenceData;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>
 /// Port: suppliers by category (FR-06). Each supplier is a whole aggregate with all of its categories and

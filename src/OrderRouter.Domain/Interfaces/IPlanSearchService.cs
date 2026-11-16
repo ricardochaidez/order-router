@@ -1,4 +1,5 @@
-namespace OrderRouter.Domain.Routing.PlanSearch;
+using OrderRouter.Domain.Routing.PlanSearch;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>
 /// Port: runs the plan search with the configured guard rails. The domain routing service (OR-015) calls it; the

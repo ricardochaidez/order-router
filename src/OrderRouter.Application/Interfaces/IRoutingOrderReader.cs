@@ -1,4 +1,5 @@
-namespace OrderRouter.Application.Routing.Storage;
+using OrderRouter.Application.Routing.Storage;
+namespace OrderRouter.Application.Interfaces;
 
 /// <summary>
 /// Reads a stored routing order back (ADR-0007, FR-21). It is separate from <see cref="IRoutingOrderStore"/> so the

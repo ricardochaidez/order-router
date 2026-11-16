@@ -1,6 +1,7 @@
 using OrderRouter.Domain.Routing.PlanSearch;
+using OrderRouter.Domain.Routing.Policies;
 
-namespace OrderRouter.Domain.Routing.Policies;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>EXP-3 seam: what to do when some lines cannot be fulfilled (ADR-0001).</summary>
 public interface IUnfulfillablePolicy

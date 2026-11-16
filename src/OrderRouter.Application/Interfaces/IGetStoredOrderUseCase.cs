@@ -1,6 +1,6 @@
 using OrderRouter.Application.Routing.Contracts;
 
-namespace OrderRouter.Application.Routing;
+namespace OrderRouter.Application.Interfaces;
 
 /// <summary>
 /// Reads a stored order for the caller who created it (FR-21). The Api only depends on this seam (DIP).

@@ -1,6 +1,7 @@
 using OrderRouter.Domain.Routing.PlanSearch;
+using OrderRouter.Domain.Routing.TieBreaking;
 
-namespace OrderRouter.Domain.Routing.TieBreaking;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>Ranking key 5 (Technical Requirements §7.3, FR-13): chooses one plan from those still tied. Shared by every experiment arm (ADR-0001).</summary>
 public interface ITieBreaker

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using OrderRouter.Application.Routing.Storage;
-using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Application.Interfaces;
+using OrderRouter.Domain.Interfaces;
 using OrderRouter.Infrastructure.Persistence.ReferenceData;
 using OrderRouter.Infrastructure.Persistence.RoutingOrders;
 

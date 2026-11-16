@@ -35,7 +35,8 @@ paths:
 
 - Use the appropriate .NET project templates when creating a new project.
 - Keep the purpose of each generated file and folder clear so the project structure stays understandable.
-- Organize code using feature folders or domain-driven design principles.
+- Organize code using feature folders or domain-driven design principles, with one exception: interfaces.
+- Put every interface in a flat `Interfaces/` folder at the root of the project that owns it (e.g., `src/OrderRouter.Domain/Interfaces/`), one interface per file, with the namespace `<ProjectName>.Interfaces` (e.g., `OrderRouter.Domain.Interfaces`). Implementations stay in their feature folders.
 - Maintain proper separation of concerns with models, services, and data access layers.
 - Use the Program.cs and configuration system in ASP.NET Core 10, including environment-specific settings.
 

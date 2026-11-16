@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OrderRouter.Application.Routing.PlanSearch;
 using OrderRouter.Domain.Eligibility;
+using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing.PlanSearch;
 using OrderRouter.IntegrationTests.Authentication;

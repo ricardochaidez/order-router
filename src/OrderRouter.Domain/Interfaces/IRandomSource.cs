@@ -1,4 +1,4 @@
-namespace OrderRouter.Domain.Routing.TieBreaking;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>
 /// The only source of randomness in the domain (NFR-08a, ADR-0001). Tests inject a fixed source for exact

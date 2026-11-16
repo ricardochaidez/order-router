@@ -1,12 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using OrderRouter.Application.Interfaces;
 using OrderRouter.Application.Routing.Logging;
 using OrderRouter.Application.Routing.PlanSearch;
 using OrderRouter.Domain.Eligibility;
+using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing;
-using OrderRouter.Domain.Routing.PlanSearch;
 using OrderRouter.Domain.Routing.Policies;
 using OrderRouter.Domain.Routing.TieBreaking;
 
@@ -17,7 +18,7 @@ namespace OrderRouter.Application.Routing;
 /// Application and Infrastructure (the layer rule, <c>LayerDependencyTests</c>) while the Domain types are wired here.
 /// The host binds <see cref="RoutingOptions"/> and <see cref="PlanSearchOptions"/>, and Infrastructure supplies
 /// <see cref="IRandomSource"/>, <see cref="ICapabilityResolver"/> and <see cref="IReferenceDataReader"/>.
-/// The <see cref="Experiments.IExperimentAssigner"/> is not registered here: Infrastructure supplies it (OR-016).
+/// The <see cref="IExperimentAssigner"/> is not registered here: Infrastructure supplies it (OR-016).
 /// </summary>
 public static class RoutingServiceCollectionExtensions
 {

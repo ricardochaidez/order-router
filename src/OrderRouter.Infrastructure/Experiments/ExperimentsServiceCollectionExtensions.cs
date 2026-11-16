@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
-using OrderRouter.Application.Routing.Experiments;
+using OrderRouter.Application.Interfaces;
 
 namespace OrderRouter.Infrastructure.Experiments;
 

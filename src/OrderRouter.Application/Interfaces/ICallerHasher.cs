@@ -1,4 +1,4 @@
-namespace OrderRouter.Application.Routing;
+namespace OrderRouter.Application.Interfaces;
 
 /// <summary>
 /// Turns a caller ID into a pseudonym that can be stored and logged. The raw caller ID is never stored or logged

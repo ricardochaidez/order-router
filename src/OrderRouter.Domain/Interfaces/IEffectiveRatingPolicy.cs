@@ -1,6 +1,6 @@
 using OrderRouter.Domain.ReferenceData;
 
-namespace OrderRouter.Domain.Routing.Policies;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>EXP-2 seam: the rating the routing uses for a supplier (ADR-0001).</summary>
 public interface IEffectiveRatingPolicy

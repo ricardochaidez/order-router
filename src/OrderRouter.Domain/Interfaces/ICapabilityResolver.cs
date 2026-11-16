@@ -1,4 +1,5 @@
-namespace OrderRouter.Domain.ReferenceData;
+using OrderRouter.Domain.ReferenceData;
+namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>
 /// Port: product code to category (FR-05, FR-16). Implemented in Infrastructure; the domain never
