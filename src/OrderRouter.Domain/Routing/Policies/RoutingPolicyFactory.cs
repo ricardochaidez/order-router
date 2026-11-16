@@ -7,8 +7,8 @@ namespace OrderRouter.Domain.Routing.Policies;
 /// Maps each experiment arm to its policy. Stateless; builds a new immutable policy set per request.
 /// </summary>
 /// <remarks>
-/// A treatment ticket (OR-017) adds one policy class and replaces its
-/// <see cref="NotSupportedException"/> below with that class (AB-06). Nothing else changes.
+/// Each treatment arm is one policy class and one line here (AB-06).
+/// EXP-1 treatment (OR-017) is done: <see cref="BoundedTradeOffPolicy"/> gets the band and uplift threshold from the assignment.
 /// EXP-2 treatment (OR-018) is done: <see cref="ColdStartPriorPolicy"/> gets the prior from the assignment.
 /// EXP-3 treatment (OR-019) is done: <see cref="PartialRoutingPolicy"/>.
 /// </remarks>
@@ -16,7 +16,6 @@ public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
 {
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException"><paramref name="assignment"/> is null.</exception>
-    /// <exception cref="NotSupportedException">The EXP-1 treatment arm is requested before it exists (fail safe: no mislabelled routing).</exception>
     /// <exception cref="ArgumentOutOfRangeException">An arm value is not defined.</exception>
     public RoutingPolicy Create(ExperimentAssignment assignment)
     {
@@ -27,7 +26,7 @@ public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
         IPlanSelectionPolicy selection = arms.Exp1ConsolidationVsQuality switch
         {
             ExperimentArm.Control => new StrictPriorityPolicy(assignment.Parameters.SimilarityBand),
-            ExperimentArm.Treatment => throw NotAvailable("EXP-1"),
+            ExperimentArm.Treatment => new BoundedTradeOffPolicy(assignment.Parameters.SimilarityBand, assignment.Parameters.QualityUpliftThreshold),
             _ => throw OutOfRange(nameof(ExperimentArms.Exp1ConsolidationVsQuality), arms.Exp1ConsolidationVsQuality),
         };
 
@@ -47,9 +46,6 @@ public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
 
         return new RoutingPolicy(rating, selection, unfulfillable, assignment);
     }
-
-    private static NotSupportedException NotAvailable(string experiment)
-        => new($"The treatment arm of {experiment} is not implemented yet.");
 
     private static ArgumentOutOfRangeException OutOfRange(string experiment, ExperimentArm arm)
         => new(experiment, arm, "Unknown experiment arm.");

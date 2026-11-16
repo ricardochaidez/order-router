@@ -37,14 +37,60 @@ public class RoutingPolicyFactoryTests
     }
 
     [Fact]
-    public void Create_Exp1Treatment_ThrowsNamingTheExperiment()
+    public void Create_Exp1Treatment_BuildsBoundedTradeOffAndLeavesTheOtherArmsOnControl()
     {
-        var assignment = new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control), RoutingParameters.Default);
+        var policy = factory.Create(Exp1Treatment(RoutingParameters.Default));
 
-        var exception = Assert.Throws<NotSupportedException>(() => factory.Create(assignment));
+        var selection = Assert.IsType<BoundedTradeOffPolicy>(policy.Selection);
+        Assert.Equal(1, selection.MaxExtraShipments);
+        Assert.IsType<UnratedLastPolicy>(policy.Rating);
+        Assert.IsType<AllOrNothingPolicy>(policy.Unfulfillable);
+    }
 
-        Assert.Contains("EXP-1", exception.Message);
+    [Fact]
+    public void Create_Exp1TreatmentWithDifferentThresholds_GivesIndependentPoliciesThatFlipTheSamePlans()
+    {
+        // AC4
+        var plans = new PlanSearcher().Search(new PlanSearchRequest(
+            [Demand("cane"), Demand("walker")],
+            [
+                Local("ONE", 6m, "cane", "walker"),
+                Local("TWO-A", 9m, "cane"),
+                Local("TWO-B", 9m, "walker"),
+            ],
+            maxExtraShipments: 1)).Plans;
+
+        var low = factory.Create(Exp1Treatment(new RoutingParameters(qualityUpliftThreshold: 2m)));
+        var high = factory.Create(Exp1Treatment(new RoutingParameters(qualityUpliftThreshold: 4m)));
+
+        Assert.NotSame(low.Selection, high.Selection);
+        Assert.Equal(2, low.Selection.SelectBest(plans).Single().ShipmentCount);
+        Assert.Equal(1, high.Selection.SelectBest(plans).Single().ShipmentCount);
+    }
+
+    [Fact]
+    public void Create_Exp1Treatment_BandReachesThePolicy()
+    {
+        var plans = new PlanSearcher().Search(new PlanSearchRequest(
+            [Demand("cane")],
+            [Mail("MAIL", 9.0m, "cane"), Local("LOCAL", 8.7m, "cane")])).Plans;
+
+        var wide = factory.Create(Exp1Treatment(new RoutingParameters(similarityBand: 0.5m))).Selection.SelectBest(plans);
+        var narrow = factory.Create(Exp1Treatment(new RoutingParameters(similarityBand: 0.1m))).Selection.SelectBest(plans);
+
+        Assert.Equal(["LOCAL"], Ids(Assert.Single(wide)));
+        Assert.Equal(["MAIL"], Ids(Assert.Single(narrow)));
+    }
+
+    [Fact]
+    public void Create_AllTreatment_DoesNotThrow()
+    {
+        var policy = factory.Create(new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Treatment, ExperimentArm.Treatment), RoutingParameters.Default));
+
+        Assert.IsType<BoundedTradeOffPolicy>(policy.Selection);
+        Assert.IsType<ColdStartPriorPolicy>(policy.Rating);
+        Assert.IsType<PartialRoutingPolicy>(policy.Unfulfillable);
     }
 
     [Fact]
@@ -109,6 +155,9 @@ public class RoutingPolicyFactoryTests
 
         Assert.NotSame(first.Selection, second.Selection);
     }
+
+    private static ExperimentAssignment Exp1Treatment(RoutingParameters parameters)
+        => new(new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control), parameters);
 
     private static ExperimentAssignment Exp3(ExperimentArm arm)
         => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, arm), RoutingParameters.Default);

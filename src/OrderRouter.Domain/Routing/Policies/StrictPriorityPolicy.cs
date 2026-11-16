@@ -38,15 +38,8 @@ public sealed class StrictPriorityPolicy : IPlanSelectionPolicy
             return [];
         }
 
-        // FR-12: the band is not transitive, so find the best quality first and compare every plan to it.
         var fewest = plans.Min(p => p.ShipmentCount);
-        var shortest = plans.Where(p => p.ShipmentCount == fewest).ToList();
-        var floor = shortest.Max(p => p.Quality) - similarityBand;
-        var similar = shortest.Where(p => p.Quality >= floor).ToList();
-        var mostLocal = similar.Max(p => p.LocalLineCount);
-        var local = similar.Where(p => p.LocalLineCount == mostLocal).ToList();
-        var bestQuality = local.Max(p => p.Quality);
 
-        return local.Where(p => p.Quality == bestQuality).ToList().AsReadOnly();
+        return PlanRanking.BestWithinSize([.. plans.Where(p => p.ShipmentCount == fewest)], similarityBand);
     }
 }

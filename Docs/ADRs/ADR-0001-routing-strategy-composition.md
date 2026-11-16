@@ -183,7 +183,11 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 
 ## Implementation note (OR-019)
 
-`PartialRoutingPolicy` (EXP-3 treatment) is a stateless singleton behind `IUnfulfillablePolicy`; enabling it took one line in `RoutingPolicyFactory`. It never routes an unfulfilled line, and no plan means `not_routed`. HTTP 201 comes with OR-027. The EXP-1 treatment still throws in the factory (500 for targeted requests) until OR-017.
+`PartialRoutingPolicy` (EXP-3 treatment) is a stateless singleton behind `IUnfulfillablePolicy`; enabling it took one line in `RoutingPolicyFactory`. It never routes an unfulfilled line, and no plan means `not_routed`. HTTP 201 comes with OR-027.
+
+## Implementation note (OR-017)
+
+`BoundedTradeOffPolicy` (EXP-1 treatment) is an immutable policy that `RoutingPolicyFactory` builds per request from `Parameters.SimilarityBand` and `Parameters.QualityUpliftThreshold`, so it never captures configuration. The uplift is measured against the plan `StrictPriorityPolicy` would pick; the best plan with one more shipment wins when its quality is at least the threshold above that plan. Both shipment-count groups are ranked by the same internal `PlanRanking` helper (the band applies within a count, ADR-0003). The policy never selects a plan with two or more extra shipments. No treatment arm throws any more, so the "EXP-1 treatment returns 500" risk is gone.
 
 ## Links
 

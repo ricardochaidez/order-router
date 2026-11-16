@@ -249,3 +249,9 @@ Arms appear in the response only through the optional `diagnostics` object ([ADR
 - **Value formats.** `chosen_suppliers` is `SUP-1:local,SUP-2:mail` in order of each supplier's first line (empty when nothing was routed). `tied_candidates` and `tie_pick` are set only when the random tie-break ran: each tied plan is written as its suppliers joined with `+`, plans separated by commas.
 - **Not-routed orders.** `shipment_count` and `plan_quality` describe the routed plan, so they are `0` and `null` when no line was routed, including when all-or-nothing held back lines that a search had already planned. `search_mode` is `null` only when no search ran. `unfulfilled_count` counts the lines that could not be routed.
 - **Log faults are not order faults.** The emitter swallows exceptions from a failing log provider, because the order is already stored and its `id` is about to be returned. The cost is that a broken provider can lose events silently; the response, not the log, is the contract.
+
+## Implementation notes (OR-017)
+
+- **EXP-1 treatment** is `BoundedTradeOffPolicy`, built per request with `Parameters.SimilarityBand` and `Parameters.QualityUpliftThreshold`. After a reload the next request uses the new threshold (host test with an in-place edit of `experiments.json`); an invalid value keeps the last good configuration.
+- **Uplift baseline:** the plan strict priority would pick, not the highest quality among minimum-shipment plans. Plans with two or more extra shipments are never selected.
+- **Known risk closed:** with OR-017, OR-018 and OR-019 done, no treatment arm throws. Enabling any experiment no longer makes targeted requests return 500.

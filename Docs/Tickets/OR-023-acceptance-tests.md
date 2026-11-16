@@ -68,3 +68,7 @@ Add endpoint-level integration tests against the seeded database for the sample 
 - **Given** the full test run (unit and integration)
 - **When** coverage is measured for the Domain and Application projects
 - **Then** it is at least 85% (NFR-08)
+
+## Notes
+
+- Coverage measured with `dotnet test --coverage --coverage-output-format cobertura --results-directory <dir>` over both test projects, merging the Cobertura files by file and line: Domain 98.5%, Application 98.7% (baseline and final are the same; the existing suite already exceeded 85%).
