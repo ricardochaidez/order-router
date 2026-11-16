@@ -1,7 +1,7 @@
 using OrderRouter.Application.Routing.Contracts;
+using OrderRouter.Application.Routing.Experiments;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing;
-using OrderRouter.Domain.Routing.Experiments;
 using OrderRouter.Domain.Routing.Policies;
 
 namespace OrderRouter.Application.Routing;
@@ -14,6 +14,7 @@ namespace OrderRouter.Application.Routing;
 public sealed class RouteOrderUseCase(
     ICapabilityResolver capabilityResolver,
     IReferenceDataReader referenceDataReader,
+    IExperimentAssigner experimentAssigner,
     IRoutingPolicyFactory policyFactory,
     OrderRoutingService routingService) : IRouteOrderUseCase
 {
@@ -39,8 +40,9 @@ public sealed class RouteOrderUseCase(
             ? []
             : await referenceDataReader.GetSuppliersHandlingAsync(categories, cancellationToken);
 
-        // TEMPORARY until OR-016: every request runs on the control arms.
-        var policy = policyFactory.Create(ExperimentAssignment.AllControl);
+        // SC-25, SC-26: the arms come from the port (reloadable configuration today), never from routing code.
+        var assignment = experimentAssigner.Assign(new AssignmentContext(command.CallerId, command.CustomerZip, command.OrderId));
+        var policy = policyFactory.Create(assignment);
 
         var decision = routingService.Route(new OrderToRoute(command.CustomerZip, command.MailOrder, lines), suppliers, policy);
 

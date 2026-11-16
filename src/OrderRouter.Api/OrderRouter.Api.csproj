@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Reloadable experiment settings (OR-016). Copied next to the app so a deployment can edit or mount it. -->
+    <Content Update="experiments.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The health types are internal on purpose; the unit tests exercise them directly without a host. -->
     <InternalsVisibleTo Include="OrderRouter.UnitTests" />
     <InternalsVisibleTo Include="OrderRouter.IntegrationTests" />

@@ -15,15 +15,17 @@ public sealed record RouteOrderLine(string ProductCode, int Quantity);
 /// <param name="CustomerZip">The delivery ZIP.</param>
 /// <param name="MailOrder">Whether only mail-capable suppliers may be used (FR-08).</param>
 /// <param name="Lines">At least one line, in request order.</param>
-public sealed record RouteOrderCommand(string OrderId, ZipCode CustomerZip, bool MailOrder, IReadOnlyList<RouteOrderLine> Lines)
+/// <param name="CallerId">The authenticated caller, or <c>null</c> when the token has no caller claim (experiment assignment, AB-01).</param>
+public sealed record RouteOrderCommand(string OrderId, ZipCode CustomerZip, bool MailOrder, IReadOnlyList<RouteOrderLine> Lines, string? CallerId = null)
 {
     /// <summary>Builds a command from validated values.</summary>
     /// <param name="orderId">The caller's order id.</param>
     /// <param name="customerZip">Exactly 5 digits.</param>
     /// <param name="mailOrder">Mail-order flag.</param>
     /// <param name="lines">At least one line.</param>
+    /// <param name="callerId">The authenticated caller, if known.</param>
     /// <exception cref="ArgumentException">An invariant is violated, which means the edge validation was bypassed.</exception>
-    public static RouteOrderCommand Create(string orderId, string customerZip, bool mailOrder, IReadOnlyList<RouteOrderLine> lines)
+    public static RouteOrderCommand Create(string orderId, string customerZip, bool mailOrder, IReadOnlyList<RouteOrderLine> lines, string? callerId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderId);
         ArgumentNullException.ThrowIfNull(lines);
@@ -39,6 +41,6 @@ public sealed record RouteOrderCommand(string OrderId, ZipCode CustomerZip, bool
             ArgumentOutOfRangeException.ThrowIfLessThan(line.Quantity, 1);
         }
 
-        return new RouteOrderCommand(orderId, ZipCode.Parse(customerZip), mailOrder, lines);
+        return new RouteOrderCommand(orderId, ZipCode.Parse(customerZip), mailOrder, lines, callerId);
     }
 }

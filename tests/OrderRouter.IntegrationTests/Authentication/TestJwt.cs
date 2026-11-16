@@ -45,18 +45,29 @@ internal static class TestJwt
     /// <summary>A token from a different issuer.</summary>
     public static string WrongIssuer() => Create(issuer: "https://other-authority.example/");
 
+    /// <summary>A valid token whose caller is <paramref name="subject"/> (<c>sub</c>).</summary>
+    public static string ForSubject(string subject) => Create(claims: [new System.Security.Claims.Claim("sub", subject)]);
+
+    /// <summary>A valid token carrying exactly these claims and no <c>sub</c> unless one is listed.</summary>
+    public static string WithClaims(params (string Type, string Value)[] claims)
+        => Create(claims: [.. claims.Select(claim => new System.Security.Claims.Claim(claim.Type, claim.Value))]);
+
+    /// <summary>A valid token with no <c>sub</c>, <c>client_id</c> or <c>azp</c> claim.</summary>
+    public static string WithoutCaller() => Create(claims: []);
+
     private static string Create(
         RsaSecurityKey? key = null,
         string audience = Audience,
         string issuer = Issuer,
         DateTime? expires = null,
-        DateTime? notBefore = null)
+        DateTime? notBefore = null,
+        IEnumerable<System.Security.Claims.Claim>? claims = null)
     {
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = issuer,
             Audience = audience,
-            Subject = new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("sub", Subject)]),
+            Subject = new System.Security.Claims.ClaimsIdentity(claims ?? [new System.Security.Claims.Claim("sub", Subject)]),
             NotBefore = notBefore ?? DateTime.UtcNow.AddMinutes(-1),
             Expires = expires ?? DateTime.UtcNow.AddHours(1),
             SigningCredentials = new SigningCredentials(key ?? signingKey, SecurityAlgorithms.RsaSha256),

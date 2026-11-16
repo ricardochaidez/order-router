@@ -1,8 +1,10 @@
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
+using OrderRouter.Application.Routing.Experiments;
 using OrderRouter.Domain.Eligibility;
 using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing;
+using OrderRouter.Domain.Routing.Experiments;
 using OrderRouter.Domain.Routing.Policies;
 using OrderRouter.Domain.Routing.TieBreaking;
 using OrderRouter.UnitTests.Domain.Routing;
@@ -16,12 +18,15 @@ public class RouteOrderUseCaseTests
 
     private readonly FakeResolver resolver = new();
     private readonly FakeReader reader = new();
+    private readonly FakeAssigner assigner = new();
+    private readonly CapturingPolicyFactory policyFactory = new();
 
     private RouteOrderUseCase UseCase()
         => new(
             resolver,
             reader,
-            new RoutingPolicyFactory(),
+            assigner,
+            policyFactory,
             new OrderRoutingService(
                 new SupplierEligibility(ZipRange.Parse("00100-99999")),
                 new CountingPlanSearch(),
@@ -80,8 +85,64 @@ public class RouteOrderUseCaseTests
     }
 
     [Fact]
+    public async Task RouteAsync_PassesCallerZipAndOrderIdToTheAssigner()
+    {
+        var command = RouteOrderCommand.Create("ORD-9", "02114", false, [new RouteOrderLine("A", 1)], "portal-client");
+
+        await UseCase().RouteAsync(command, token);
+
+        var context = Assert.Single(assigner.Contexts);
+        Assert.Equal(new AssignmentContext("portal-client", ZipCode.Parse("02114"), "ORD-9"), context);
+    }
+
+    [Fact]
+    public async Task RouteAsync_NoCaller_PassesNullCallerToTheAssigner()
+    {
+        await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.Null(Assert.Single(assigner.Contexts).CallerId);
+    }
+
+    [Fact]
+    public async Task RouteAsync_GivesThePolicyFactoryExactlyTheAssignmentTheAssignerReturned()
+    {
+        var assignment = new ExperimentAssignment(ExperimentArms.AllControl, new RoutingParameters(similarityBand: 0.25m), ExperimentReasons.AllDisabled, "v-test");
+        assigner.Result = assignment;
+
+        await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.Same(assignment, Assert.Single(policyFactory.Assignments));
+    }
+
+    [Fact]
     public async Task RouteAsync_NullCommand_Throws()
         => await Assert.ThrowsAsync<ArgumentNullException>(() => UseCase().RouteAsync(null!, token));
+
+    private sealed class FakeAssigner : IExperimentAssigner
+    {
+        public List<AssignmentContext> Contexts { get; } = [];
+
+        public ExperimentAssignment Result { get; set; } = ExperimentAssignment.AllControl;
+
+        public ExperimentAssignment Assign(AssignmentContext context)
+        {
+            Contexts.Add(context);
+
+            return Result;
+        }
+    }
+
+    private sealed class CapturingPolicyFactory : IRoutingPolicyFactory
+    {
+        public List<ExperimentAssignment> Assignments { get; } = [];
+
+        public RoutingPolicy Create(ExperimentAssignment assignment)
+        {
+            Assignments.Add(assignment);
+
+            return new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+        }
+    }
 
     private sealed class FakeResolver : ICapabilityResolver
     {

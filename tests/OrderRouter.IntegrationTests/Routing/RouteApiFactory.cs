@@ -30,7 +30,7 @@ internal static class RouteApiFactory
         });
 
     /// <summary>An authenticated POST with a raw JSON body.</summary>
-    public static HttpRequestMessage Post(string path, string? body, bool authenticated = true, string contentType = "application/json")
+    public static HttpRequestMessage Post(string path, string? body, bool authenticated = true, string contentType = "application/json", string? token = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, path);
 
@@ -41,7 +41,7 @@ internal static class RouteApiFactory
 
         if (authenticated)
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TestJwt.Valid());
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token ?? TestJwt.Valid());
         }
 
         return request;

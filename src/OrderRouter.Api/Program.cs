@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using OrderRouter.Api.Authentication;
@@ -11,12 +12,24 @@ using OrderRouter.Api.Health;
 using OrderRouter.Api.Routing;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.PlanSearch;
+using OrderRouter.Infrastructure.Experiments;
 using OrderRouter.Infrastructure.Persistence;
 using OrderRouter.Infrastructure.Randomness;
 
 // Composition root: the Api project is the only place that wires Application and Infrastructure
 // together, so the inner layers never depend on the host or on each other's implementations.
 var builder = WebApplication.CreateBuilder(args);
+
+// Reloadable experiment settings (SC-25, ADR-0005). The file is optional: when it is missing every experiment is
+// disabled, which is the fail-safe default (AB-03). It is placed just before the environment-variable source, so
+// environment variables and the command line still override it. Containers poll for changes
+// (DOTNET_USE_POLLING_FILE_WATCHER), because file events do not reliably cross bind mounts.
+builder.Configuration.AddJsonFile("experiments.json", optional: true, reloadOnChange: true);
+var configurationSources = builder.Configuration.Sources;
+var experimentsSource = configurationSources[^1];
+configurationSources.RemoveAt(configurationSources.Count - 1);
+var environmentIndex = configurationSources.ToList().FindIndex(source => source is EnvironmentVariablesConfigurationSource);
+configurationSources.Insert(environmentIndex < 0 ? configurationSources.Count : environmentIndex, experimentsSource);
 
 // OpenAPI document generation. Every endpoint added by later tickets is documented through it.
 builder.Services.AddOpenApi(options => options.AddOperationTransformer<RouteOpenApiTransformer>());
@@ -58,6 +71,8 @@ builder.Services.AddSingleton<IValidateOptions<PlanSearchOptions>, PlanSearchOpt
 // layer, so this host only references Application and Infrastructure.
 builder.Services.AddOrderRouterRouting();
 builder.Services.AddOrderRouterRandomness();
+// The experiment assigner (OR-016): the port is in Application, the reloadable-configuration adapter in Infrastructure.
+builder.Services.AddOrderRouterExperiments();
 
 // ConnectionStrings:OrderRouter comes from appsettings.Development.json in Development, or from the
 // ConnectionStrings__OrderRouter environment variable. There is deliberately no default elsewhere, so a

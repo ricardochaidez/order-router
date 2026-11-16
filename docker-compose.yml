@@ -33,6 +33,13 @@ services:
       ConnectionStrings__OrderRouter: Host=postgres;Port=5432;Database=orderrouter;Username=orderrouter;Password=${POSTGRES_PASSWORD:-orderrouter-dev-only}
       # Dev-only placeholder for the X-Api-Key header (OR-008). Ignored outside Development.
       Authentication__DevApiKey: ${DEV_API_KEY:-}
+      # File-change events do not reliably reach a container through a bind mount, so poll for experiments.json edits (OR-016, ADR-0005).
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    volumes:
+      # Edit this file on the host to change experiments without a restart or a deploy (SC-25).
+      # Single-file mounts follow the file's inode: edit it IN PLACE (open and overwrite it). A save that replaces the
+      # file (sed -i, or an editor that writes a temp file and renames it) detaches the mount until the container restarts.
+      - ./src/OrderRouter.Api/experiments.json:/app/experiments.json:ro
 
 volumes:
   postgres-data:

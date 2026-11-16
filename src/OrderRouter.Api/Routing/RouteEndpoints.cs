@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using OrderRouter.Api.Authentication;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.Contracts;
+using OrderRouter.Application.Routing.Experiments;
 
 namespace OrderRouter.Api.Routing;
 
@@ -38,14 +40,16 @@ internal static class RouteEndpoints
             .Produces<RouteResponse>(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-    private static async Task<Ok<RouteResponse>> HandleAsync(RouteRequest request, IRouteOrderUseCase useCase, CancellationToken cancellationToken)
+    private static async Task<Ok<RouteResponse>> HandleAsync(RouteRequest request, ClaimsPrincipal user, IRouteOrderUseCase useCase, CancellationToken cancellationToken)
     {
         // The request already passed validation at the edge (FR-03); the command factory only guards invariants.
         var command = RouteOrderCommand.Create(
             request.OrderId!,
             request.CustomerZip!,
             request.MailOrder,
-            [.. request.Items!.Select(item => new RouteOrderLine(item!.ProductCode!, item.Quantity!.Value))]);
+            [.. request.Items!.Select(item => new RouteOrderLine(item!.ProductCode!, item.Quantity!.Value))],
+            // The experiment unit (AB-01): sub, then client_id, then azp; null falls back to the order ID. Never logged (NFR-11).
+            CallerIdentity.Resolve(user));
 
         var response = await useCase.RouteAsync(command, cancellationToken);
 

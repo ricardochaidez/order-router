@@ -222,3 +222,15 @@ Arms appear in the response only through the optional `diagnostics` object ([ADR
 - The same `caller_hash` is stored with each routing order and used for the ownership check on `GET`: [ADR-0007](ADR-0007-routing-decision-persistence.md).
 - Authentication (source of the caller ID): organization standard C-12, FR-19.
 - Open items: OQ-25 (end-user identity through the orchestrator), OQ-08, OQ-09, OQ-10.
+
+## Implementation notes (OR-016)
+
+- **Caller ID claims:** `sub`, then `client_id` (RFC 9068), then `azp` (OIDC). Blank values count as missing. With no claim the caller is `null` and the order ID is the unit. The dev key already carries `sub = dev-key`.
+- **Experiment IDs** are the configuration section keys (`Exp1ConsolidationVsQuality`, `Exp2UnratedSuppliers`, `Exp3PartialRouting`), the same names as the `ExperimentArms` properties. Each has its own salt, so arms are independent.
+- **Bucket:** `SHA256(UTF8("{id}:{salt}:{unit}"))`, first 8 bytes read with `BinaryPrimitives.ReadUInt64BigEndian`, modulo 100. The byte order is explicit so results match on every platform; a known-answer test pins the values (computed outside .NET).
+- **`config_version`:** the first 12 lowercase hex characters of SHA-256 over a canonical JSON of the *parsed* values in a fixed order, with numbers normalized. A whitespace-only edit keeps the version; any value change alters it.
+- **Reload design (decided by a spike):** a failed `IValidateOptions` check on reload makes `IOptionsMonitor` throw inside its own change callback, on the file-watcher thread, without notifying listeners (`OptionsMonitorReloadSpikeTests`). So validation is **not registered** on the options system. `ExperimentsOptionsValidator` (an `IValidateOptions` class over the one mapper) is called directly by a startup check and the assigner calls the same mapper on every change. Behaviour matches the ADR: invalid config stops startup, an invalid reload keeps the last-known-good snapshot and logs an error. Binding failures (for example text where a number is expected) are recorded as a validation error instead of thrown, for the same reason.
+- **Missing and malformed files:** a missing `experiments.json` means every experiment is disabled. A file that is not valid JSON fails startup; on reload the provider fails before it notifies anyone, so the last-known-good snapshot stays.
+- **Source order:** `experiments.json` is inserted before the environment-variable source, so environment variables and the command line still override it (pinned by a host test).
+- **Containers:** the compose file mounts the file read-only and sets `DOTNET_USE_POLLING_FILE_WATCHER=true`. A single-file bind mount follows the file's inode, so an edit must overwrite the file **in place**; a save that replaces the file (`sed -i`, an editor that renames a temp file) detaches the mount until the container restarts. Verified by hand against the compose stack.
+- **Known risk until OR-017..019:** `RoutingPolicyFactory` still throws for treatment arms. Enabling an experiment in a real deployment makes targeted treatment requests return 500. The shipped file keeps every experiment disabled.

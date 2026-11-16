@@ -15,6 +15,7 @@ namespace OrderRouter.Application.Routing;
 /// Application and Infrastructure (the layer rule, <c>LayerDependencyTests</c>) while the Domain types are wired here.
 /// The host binds <see cref="RoutingOptions"/> and <see cref="PlanSearchOptions"/>, and Infrastructure supplies
 /// <see cref="IRandomSource"/>, <see cref="ICapabilityResolver"/> and <see cref="IReferenceDataReader"/>.
+/// The <see cref="Experiments.IExperimentAssigner"/> is not registered here: Infrastructure supplies it (OR-016).
 /// </summary>
 public static class RoutingServiceCollectionExtensions
 {

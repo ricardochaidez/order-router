@@ -12,6 +12,8 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!-- ASP.NET Core health-check integration for the DbContext: backs GET /health with a connectivity-only check (ADR-0002, SC-23). -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.15" />
+    <!-- Binds the whole configuration root to ExperimentsOptions and its reload token (OR-016, ADR-0005). -->
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
     <!-- CsvHelper reads the normalized seed files (ADR-0002). 33.1.0 is the version the OR-003 normalizer tool pins; 34.x is a different, stream-based API. -->
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <!-- Design-time tooling only (dotnet ef migrations); PrivateAssets keeps it from flowing to the Api at runtime.
