@@ -9,7 +9,8 @@ namespace OrderRouter.Api.Routing;
 
 /// <summary>
 /// Maps <c>POST /api/v1/route</c> (canonical) and <c>POST /api/route</c> (alias pinned to v1); both answer 201 Created. Both run the same
-/// handler, auth policy and validation, so they cannot drift (ADR-0004).
+/// handler, auth policy and validation, so they cannot drift (ADR-0004). It also maps <c>GET /api/v1/route/{id}</c>, which reads a stored
+/// order back (FR-21). There is deliberately no GET under <c>/api/route</c>: the alias is POST-only (ADR-0004).
 /// </summary>
 internal static class RouteEndpoints
 {
@@ -19,12 +20,24 @@ internal static class RouteEndpoints
     /// <summary>Operation name of the alias endpoint.</summary>
     public const string AliasName = "RouteOrderAlias";
 
-    /// <summary>Maps both paths.</summary>
+    /// <summary>Operation name of the read endpoint.</summary>
+    public const string GetStoredOrderName = "GetStoredOrderV1";
+
+    /// <summary>Maps the POST paths and the v1 GET.</summary>
     /// <param name="app">The endpoint route builder.</param>
     public static IEndpointRouteBuilder MapRouteEndpoints(this IEndpointRouteBuilder app)
     {
         Configure(app.MapGroup("/api/v1").MapPost("/route", HandleAsync), V1Name);
         Configure(app.MapPost("/api/route", HandleAsync), AliasName);
+
+        app.MapGroup("/api/v1").MapGet("/route/{id}", GetAsync)
+            .WithName(GetStoredOrderName)
+            .WithTags("Routing")
+            .RequireRouteCaller()
+            // 200 is inferred from the handler's return type; the examples are added by RouteOpenApiTransformer.
+            // No RouteEnvelopeMetadata: that is the POST-only 400 envelope. A GET has no body to validate.
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         return app;
     }
@@ -60,4 +73,27 @@ internal static class RouteEndpoints
 
         return TypedResults.Created($"/api/v1/route/{id}", response);
     }
+
+    // FR-21, SC-31: one 404 for every case that is not "this caller's stored order" (unknown id, not a UUID, another
+    // caller's order, an order stored without a caller). Same status, title and detail, so nothing reveals whether an id exists.
+    private static async Task<Results<Ok<StoredOrderResponse>, ProblemHttpResult>> GetAsync(string id, ClaimsPrincipal user, IGetStoredOrderUseCase useCase, CancellationToken cancellationToken)
+    {
+        // The id is parsed here, after authentication, and not with a {id:guid} route constraint: a constraint would turn
+        // an invalid id into a bodiless 404 before auth runs, so an anonymous call to /api/v1/route/abc would not get 401.
+        // Only the canonical hyphenated form is accepted.
+        if (!Guid.TryParseExact(id, "D", out var orderId))
+        {
+            return NotFound();
+        }
+
+        var order = await useCase.GetAsync(orderId, CallerIdentity.Resolve(user), cancellationToken);
+
+        return order is null ? NotFound() : TypedResults.Ok(order);
+    }
+
+    private static ProblemHttpResult NotFound()
+        => TypedResults.Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Order not found",
+            detail: "No stored order was found for this id.");
 }

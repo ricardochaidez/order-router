@@ -36,6 +36,10 @@ Content-Type: application/json
   "items": [ { "product_code": "WC-STD-001", "quantity": 1 } ]
 }
 
+### Get a stored order (OR-028): paste the `id` from the POST response above. 200 with the stored request and the same decision; 404 for an unknown id, a non-UUID id or another caller's order
+GET {{OrderRouter_Api_HostAddress}}/api/v1/route/0193a1b2-7c3d-7e4f-8a9b-0c1d2e3f4a5b
+X-Api-Key: {{devApiKey}}
+
 ### Invalid request: 400 with every error in the v1 envelope (missing customer_zip, empty items)
 POST {{OrderRouter_Api_HostAddress}}/api/v1/route
 X-Api-Key: {{devApiKey}}

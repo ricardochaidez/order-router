@@ -13,11 +13,19 @@ namespace OrderRouter.Api.Routing;
 internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
 {
     private const string json = "application/json";
+    private const string problemJson = "application/problem+json";
 
     /// <inheritdoc />
     public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
     {
         var metadata = context.Description.ActionDescriptor.EndpointMetadata;
+
+        if (metadata.OfType<IEndpointNameMetadata>().Any(name => name.EndpointName == RouteEndpoints.GetStoredOrderName))
+        {
+            DescribeGetStoredOrder(operation);
+
+            return Task.CompletedTask;
+        }
 
         if (!metadata.OfType<RouteEnvelopeMetadata>().Any())
         {
@@ -56,6 +64,35 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
         return Task.CompletedTask;
     }
 
+    // FR-21, SC-31: documents GET /api/v1/route/{id}. It has no 400 envelope (that belongs to POST); an id that is not a
+    // UUID is a 404 like any other id that is not the caller's. The 401 comes from SecuritySchemeTransformer.
+    private static void DescribeGetStoredOrder(OpenApiOperation operation)
+    {
+        operation.Summary = "Get a stored order";
+        operation.Description = "Returns the order stored by `POST /api/v1/route`: the request details, every requested item and the decision exactly as " +
+            "it was returned then. It never routes again, so the supplier assignment does not change between reads. Only the caller that created " +
+            "the order can read it. Unknown ids, ids that are not UUIDs, other callers' orders and orders stored without a caller ID all return " +
+            "the same 404, so existence is never revealed. There is no GET on the `/api/route` alias.";
+
+        if (operation.Parameters?.FirstOrDefault(parameter => parameter.Name == "id") is OpenApiParameter id)
+        {
+            id.Description = "The stored order id (UUID, the `id` of the POST response and the end of its `Location` header).";
+        }
+
+        SetExample(operation, "200", "The stored order. `items` lists every requested line in request order, including lines that were not routed.", StoredOrderExample());
+        SetExample(
+            operation,
+            "404",
+            "No stored order for this id and caller. The same body is returned for an unknown id, an id that is not a UUID, another caller's order and an order stored without a caller ID. ProblemDetails (RFC 9457).",
+            NotFoundExample(),
+            problemJson);
+
+        if (operation.Responses is not null && operation.Responses.TryGetValue("500", out var fault))
+        {
+            fault.Description = "Unexpected fault. ProblemDetails (RFC 9457) with no internal details.";
+        }
+    }
+
     // SC-30: the Location header points at the stored order on the v1 path, also on the alias.
     private static void AddLocationHeader(OpenApiOperation operation)
     {
@@ -73,7 +110,7 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
         };
     }
 
-    private static void SetExample(OpenApiOperation operation, string status, string description, JsonNode example)
+    private static void SetExample(OpenApiOperation operation, string status, string description, JsonNode example, string mediaType = json)
     {
         if (operation.Responses is null || !operation.Responses.TryGetValue(status, out var response))
         {
@@ -82,7 +119,7 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
 
         response.Description = description;
 
-        if (response.Content is not null && response.Content.TryGetValue(json, out var content))
+        if (response.Content is not null && response.Content.TryGetValue(mediaType, out var content))
         {
             content.Example = example;
         }
@@ -121,6 +158,41 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
           "unfulfilled_items": [],
           "warnings": [],
           "errors": []
+        }
+        """)!;
+
+    private static JsonNode StoredOrderExample() => JsonNode.Parse("""
+        {
+          "id": "0193a1b2-7c3d-7e4f-8a9b-0c1d2e3f4a5b",
+          "order_id": "ORD-EXAMPLE",
+          "customer_zip": "10015",
+          "mail_order": false,
+          "created_at": "2026-11-15T10:00:00Z",
+          "items": [
+            { "product_code": "WC-STD-001", "quantity": 1 },
+            { "product_code": "OX-PORT-024", "quantity": 1 }
+          ],
+          "feasible": true,
+          "status": "routed",
+          "routing": [
+            { "supplier_id": "SUP-0810", "supplier_name": "Example Supplier",
+              "items": [
+                { "product_code": "WC-STD-001", "quantity": 1, "category": "wheelchair", "fulfillment_mode": "local" },
+                { "product_code": "OX-PORT-024", "quantity": 1, "category": "oxygen", "fulfillment_mode": "local" }
+              ] }
+          ],
+          "unfulfilled_items": [],
+          "warnings": [],
+          "errors": []
+        }
+        """)!;
+
+    private static JsonNode NotFoundExample() => JsonNode.Parse("""
+        {
+          "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+          "title": "Order not found",
+          "status": 404,
+          "detail": "No stored order was found for this id."
         }
         """)!;
 

@@ -44,6 +44,9 @@ public static class PersistenceServiceCollectionExtensions
         // The only writer the API has: it inserts into the stored-order tables, never into reference data (ADR-0007).
         services.AddScoped<IRoutingOrderStore, EfRoutingOrderStore>();
 
+        // The read side of the same tables (OR-028): reads only, filtered by the caller's hash.
+        services.AddScoped<IRoutingOrderReader, EfRoutingOrderReader>();
+
         return services;
     }
 

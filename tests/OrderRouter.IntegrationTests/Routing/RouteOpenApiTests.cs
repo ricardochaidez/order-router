@@ -87,4 +87,36 @@ public class RouteOpenApiTests(ReferenceDataFixture fixture)
         Assert.True(request.TryGetProperty("customer_zip", out _));
         Assert.True(request.TryGetProperty("mail_order", out _));
     }
+
+    // OR-028 AC9: the GET is documented with 200, 401, 404 and 500, an example, and none of the POST-only 400 envelope.
+    [Fact]
+    public async Task Document_GetStoredOrder_Documents200401404And500WithAnExample()
+    {
+        var document = await GetDocumentAsync();
+
+        var get = document.GetProperty("paths").GetProperty("/api/v1/route/{id}").GetProperty("get");
+
+        Assert.Equal("GetStoredOrderV1", get.GetProperty("operationId").GetString());
+        Assert.Equal(["200", "401", "404", "500"], get.GetProperty("responses").EnumerateObject().Select(response => response.Name).Order());
+        Assert.NotEmpty(get.GetProperty("security").EnumerateArray());
+        Assert.NotEmpty(get.GetProperty("summary").GetString()!);
+        var ok = get.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("example");
+        Assert.Equal("routed", ok.GetProperty("status").GetString());
+        Assert.True(ok.TryGetProperty("created_at", out _));
+        Assert.True(ok.TryGetProperty("items", out _));
+        Assert.Equal(404, get.GetProperty("responses").GetProperty("404").GetProperty("content").GetProperty("application/problem+json").GetProperty("example").GetProperty("status").GetInt32());
+        Assert.Contains("id", get.GetProperty("parameters").EnumerateArray().Select(parameter => parameter.GetProperty("name").GetString()));
+    }
+
+    // AC8, AC9: the alias is POST-only.
+    [Fact]
+    public async Task Document_AliasPath_HasNoGet()
+    {
+        var document = await GetDocumentAsync();
+
+        var paths = document.GetProperty("paths");
+
+        Assert.False(paths.GetProperty("/api/route").TryGetProperty("get", out _));
+        Assert.False(paths.TryGetProperty("/api/route/{id}", out _));
+    }
 }

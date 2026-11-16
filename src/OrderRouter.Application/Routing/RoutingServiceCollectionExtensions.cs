@@ -43,6 +43,7 @@ public static class RoutingServiceCollectionExtensions
 
         // Scoped, like the EF ports it depends on.
         services.AddScoped<IRouteOrderUseCase, RouteOrderUseCase>();
+        services.AddScoped<IGetStoredOrderUseCase, GetStoredOrderUseCase>();
 
         return services;
     }

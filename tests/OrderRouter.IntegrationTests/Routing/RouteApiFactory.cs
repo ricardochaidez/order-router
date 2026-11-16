@@ -47,6 +47,19 @@ internal static class RouteApiFactory
         return request;
     }
 
+    /// <summary>A GET, authenticated with a valid token unless told otherwise.</summary>
+    public static HttpRequestMessage Get(string path, bool authenticated = true, string? token = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, path);
+
+        if (authenticated)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token ?? TestJwt.Valid());
+        }
+
+        return request;
+    }
+
     /// <summary>A valid request body (requirements §9.1) with the ignored extra fields.</summary>
     public const string ValidBody = """
         { "order_id": "ORD-EXAMPLE", "customer_zip": "10015", "mail_order": false, "priority": "high", "notes": "ignore me",
