@@ -36,17 +36,30 @@ public class RoutingPolicyFactoryTests
         Assert.Equal(["MAIL"], Ids(Assert.Single(narrow)));
     }
 
-    [Theory]
-    [InlineData(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control, "EXP-1")]
-    [InlineData(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment, "EXP-3")]
-    public void Create_TreatmentArm_ThrowsNamingTheExperiment(ExperimentArm exp1, ExperimentArm exp2, ExperimentArm exp3, string name)
+    [Fact]
+    public void Create_Exp1Treatment_ThrowsNamingTheExperiment()
     {
-        var assignment = new ExperimentAssignment(new ExperimentArms(exp1, exp2, exp3), RoutingParameters.Default);
+        var assignment = new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control), RoutingParameters.Default);
 
         var exception = Assert.Throws<NotSupportedException>(() => factory.Create(assignment));
 
-        Assert.Contains(name, exception.Message);
+        Assert.Contains("EXP-1", exception.Message);
     }
+
+    [Fact]
+    public void Create_Exp3Treatment_BuildsPartialRoutingAndLeavesTheOtherArmsOnControl()
+    {
+        var policy = factory.Create(Exp3(ExperimentArm.Treatment));
+
+        Assert.IsType<PartialRoutingPolicy>(policy.Unfulfillable);
+        Assert.IsType<UnratedLastPolicy>(policy.Rating);
+        Assert.IsType<StrictPriorityPolicy>(policy.Selection);
+    }
+
+    [Fact]
+    public void Create_Exp3Control_BuildsAllOrNothing()
+        => Assert.IsType<AllOrNothingPolicy>(factory.Create(Exp3(ExperimentArm.Control)).Unfulfillable);
 
     [Fact]
     public void Create_Exp2Treatment_BuildsTheColdStartPolicyAndLeavesTheOtherArmsOnControl()
@@ -96,6 +109,9 @@ public class RoutingPolicyFactoryTests
 
         Assert.NotSame(first.Selection, second.Selection);
     }
+
+    private static ExperimentAssignment Exp3(ExperimentArm arm)
+        => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, arm), RoutingParameters.Default);
 
     private static ExperimentAssignment Exp2Treatment(RoutingParameters parameters)
         => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control), parameters);

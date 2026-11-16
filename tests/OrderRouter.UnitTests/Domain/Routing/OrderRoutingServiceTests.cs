@@ -15,6 +15,10 @@ public class OrderRoutingServiceTests
     private static readonly ZipCode zip = ZipCode.Parse("10015");
     private static readonly RoutingPolicy control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
 
+    private static readonly RoutingPolicy partial = new RoutingPolicyFactory().Create(
+        new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment), RoutingParameters.Default));
+
     private static Supplier Supplier(string id, string[] categories, string range = "10000-10099", bool canMail = false, decimal? rating = 8m)
         => new(id, id, categories.Select(c => new Category(c)), new ServiceArea([ZipRange.Parse(range)]), rating, canMail);
 
@@ -84,6 +88,67 @@ public class OrderRoutingServiceTests
         Assert.Empty(decision.RoutedLines);
         var line = Assert.Single(decision.Unfulfilled);
         Assert.Equal(("NOPE", null, "UNKNOWN_PRODUCT"), (line.ProductCode, line.Category, line.ReasonCode));
+    }
+
+    [Fact]
+    public void Route_OneUnknownLineUnderPartialRouting_RoutesTheRestAndListsTheUnknownLine()
+    {
+        // EXP-3 treatment, SC-05
+        var decision = Service().Route(
+            Order(false, Known("A", "cane"), Unknown("NOPE")),
+            [Supplier("S1", ["cane"])],
+            partial);
+
+        Assert.Equal(RoutingOutcomeStatus.PartiallyRouted, decision.Status);
+        Assert.Equal("A", Assert.Single(decision.RoutedLines).ProductCode);
+        var line = Assert.Single(decision.Unfulfilled);
+        Assert.Equal(("NOPE", "UNKNOWN_PRODUCT"), (line.ProductCode, line.ReasonCode));
+    }
+
+    [Fact]
+    public void Route_NoSupplierInAreaUnderPartialRouting_RoutesTheRestAndListsTheLine()
+    {
+        var decision = Service().Route(
+            Order(false, Known("A", "cpap"), Known("C", "cane")),
+            [Supplier("S1", ["cane"])],
+            partial);
+
+        Assert.Equal(RoutingOutcomeStatus.PartiallyRouted, decision.Status);
+        Assert.Equal(["C"], decision.RoutedLines.Select(l => l.ProductCode));
+        var line = Assert.Single(decision.Unfulfilled);
+        Assert.Equal(("A", "NO_SUPPLIER_FOR_CATEGORY_IN_AREA"), (line.ProductCode, line.ReasonCode));
+    }
+
+    [Fact]
+    public void Route_NothingRoutableUnderPartialRouting_IsNotRouted()
+    {
+        var decision = Service().Route(Order(false, Unknown("X"), Known("A", "cpap")), [Supplier("S1", ["cane"])], partial);
+
+        Assert.Equal(RoutingOutcomeStatus.NotRouted, decision.Status);
+        Assert.Empty(decision.RoutedLines);
+        Assert.Equal(2, decision.Unfulfilled.Count);
+    }
+
+    [Fact]
+    public void Route_FullyRoutableUnderPartialRouting_IsRouted()
+    {
+        var decision = Service().Route(Order(false, Known("A", "cane")), [Supplier("S1", ["cane"])], partial);
+
+        Assert.Equal(RoutingOutcomeStatus.Routed, decision.Status);
+        Assert.Empty(decision.Unfulfilled);
+    }
+
+    [Fact]
+    public void Route_PartialOrderUnderControl_IsStillNotRouted()
+    {
+        // SC-10: the control arm is unchanged.
+        var decision = Service().Route(
+            Order(false, Known("A", "cane"), Unknown("NOPE")),
+            [Supplier("S1", ["cane"])],
+            control);
+
+        Assert.Equal(RoutingOutcomeStatus.NotRouted, decision.Status);
+        Assert.Empty(decision.RoutedLines);
     }
 
     [Fact]

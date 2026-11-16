@@ -63,6 +63,26 @@ public class RouteResponseMapperTests
     }
 
     [Fact]
+    public void Map_PartiallyRouted_ShowsRoutedAndUnfulfilledItemsAndErrors()
+    {
+        // EXP-3 treatment, SC-05
+        var response = RouteResponseMapper.Map(
+            "ORD",
+            Decision(
+                RoutingOutcomeStatus.PartiallyRouted,
+                [Line("A", "S1")],
+                [new UnfulfilledLine("NOPE", 2, null, UnfulfilledLine.UnknownProductCode)]));
+
+        Assert.Equal(RoutingStatus.PartiallyRouted, response.Status);
+        Assert.False(response.Feasible);
+        Assert.Equal("A", Assert.Single(Assert.Single(response.Routing).Items).ProductCode);
+        var item = Assert.Single(response.UnfulfilledItems);
+        Assert.Equal("NOPE", item.ProductCode);
+        Assert.Equal([item.Message], response.Errors);
+        Assert.Empty(response.Warnings);
+    }
+
+    [Fact]
     public void Map_UnknownProduct_HasNullCategoryAndMatchingError()
     {
         var response = RouteResponseMapper.Map(

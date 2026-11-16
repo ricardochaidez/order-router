@@ -181,6 +181,10 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 - Bad, because a lexicographic ranking with a similarity band and a set-cover search is algorithmic, not rule-shaped.
 - Bad, because it adds a dependency and a DSL to learn, which is out of proportion for three binary experiments and the timebox.
 
+## Implementation note (OR-019)
+
+`PartialRoutingPolicy` (EXP-3 treatment) is a stateless singleton behind `IUnfulfillablePolicy`; enabling it took one line in `RoutingPolicyFactory`. It never routes an unfulfilled line, and no plan means `not_routed`. HTTP 201 comes with OR-027, dependency warnings with OR-020. The EXP-1 treatment still throws in the factory (500 for targeted requests) until OR-017.
+
 ## Links
 
 - Depends on [ADR-0005](ADR-0005-experiment-assignment.md): produces the `ExperimentAssignment` (arms + parameters, reloadable at runtime) this ADR composes.

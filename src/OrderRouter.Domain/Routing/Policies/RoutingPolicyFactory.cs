@@ -6,15 +6,16 @@ namespace OrderRouter.Domain.Routing.Policies;
 /// Maps each experiment arm to its policy. Stateless; builds a new immutable policy set per request.
 /// </summary>
 /// <remarks>
-/// A treatment ticket (OR-017, OR-019) adds one policy class and replaces its
+/// A treatment ticket (OR-017) adds one policy class and replaces its
 /// <see cref="NotSupportedException"/> below with that class (AB-06). Nothing else changes.
 /// EXP-2 treatment (OR-018) is done: <see cref="ColdStartPriorPolicy"/> gets the prior from the assignment.
+/// EXP-3 treatment (OR-019) is done: <see cref="PartialRoutingPolicy"/>.
 /// </remarks>
 public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
 {
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException"><paramref name="assignment"/> is null.</exception>
-    /// <exception cref="NotSupportedException">The EXP-1 or EXP-3 treatment arm is requested before it exists (fail safe: no mislabelled routing).</exception>
+    /// <exception cref="NotSupportedException">The EXP-1 treatment arm is requested before it exists (fail safe: no mislabelled routing).</exception>
     /// <exception cref="ArgumentOutOfRangeException">An arm value is not defined.</exception>
     public RoutingPolicy Create(ExperimentAssignment assignment)
     {
@@ -39,7 +40,7 @@ public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
         IUnfulfillablePolicy unfulfillable = arms.Exp3PartialRouting switch
         {
             ExperimentArm.Control => AllOrNothingPolicy.Instance,
-            ExperimentArm.Treatment => throw NotAvailable("EXP-3"),
+            ExperimentArm.Treatment => PartialRoutingPolicy.Instance,
             _ => throw OutOfRange(nameof(ExperimentArms.Exp3PartialRouting), arms.Exp3PartialRouting),
         };
 
