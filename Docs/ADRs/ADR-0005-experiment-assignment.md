@@ -234,3 +234,9 @@ Arms appear in the response only through the optional `diagnostics` object ([ADR
 - **Source order:** `experiments.json` is inserted before the environment-variable source, so environment variables and the command line still override it (pinned by a host test).
 - **Containers:** the compose file mounts the file read-only and sets `DOTNET_USE_POLLING_FILE_WATCHER=true`. A single-file bind mount follows the file's inode, so an edit must overwrite the file **in place**; a save that replaces the file (`sed -i`, an editor that renames a temp file) detaches the mount until the container restarts. Verified by hand against the compose stack.
 - **Known risk until OR-017..019:** `RoutingPolicyFactory` still throws for treatment arms. Enabling an experiment in a real deployment makes targeted treatment requests return 500. The shipped file keeps every experiment disabled.
+
+## Implementation notes (OR-018)
+
+- **EXP-2 treatment** is `ColdStartPriorPolicy`. `RoutingPolicyFactory` builds it per request with `ExperimentAssignment.Parameters.UnratedPrior`, so the policy never reads configuration and the next request after a reload uses the new prior (ADR-0001).
+- **Equal fulfillment modes in the acceptance fixture:** the similarity band only prefers local over mail among plans of equal shipment count. A 6.5 prior and a 6.0 rating are within the 0.5 band, so a local 6.0 supplier would beat a mail unrated one. The AC2/AC3 tests use two local suppliers.
+- **Known risk until OR-017 and OR-019:** the factory still throws for EXP-1 and EXP-3 treatment. Enabling either in a real deployment makes targeted treatment requests return 500. Enabling only EXP-2 works.

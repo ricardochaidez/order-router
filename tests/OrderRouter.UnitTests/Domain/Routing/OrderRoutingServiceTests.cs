@@ -128,6 +128,21 @@ public class OrderRoutingServiceTests
     }
 
     [Fact]
+    public void Route_UnratedSupplierUnderColdStart_GetsThePriorAsEffectiveRating()
+    {
+        var search = new CountingPlanSearch();
+        var assignment = new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control), RoutingParameters.Default);
+
+        Service(search).Route(
+            Order(false, Known("A", "cane")),
+            [Supplier("S1", ["cane"], rating: null)],
+            new RoutingPolicyFactory().Create(assignment));
+
+        Assert.Equal(6.5m, Assert.Single(search.LastRequest!.Candidates).EffectiveRating);
+    }
+
+    [Fact]
     public void Route_PassesBandAndMaxExtraShipmentsIntoTheRequest()
     {
         var search = new CountingPlanSearch();

@@ -1,3 +1,4 @@
+using OrderRouter.Domain.ReferenceData;
 using OrderRouter.Domain.Routing.Experiments;
 using OrderRouter.Domain.Routing.PlanSearch;
 using OrderRouter.Domain.Routing.Policies;
@@ -37,7 +38,6 @@ public class RoutingPolicyFactoryTests
 
     [Theory]
     [InlineData(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control, "EXP-1")]
-    [InlineData(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, "EXP-2")]
     [InlineData(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment, "EXP-3")]
     public void Create_TreatmentArm_ThrowsNamingTheExperiment(ExperimentArm exp1, ExperimentArm exp2, ExperimentArm exp3, string name)
     {
@@ -46,6 +46,33 @@ public class RoutingPolicyFactoryTests
         var exception = Assert.Throws<NotSupportedException>(() => factory.Create(assignment));
 
         Assert.Contains(name, exception.Message);
+    }
+
+    [Fact]
+    public void Create_Exp2Treatment_BuildsTheColdStartPolicyAndLeavesTheOtherArmsOnControl()
+    {
+        var policy = factory.Create(Exp2Treatment(RoutingParameters.Default));
+
+        Assert.IsType<ColdStartPriorPolicy>(policy.Rating);
+        Assert.IsType<StrictPriorityPolicy>(policy.Selection);
+        Assert.IsType<AllOrNothingPolicy>(policy.Unfulfillable);
+    }
+
+    [Fact]
+    public void Create_Exp2Control_BuildsUnratedLast()
+        => Assert.IsType<UnratedLastPolicy>(factory.Create(ExperimentAssignment.AllControl).Rating);
+
+    [Fact]
+    public void Create_Exp2TreatmentWithDifferentPriors_GivesPoliciesThatRateDifferently()
+    {
+        // AC4
+        var unrated = new Supplier("S", "S", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-19999")]), null, false);
+
+        var low = factory.Create(Exp2Treatment(new RoutingParameters(unratedPrior: 4m)));
+        var high = factory.Create(Exp2Treatment(new RoutingParameters(unratedPrior: 8m)));
+
+        Assert.Equal(4m, low.Rating.EffectiveRating(unrated));
+        Assert.Equal(8m, high.Rating.EffectiveRating(unrated));
     }
 
     [Fact]
@@ -69,6 +96,9 @@ public class RoutingPolicyFactoryTests
 
         Assert.NotSame(first.Selection, second.Selection);
     }
+
+    private static ExperimentAssignment Exp2Treatment(RoutingParameters parameters)
+        => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control), parameters);
 
     private static ExperimentAssignment Assignment(decimal band)
         => new(ExperimentArms.AllControl, new RoutingParameters(similarityBand: band));
