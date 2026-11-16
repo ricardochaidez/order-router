@@ -37,12 +37,12 @@ public class RouteAuthTests(ReferenceDataFixture fixture)
         Assert.Empty(useCase.Commands);
     }
 
-    // The placeholder (until OR-015) must fail safe: a valid order is never reported as routed.
+    // An unexpected fault must fail safe: a 500 with no internals, never a body that claims the order was routed.
     [Theory]
     [MemberData(nameof(RouteApiFactory.Paths), MemberType = typeof(RouteApiFactory))]
-    public async Task Post_ValidOrderWithPlaceholderUseCase_Returns500ProblemDetailsWithoutInternals(string path)
+    public async Task Post_UseCaseThrows_Returns500ProblemDetailsWithoutInternals(string path)
     {
-        await using var factory = RouteApiFactory.Create(fixture.ConnectionString, useCase: null);
+        await using var factory = RouteApiFactory.Create(fixture.ConnectionString, new ThrowingRouteUseCase());
         using var client = factory.CreateClient();
 
         using var response = await client.SendAsync(RouteApiFactory.Post(path, RouteApiFactory.ValidBody), TestContext.Current.CancellationToken);
@@ -53,7 +53,7 @@ public class RouteAuthTests(ReferenceDataFixture fixture)
         Assert.Equal(500, json.GetProperty("status").GetInt32());
         Assert.False(json.TryGetProperty("feasible", out _));
         Assert.DoesNotContain("NotSupportedException", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret internal detail", text, StringComparison.Ordinal);
         Assert.DoesNotContain(" at ", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("OR-015", text, StringComparison.Ordinal);
     }
 }

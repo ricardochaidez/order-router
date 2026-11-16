@@ -190,7 +190,7 @@ OrderRouter.Domain/
   - **N/A (say why, don't claim met):** domain events and audit trail, money/rounding, transactions, async/DI, compliance (PCI-DSS, SOX, LGPD).
 - [x] Record the follow-ups for other tickets (don't do them here):
   - **OR-004 / ADR-0002:** change `suppliers.rating` from `numeric(3,1)` to `numeric(4,2)` so ratings rounded to 2 decimal places are stored without rounding again. Update ADR-0002's schema diagram.
-  - **OR-010:** bind `NationwideZipRange` from configuration (default `00100-99999`), parse it with `ZipRange.Parse`, validate at startup, and pass it to `Supplier.IsMailOnly`.
+  - **OR-010:** bind `NationwideZipRange` from configuration (default `00100-99999`), parse it with `ZipRange.Parse`, validate at startup, and pass it to `Supplier.IsMailOnly`. *Done in OR-015: `RoutingOptions` + `RoutingOptionsValidator` (`ValidateOnStart`), and `SupplierEligibility` is built from the option.*
   - **OR-003:** use `TryParse`/`TryCreate` or catch `DomainValidationException` to skip rows with a reason; do the 4-digit ZIP padding before building `ZipCode`.
 - [x] Final `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes` from the repo root: all green.
 

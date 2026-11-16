@@ -9,7 +9,7 @@
 GET {{OrderRouter_Api_HostAddress}}/health
 X-Api-Key: {{devApiKey}}
 
-### Route an order: canonical v1 path (valid; returns 500 until OR-015 implements routing)
+### Route an order: canonical v1 path (valid; 200 with the routing envelope, using the seeded reference data)
 POST {{OrderRouter_Api_HostAddress}}/api/v1/route
 X-Api-Key: {{devApiKey}}
 Content-Type: application/json

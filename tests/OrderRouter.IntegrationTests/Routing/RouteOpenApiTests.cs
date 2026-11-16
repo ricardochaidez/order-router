@@ -30,7 +30,9 @@ public class RouteOpenApiTests(ReferenceDataFixture fixture)
             Assert.True(responses.TryGetProperty(status, out _), $"missing {status}");
         }
 
-        Assert.Equal("not_routed", responses.GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("example").GetProperty("status").GetString());
+        var examples = responses.GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("examples");
+        Assert.Equal("routed", examples.GetProperty("routed").GetProperty("value").GetProperty("status").GetString());
+        Assert.Equal("not_routed", examples.GetProperty("not_routed").GetProperty("value").GetProperty("status").GetString());
         var invalid = responses.GetProperty("400").GetProperty("content").GetProperty("application/json").GetProperty("example");
         Assert.Equal(2, invalid.GetProperty("errors").GetArrayLength());
         Assert.NotEmpty(post.GetProperty("security").EnumerateArray());

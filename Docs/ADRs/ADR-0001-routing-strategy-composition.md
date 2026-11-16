@@ -72,7 +72,7 @@ classDiagram
     }
     class OrderRoutingService {
         <<domain service>>
-        +Route(Order, RoutingPolicy) RoutingDecision
+        +Route(OrderToRoute, suppliers, RoutingPolicy) RoutingDecision
     }
     class IEffectiveRatingPolicy {
         <<interface>>
@@ -140,6 +140,7 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 
 ### Positive Consequences
 
+- **Implementation note (OR-015):** `OrderRoutingService.Route(OrderToRoute, suppliers, RoutingPolicy) → RoutingDecision` is pure and synchronous; the Application use case does the I/O. `IPlanSearchService` is a Domain port, implemented in Application because the limits come from configuration.
 - Adding an arm (e.g., a weighted-score EXP-1 variant, §8.1) = one new class + one factory mapping. `OrderRoutingService` is unchanged (AB-06).
 - 3 seams × 2 arms = 6 small classes instead of 8 combined ones; growth is additive, not multiplicative.
 - The default `ExperimentArms` (all control) reproduces the written spec and the sentinel expectations (AB-03, SC-10).

@@ -38,7 +38,12 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
             request.Example = RequestExample();
         }
 
-        SetExample(operation, "200", "The order was valid and routing ran. `status` and `feasible` say whether every item was routed (example: nothing could be routed).", NotRoutedExample());
+        SetExamples(
+            operation,
+            "200",
+            "The order was valid and routing ran. `status` and `feasible` say whether every item was routed; a business outcome such as \"could not route\" is a 200 with a body, not an error.",
+            ("routed", "Every item is assigned to a supplier.", RoutedExample()),
+            ("not_routed", "Nothing could be routed (here: an unknown product).", NotRoutedExample()));
         SetExample(operation, "400", "The request is invalid. Every error is listed; the body uses the same envelope as a success.", InvalidExample());
 
         if (operation.Responses is not null && operation.Responses.TryGetValue("500", out var fault))
@@ -64,6 +69,41 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
         }
     }
 
+    private static void SetExamples(OpenApiOperation operation, string status, string description, params (string Name, string Summary, JsonNode Value)[] examples)
+    {
+        if (operation.Responses is null || !operation.Responses.TryGetValue(status, out var response))
+        {
+            return;
+        }
+
+        response.Description = description;
+
+        if (response.Content is not null && response.Content.TryGetValue(json, out var content))
+        {
+            content.Examples = examples.ToDictionary(
+                example => example.Name,
+                example => (IOpenApiExample)new OpenApiExample { Summary = example.Summary, Value = example.Value });
+        }
+    }
+
+    private static JsonNode RoutedExample() => JsonNode.Parse("""
+        {
+          "order_id": "ORD-EXAMPLE",
+          "feasible": true,
+          "status": "routed",
+          "routing": [
+            { "supplier_id": "SUP-0810", "supplier_name": "Example Supplier",
+              "items": [
+                { "product_code": "WC-STD-001", "quantity": 1, "category": "wheelchair", "fulfillment_mode": "local" },
+                { "product_code": "OX-PORT-024", "quantity": 1, "category": "oxygen", "fulfillment_mode": "local" }
+              ] }
+          ],
+          "unfulfilled_items": [],
+          "warnings": [],
+          "errors": []
+        }
+        """)!;
+
     // priority and notes show that unknown fields are accepted and ignored (DQ-15).
     private static JsonNode RequestExample() => JsonNode.Parse("""
         {
@@ -81,6 +121,7 @@ internal sealed class RouteOpenApiTransformer : IOpenApiOperationTransformer
 
     private static JsonNode NotRoutedExample() => JsonNode.Parse("""
         {
+          "order_id": "ORD-EXAMPLE",
           "feasible": false,
           "status": "not_routed",
           "routing": [],

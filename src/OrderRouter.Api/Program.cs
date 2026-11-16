@@ -12,6 +12,7 @@ using OrderRouter.Api.Routing;
 using OrderRouter.Application.Routing;
 using OrderRouter.Application.Routing.PlanSearch;
 using OrderRouter.Infrastructure.Persistence;
+using OrderRouter.Infrastructure.Randomness;
 
 // Composition root: the Api project is the only place that wires Application and Infrastructure
 // together, so the inner layers never depend on the host or on each other's implementations.
@@ -43,16 +44,20 @@ builder.Services.AddExceptionHandler<MalformedBodyExceptionHandler>();
 // always produces the same 400 envelope for malformed bodies.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
-// TEMPORARY: OR-015 replaces this registration with the real routing use case. Until then a valid request
-// returns 500 rather than a body that claims to be routed (fail safe).
-builder.Services.AddSingleton<IRouteOrderUseCase, RoutingNotAvailableUseCase>();
+// Routing settings (FR-09): a bad nationwide ZIP range stops the host at startup.
+builder.Services.AddOptions<RoutingOptions>()
+    .Bind(builder.Configuration.GetSection(RoutingOptions.SectionName))
+    .ValidateOnStart();
 
 // Plan-search guard rails from the PlanSearch section (NFR-05). Invalid limits stop the host at startup.
 builder.Services.AddOptions<PlanSearchOptions>()
     .Bind(builder.Configuration.GetSection(PlanSearchOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<PlanSearchOptions>, PlanSearchOptionsValidator>();
-builder.Services.AddSingleton<IPlanSearchService, PlanSearchService>();
+// The routing use case, domain service, policies and plan search. The Domain types are wired in the Application
+// layer, so this host only references Application and Infrastructure.
+builder.Services.AddOrderRouterRouting();
+builder.Services.AddOrderRouterRandomness();
 
 // ConnectionStrings:OrderRouter comes from appsettings.Development.json in Development, or from the
 // ConnectionStrings__OrderRouter environment variable. There is deliberately no default elsewhere, so a
