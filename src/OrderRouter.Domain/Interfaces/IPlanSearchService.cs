@@ -1,4 +1,4 @@
-using OrderRouter.Domain.Routing.PlanSearch;
+using OrderRouter.Domain.Models.PlanSearch;
 namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>

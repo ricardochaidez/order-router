@@ -5,9 +5,8 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0.404 AS build
 WORKDIR /src
 
 # Copy only the build inputs and project files first, so the restore layer is cached until a package changes.
-COPY Directory.Build.props .editorconfig ./
+COPY Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/OrderRouter.Domain/OrderRouter.Domain.csproj src/OrderRouter.Domain/
-COPY src/OrderRouter.Application/OrderRouter.Application.csproj src/OrderRouter.Application/
 COPY src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj src/OrderRouter.Infrastructure/
 COPY src/OrderRouter.Api/OrderRouter.Api.csproj src/OrderRouter.Api/
 RUN dotnet restore src/OrderRouter.Api/OrderRouter.Api.csproj

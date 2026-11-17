@@ -45,11 +45,11 @@ src/OrderRouter.Domain/Eligibility/
   EligibleSupplier.cs           Supplier + FulfillmentMode
   EligibilityResult.cs          eligible list | reason, never null
   SupplierEligibility.cs        the §7.1 + FR-09 rules (stateless domain service)
-tests/OrderRouter.UnitTests/Domain/Eligibility/
+tests/OrderRouter.Tests/Domain/Eligibility/
   SupplierEligibilityTests.cs   AC1–AC7 with hand-built suppliers
   EligibilityResultTests.cs     invariants, immutability, ordering
   UnfulfillableReasonTests.cs   exact reason code strings
-tests/OrderRouter.IntegrationTests/Eligibility/
+tests/OrderRouter.Api.IntegrationTests/Eligibility/
   SeededEligibilityTests.cs     AC1, AC2, AC4, AC6, AC7 on the seeded DB via IReferenceDataReader
 ```
 

@@ -1,3 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
+  <ItemGroup>
+    <!-- IOptions<T> and IValidateOptions<T>: the strongly typed configuration sections (Sections/). Framework-agnostic. -->
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <!-- ILogger<T> abstraction only (no provider): the plan search service logs the greedy-fallback warning (ADR-0003). -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
 </Project>

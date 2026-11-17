@@ -1,5 +1,5 @@
-using OrderRouter.Domain.Routing.PlanSearch;
-using OrderRouter.Domain.Routing.TieBreaking;
+using OrderRouter.Domain.Models.PlanSearch;
+using OrderRouter.Domain.Models;
 
 namespace OrderRouter.Domain.Interfaces;
 

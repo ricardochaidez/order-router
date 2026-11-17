@@ -42,7 +42,7 @@ Out of scope: tie-break and `IRandomSource` (OR-014), `OrderRoutingService`, use
 | `AllOrNothingPolicy.Apply(plan, unfulfilled)` | Any unfulfilled line → `NotRouted`, plan dropped, lines returned unchanged. No plan (null) → `NotRouted` (fail safe). Otherwise `Routed`. Never `PartiallyRouted`. |
 | `RoutingParameters` validation | `SimilarityBand ≥ 0`, `QualityUpliftThreshold > 0`, `UnratedPrior` 1–10. All errors in one `DomainValidationException` (same pattern as `PlanSearchRequest`). `static Default` = (0.5, 2.0, 6.5). Defaults match `PlanSearchRequest.DefaultSimilarityBand` (reuse that constant). |
 | Factory | `RoutingPolicyFactory : IRoutingPolicyFactory`, stateless, Domain. `switch` per arm; an undefined enum value → `ArgumentOutOfRangeException`; `Treatment` → `NotSupportedException`. `RoutingPolicy` keeps the `Assignment` for the decision log (AB-04). |
-| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/`). Sentinel ids (`SUP-T007` etc.) used in test data for readability. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Routing/PlanSearch/`). Sentinel ids (`SUP-T007` etc.) used in test data for readability. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
@@ -59,9 +59,9 @@ src/OrderRouter.Domain/Routing/Policies/
   UnfulfilledLine.cs, RoutingOutcome.cs, RoutingOutcomeStatus.cs
   RoutingPolicy.cs, IRoutingPolicyFactory.cs, RoutingPolicyFactory.cs
 src/OrderRouter.Domain/Routing/PlanSearch/SupplierCandidate.cs   (modified) effective rating 0–10
-tests/OrderRouter.UnitTests/Domain/Routing/Experiments/
+tests/OrderRouter.Tests/Domain/Routing/Experiments/
   RoutingParametersTests.cs, ExperimentAssignmentTests.cs
-tests/OrderRouter.UnitTests/Domain/Routing/Policies/
+tests/OrderRouter.Tests/Domain/Routing/Policies/
   UnratedLastPolicyTests.cs, PlanQualityTests.cs, StrictPriorityPolicyTests.cs,
   AllOrNothingPolicyTests.cs, RoutingOutcomeTests.cs, RoutingPolicyFactoryTests.cs
 ```

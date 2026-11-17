@@ -54,9 +54,9 @@ src/OrderRouter.Api/
   Routing/RoutingNotAvailableUseCase.cs         DELETED
   Routing/RouteOpenApiTransformer.cs            200 examples
   appsettings.json, OrderRouter.Api.http
-tests/OrderRouter.UnitTests/Domain/Routing/     OrderRoutingServiceTests, RoutingDecisionTests, CountingPlanSearch
-tests/OrderRouter.UnitTests/Application/Routing/ RouteOrderUseCaseTests, RouteResponseMapperTests, RoutingOptionsValidatorTests
-tests/OrderRouter.IntegrationTests/Routing/      RouteOrderEndToEndTests (AC1–AC8), RouteAuthTests (placeholder test replaced)
+tests/OrderRouter.Tests/Domain/Routing/     OrderRoutingServiceTests, RoutingDecisionTests, CountingPlanSearch
+tests/OrderRouter.Tests/Application/Routing/ RouteOrderUseCaseTests, RouteResponseMapperTests, RoutingOptionsValidatorTests
+tests/OrderRouter.Api.IntegrationTests/Routing/      RouteOrderEndToEndTests (AC1–AC8), RouteAuthTests (placeholder test replaced)
 ```
 
 ## Working rules (apply to every phase)

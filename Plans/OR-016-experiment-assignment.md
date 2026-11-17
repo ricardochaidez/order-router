@@ -71,10 +71,10 @@ src/OrderRouter.Api/
   experiments.json (new, all disabled), Program.cs, OrderRouter.Api.csproj (copy file)
   Routing/RouteEndpoints.cs (ClaimsPrincipal → CallerId)
 docker-compose.yml                                        mount + polling watcher
-tests/OrderRouter.UnitTests/Domain/Routing/Experiments/   Targeting, Definition, Bucketer, Configuration, Assignment
-tests/OrderRouter.UnitTests/Application/Routing/          CallerIdentityTests, RouteOrderUseCaseTests (updated)
-tests/OrderRouter.UnitTests/Infrastructure/Experiments/   Mapper/Validator, ConfigVersion, ConfigurationExperimentAssigner, shipped-file test
-tests/OrderRouter.IntegrationTests/Routing/               ExperimentAssignmentHostTests, RecordingPolicyFactory, TestJwt overloads
+tests/OrderRouter.Tests/Domain/Routing/Experiments/   Targeting, Definition, Bucketer, Configuration, Assignment
+tests/OrderRouter.Tests/Application/Routing/          CallerIdentityTests, RouteOrderUseCaseTests (updated)
+tests/OrderRouter.Tests/Infrastructure/Experiments/   Mapper/Validator, ConfigVersion, ConfigurationExperimentAssigner, shipped-file test
+tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignmentHostTests, RecordingPolicyFactory, TestJwt overloads
 ```
 
 ## Working rules (apply to every phase)

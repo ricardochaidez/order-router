@@ -60,12 +60,12 @@ src/OrderRouter.Api/
 src/OrderRouter.Infrastructure/
   OrderRouter.Infrastructure.csproj              + HealthChecks.EntityFrameworkCore
   Persistence/PersistenceServiceCollectionExtensions.cs  + AddOrderRouterDatabaseHealthCheck
-tests/OrderRouter.UnitTests/
+tests/OrderRouter.Tests/
   Api/Health/HealthStatusMapperTests.cs
   Api/Health/DependencyStartupCheckTests.cs
   Infrastructure/Persistence/PersistenceRegistrationTests.cs   + health check registered with tag
   Architecture/ContainerConfigurationTests.cs    Dockerfile / compose / .env guards
-tests/OrderRouter.IntegrationTests/
+tests/OrderRouter.Api.IntegrationTests/
   ApiFactory.cs (or helper)                      WebApplicationFactory with a connection string
   Health/HealthEndpointTests.cs                  AC3, AC4, AC5, OpenAPI
   Health/StartupTests.cs                         AC6, fail-fast

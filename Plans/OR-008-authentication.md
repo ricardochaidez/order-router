@@ -58,11 +58,11 @@ src/OrderRouter.Api/
   Authentication/DevApiKeyDefaults.cs            scheme name, header name, caller id "dev-key"
   Authentication/RouteCallerEndpointExtensions.cs  RequireRouteCaller()
   Authentication/SecuritySchemeTransformer.cs    OpenAPI security schemes
-tests/OrderRouter.UnitTests/
+tests/OrderRouter.Tests/
   Api/Authentication/DevApiKeyAuthenticationHandlerTests.cs
   Api/Authentication/JwtAuthenticationOptionsTests.cs
   Architecture/SecretsConfigurationTests.cs      AC6, no ShowPII, no DevApiKey in appsettings
-tests/OrderRouter.IntegrationTests/
+tests/OrderRouter.Api.IntegrationTests/
   Authentication/TestJwt.cs                      test signing key + token builder (valid, expired, bad signature, wrong audience)
   Authentication/AuthApiFactory.cs (or extend Health/ApiFactory)  environment, dev key, JWT test config, probe endpoint
   Authentication/AuthenticationTests.cs          AC1–AC5, AC7
@@ -182,7 +182,7 @@ Covers AC8, plus documentation and the OR-007 follow-up.
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-008-authentication.md`, `src/OrderRouter.Api/Authentication/*`, `tests/OrderRouter.UnitTests/Api/Authentication/*`, `tests/OrderRouter.UnitTests/Architecture/SecretsConfigurationTests.cs`, `tests/OrderRouter.IntegrationTests/Authentication/*` |
+| New | `Plans/OR-008-authentication.md`, `src/OrderRouter.Api/Authentication/*`, `tests/OrderRouter.Tests/Api/Authentication/*`, `tests/OrderRouter.Tests/Architecture/SecretsConfigurationTests.cs`, `tests/OrderRouter.Api.IntegrationTests/Authentication/*` |
 | Modified | `src/OrderRouter.Api/Program.cs`, `src/OrderRouter.Api/OrderRouter.Api.csproj`, `src/OrderRouter.Api/appsettings.json`, `src/OrderRouter.Api/OrderRouter.Api.http`, `docker-compose.yml` (comment), `.env.example` (comment), `README.md` |
 | Reused | `Health/ApiFactory` pattern (`WebApplicationFactory<Program>`, `UseEnvironment`, `UseSetting`, `ConfigureTestServices`); `CapturingLogger` idea for the logging test; `TestRepository.Root` source-guard pattern from `ContainerConfigurationTests`; the fail-fast configuration pattern in `Program.cs`; `/health`'s existing `.AllowAnonymous()` |
 | Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Application/**`, `src/OrderRouter.Infrastructure/**`, migrations, `Docs/Data/**` |

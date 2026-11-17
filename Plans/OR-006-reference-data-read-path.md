@@ -54,13 +54,13 @@ src/OrderRouter.Infrastructure/Persistence/
   ReferenceData/EfCapabilityResolver.cs       AsNoTracking, one query per batch
   ReferenceData/EfReferenceDataReader.cs      AsNoTracking + split query
   ReferenceData/SupplierRowMapper.cs          rows → Supplier via OR-002 ctors
-tests/OrderRouter.UnitTests/
+tests/OrderRouter.Tests/
   Domain/ReferenceData/ProductCodeKeyTests.cs
   Domain/ReferenceData/CapabilityResolutionTests.cs
   Infrastructure/Persistence/ReferenceData/SupplierRowMapperTests.cs
   Infrastructure/Persistence/PersistenceRegistrationTests.cs
   Architecture/ReadPathBoundaryTests.cs       AC4 source guard
-tests/OrderRouter.IntegrationTests/Persistence/
+tests/OrderRouter.Api.IntegrationTests/Persistence/
   CapabilityResolverTests.cs                  AC1, AC2 on the seeded shared DB
   ReferenceDataReaderTests.cs                 AC3 on the seeded shared DB
   ReadOnlyReferenceDataTests.cs               AC4 (SQL interceptor + change tracker)
@@ -183,7 +183,7 @@ tests/OrderRouter.IntegrationTests/Persistence/
 
 **Verify:** working rule 2.
 
-**Result:** 367 tests, 0 failed. Deviation: `InternalsVisibleTo OrderRouter.UnitTests` added to the Infrastructure csproj so the internal `SupplierRowMapper` is unit-testable. Supplier ordering is done in memory (ordinal), not in SQL, because PostgreSQL orders by collation.
+**Result:** 367 tests, 0 failed. Deviation: `InternalsVisibleTo OrderRouter.Tests` added to the Infrastructure csproj so the internal `SupplierRowMapper` is unit-testable. Supplier ordering is done in memory (ordinal), not in SQL, because PostgreSQL orders by collation.
 
 ---
 

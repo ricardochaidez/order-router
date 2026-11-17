@@ -22,7 +22,7 @@ OR-003 is the **only** place the §6 rules run. A separate console tool reads th
 | Topic | Decision |
 |---|---|
 | Conflicting duplicate products (AC8 / FR-04 / DQ-12 vs NFR-10) | **The whole run fails.** Nothing is written, and the error names the product code. A duplicate counts as **conflicting if any normalized field differs** (category **or** name). This is the fail-safe reading. A duplicate is **identical** only when code, name and category match after normalization; one copy is kept and a warning is logged. NFR-10 says the row is "excluded", which contradicts this; it is recorded as a doc follow-up (Phase 6). |
-| Where the tests live | In the existing `tests/OrderRouter.UnitTests`, which gets a `ProjectReference` to `tools/OrderRouter.DataNormalizer`. The API never references the tool. "Ships with neither the API nor the tests" means the tool is not part of the API deployment or test runtime behaviour. |
+| Where the tests live | In the existing `tests/OrderRouter.Tests`, which gets a `ProjectReference` to `tools/OrderRouter.DataNormalizer`. The API never references the tool. "Ships with neither the API nor the tests" means the tool is not part of the API deployment or test runtime behaviour. |
 | Normalized file format | **Source shape, cleaned.** `suppliers.normalized.csv`: `supplier_id,supplier_name,service_zips,product_categories,rating,can_mail_order`. `products.normalized.csv`: `product_code,product_name,category`. Details below. |
 | Logging | The pure functions return a **report object**, and tests assert against it. The console host logs through `ILogger` (`Microsoft.Extensions.Logging.Console`, tool project only). `CsvHelper` (named in ADR-0002) is added to the tool project only. |
 
@@ -72,7 +72,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
    - **C#:** C# 14 / .NET 10. File-scoped namespaces, a newline before every opening brace, `is null` / `is not null`, pattern matching and switch expressions, `nameof`.
    - **Docs and comments:** XML doc comments on every public type and member, with `<example>`/`<code>` where useful (e.g. `ServiceZipsParser`). Comments explain *why* and cite the requirement ID (e.g. `// DQ-01`). Comment each library's purpose where it's used (CsvHelper, Microsoft.Extensions.Logging).
    - **Domain boundary:** never weaken or bypass OR-002 domain invariants. The normalizer prepares input and the domain validates it. Domain stays dependency-free.
-   - **Tests:** follow the style in `tests/OrderRouter.UnitTests`: `MethodName_Condition_ExpectedResult` names and no `Arrange`/`Act`/`Assert` comments. Cover edge cases and error paths. Target ≥ 85% coverage of the new code.
+   - **Tests:** follow the style in `tests/OrderRouter.Tests`: `MethodName_Condition_ExpectedResult` names and no `Arrange`/`Act`/`Assert` comments. Cover edge cases and error paths. Target ≥ 85% coverage of the new code.
    - **Source data:** **never edit** `Docs/Data/suppliers.csv`, `products.csv` or `sample_orders.json`.
 2. **Tests must pass after each phase.** Before marking a phase done, run these from the repo root, plus the phase's own checks:
    - `dotnet build`: 0 errors, 0 new warnings.
@@ -113,8 +113,8 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
   - Add a stub `Program.cs` that exits `0`.
   - The project inherits `Directory.Build.props`.
 - [x] Add a `/tools/` folder with the project to `OrderRouter.slnx`.
-- [x] Add a `ProjectReference` from `tests/OrderRouter.UnitTests` to the tool project.
-- [x] Extend `tests/OrderRouter.UnitTests/Architecture/LayerDependencyTests.cs`, reusing its csproj-reading approach and `FindRepositoryRoot`:
+- [x] Add a `ProjectReference` from `tests/OrderRouter.Tests` to the tool project.
+- [x] Extend `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, reusing its csproj-reading approach and `FindRepositoryRoot`:
   - the tool references **only** Domain;
   - no `src/` project references the tool (so it never ships with the API).
 - [x] Add `Docs/Data/Seed/*.csv text eol=lf` to a `.gitattributes`, so committed output stays byte-stable on every OS (AC13).
@@ -147,7 +147,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
   - Returns a success or an error with a clear reason (no exceptions used for flow control).
 - [x] `Parsing/RatingParser.cs` maps `no ratings yet` → `null` and parses other values as invariant `decimal`; anything else returns an error. It doesn't check the 1–10 range, which stays in `Rating`.
 - [x] `Parsing/MailOrderFlagParser.cs`: `y`/`Y` → true, `n`/`N` → false; anything else returns an error.
-- [x] Tests in `tests/OrderRouter.UnitTests/DataNormalizer/Parsing/`:
+- [x] Tests in `tests/OrderRouter.Tests/DataNormalizer/Parsing/`:
   - **AC1:** `2130, 2114-2212` → `02130` and `02114-02212`.
   - **AC2:** `10059-10103, 90117, 60699` → one range and two single ZIPs.
   - Edge cases: whitespace; a trailing comma; `ABCDE`; `123456`; `5-3` (start > end); `00001`; `00100-99999`.
@@ -170,7 +170,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
   - On a parser error or `DomainValidationException`, skips the row and records the row number and reason.
   - A missing or ambiguous header, or a duplicate supplier ID, throws `NormalizationException`.
   - Returns the suppliers in source order plus the report.
-- [x] Tests in `tests/OrderRouter.UnitTests/DataNormalizer/Suppliers/`, using in-memory CSV strings:
+- [x] Tests in `tests/OrderRouter.Tests/DataNormalizer/Suppliers/`, using in-memory CSV strings:
   - **AC4:** a file with `suplier_name` and a file with `supplier_name` → name filled for both. Both headers present, or a required column missing → `NormalizationException`.
   - **AC6:** `SUP-005`, `SUP-0810`, `SUP-T003` kept exactly.
   - **AC9:** the row with an unparseable rating is skipped with the correct row number and reason, and the other rows are kept. Same for a bad ZIP token, rating `11`, a bad mail flag and empty categories.
@@ -189,7 +189,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
 - [x] `Products/ProductNormalizer.cs` reads `product_code,product_name,category` and builds `Product`. Invalid rows are skipped with the row number and reason.
   - De-duplicates by case-insensitive trimmed code. When duplicates are **identical** after normalization, it keeps the first and records a duplicate (code + row numbers) in the report.
   - When duplicates have **any differing field**, it throws `NormalizationException` naming the product code and both row numbers.
-- [x] Tests in `tests/OrderRouter.UnitTests/DataNormalizer/Products/`:
+- [x] Tests in `tests/OrderRouter.Tests/DataNormalizer/Products/`:
   - **AC7:** two identical `HB-MAN-019-BAS` rows → one product, one duplicate recorded.
   - **AC8:** same code with a different category → throws, and the message contains the code. Same code with a different name → throws.
   - Same code differing only in case or whitespace → treated as one product.
@@ -216,7 +216,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
   - Logs each skipped row and each duplicate as a warning.
   - Logs **one summary per file** (AC12): rows read, written, skipped (with row numbers and reasons) and duplicates removed.
   - On `NormalizationException`, logs an error and returns exit code 1.
-- [x] Tests in `tests/OrderRouter.UnitTests/DataNormalizer/`:
+- [x] Tests in `tests/OrderRouter.Tests/DataNormalizer/`:
   - Writer formatting: padded ZIPs, single vs range, sorted lower-case categories, `10.0` → `10`, unrated → empty, `y`/`n`, LF.
   - Round trip: every written row rebuilds the same domain objects with `ZipRange.Parse`, `Category`, `Rating` and `Supplier`. This proves OR-005 can load the files without normalizing.
   - **AC10:** running the runner on the real `Docs/Data` into a temp dir creates both files.
@@ -290,8 +290,8 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
 | New | `Plans/OR-003-csv-normalization.md` |
 | New (tool) | `tools/OrderRouter.DataNormalizer/**` (see Target structure) |
 | New (generated, committed) | `Docs/Data/Seed/suppliers.normalized.csv`, `Docs/Data/Seed/products.normalized.csv` |
-| New (tests) | `tests/OrderRouter.UnitTests/DataNormalizer/**` |
-| Modified | `OrderRouter.slnx` (adds `/tools/`), `tests/OrderRouter.UnitTests/OrderRouter.UnitTests.csproj` (tool reference), `tests/OrderRouter.UnitTests/Architecture/LayerDependencyTests.cs`, `.gitattributes` |
+| New (tests) | `tests/OrderRouter.Tests/DataNormalizer/**` |
+| Modified | `OrderRouter.slnx` (adds `/tools/`), `tests/OrderRouter.Tests/OrderRouter.Tests.csproj` (tool reference), `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, `.gitattributes` |
 | Reused (unchanged) | `src/OrderRouter.Domain/ReferenceData/{Supplier,Product,Category,ZipCode,ZipRange,ServiceArea,Rating}.cs`, `src/OrderRouter.Domain/Common/DomainValidationException.cs` |
 | Never modified | `Docs/Data/suppliers.csv`, `Docs/Data/products.csv`, `Docs/Data/sample_orders.json` |
 

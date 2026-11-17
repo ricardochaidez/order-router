@@ -1,7 +1,7 @@
 using OrderRouter.DataNormalizer.Csv;
 using OrderRouter.DataNormalizer.Reporting;
-using OrderRouter.Domain.Common;
-using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Domain.Entities.ReferenceData;
+using OrderRouter.Domain.Models;
 
 namespace OrderRouter.DataNormalizer.Products;
 

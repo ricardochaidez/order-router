@@ -51,13 +51,13 @@ src/OrderRouter.Domain/Routing/Policies/
   PlanRanking.cs                new (internal): keys 2-4 within one shipment count, shared
   StrictPriorityPolicy.cs       modified: calls PlanRanking (behaviour unchanged)
   RoutingPolicyFactory.cs       modified: EXP-1 treatment -> BoundedTradeOffPolicy; remove throw helper
-tests/OrderRouter.UnitTests/Domain/Routing/Policies/
+tests/OrderRouter.Tests/Domain/Routing/Policies/
   BoundedTradeOffPolicyTests.cs new
   RoutingPolicyFactoryTests.cs  modified
   StrictPriorityPolicyTests.cs  unchanged (guards the refactor)
-tests/OrderRouter.UnitTests/Domain/Routing/
+tests/OrderRouter.Tests/Domain/Routing/
   (a service-level EXP-1 test next to OrderRoutingServiceTests / ColdStartRoutingTests)
-tests/OrderRouter.IntegrationTests/Routing/
+tests/OrderRouter.Api.IntegrationTests/Routing/
   (host test for AC4 reload, extending the OR-016 temp-file pattern)
 Docs/ADRs/ADR-0001, ADR-0005   implementation note (OR-017)
 ```

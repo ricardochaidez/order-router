@@ -1,24 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\OrderRouter.Domain\OrderRouter.Domain.csproj" />
-    <ProjectReference Include="..\OrderRouter.Application\OrderRouter.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- SupplierRowMapper is internal on purpose; the unit tests exercise it directly without a database. -->
-    <InternalsVisibleTo Include="OrderRouter.UnitTests" />
+    <InternalsVisibleTo Include="OrderRouter.Tests" />
   </ItemGroup>
   <ItemGroup>
     <!-- EF Core PostgreSQL provider (also brings in EF Core itself): the persistence layer for reference data (ADR-0002). -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <!-- ASP.NET Core health-check integration for the DbContext: backs GET /health with a connectivity-only check (ADR-0002, SC-23). -->
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <!-- Binds the whole configuration root to ExperimentsOptions and its reload token (OR-016, ADR-0005). -->
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <!-- CsvHelper reads the normalized seed files (ADR-0002). 33.1.0 is the version the OR-003 normalizer tool pins; 34.x is a different, stream-based API. -->
-    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="CsvHelper" />
     <!-- Design-time tooling only (dotnet ef migrations); PrivateAssets keeps it from flowing to the Api at runtime.
          Pinned to the EF Core version Npgsql 10.0.3 brings in (10.0.4) to avoid assembly-version warnings; the latest 11.0.0 targets net11 and does not install here. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

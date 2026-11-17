@@ -23,7 +23,7 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 | Topic | Choice and reason |
 |---|---|
-| Where | New folder `tests/OrderRouter.IntegrationTests/Acceptance/`, one class per theme (`SampleOrderAcceptanceTests`, `SentinelSupplierAcceptanceTests`, `RequestRejectionAcceptanceTests`, `StoredOrderAcceptanceTests`). Test names and a `// ACn` comment tie each test to the ticket. |
+| Where | New folder `tests/OrderRouter.Api.IntegrationTests/Acceptance/`, one class per theme (`SampleOrderAcceptanceTests`, `SentinelSupplierAcceptanceTests`, `RequestRejectionAcceptanceTests`, `StoredOrderAcceptanceTests`). Test names and a `// ACn` comment tie each test to the ticket. |
 | Existing tests | Left unchanged. The suite is the end-to-end, real-host view of each AC; where an existing test already proves the same thing against the real host, the new test is still added only if it adds a path, an assertion or the AC wording that is missing. Record any overlap in the phase result. |
 | Real host | Every acceptance test uses the real use case (`useCase: null`) and the shared seeded database. The fake use case is not used (it is what makes the existing auth and validation tests not end-to-end). |
 | Both paths | Core cases (AC1, AC8, AC9, and the sentinel cases through `RouteApiFactory.Paths`) run against `/api/v1/route` **and** `/api/route`. The alias is POST-only; its `Location` points at the v1 GET (ADR-0004, ADR-0007), so AC9 reads both with `GET /api/v1/route/{id}`. |
@@ -145,7 +145,7 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-023-acceptance-tests.md`; `tests/OrderRouter.IntegrationTests/Acceptance/*` (acceptance test classes and a small helper); extra unit tests only if Phase 4 needs them |
+| New | `Plans/OR-023-acceptance-tests.md`; `tests/OrderRouter.Api.IntegrationTests/Acceptance/*` (acceptance test classes and a small helper); extra unit tests only if Phase 4 needs them |
 | Reused | `RouteApiFactory`, `AuthApiFactory`, `TestJwt`, `ReferenceDataFixture`, `ThrowawayDatabase`; `Docs/Data/sample_orders.json` (read only) |
 | Unchanged | All production code, `Docs/Data/**`, migrations, existing tests |
 

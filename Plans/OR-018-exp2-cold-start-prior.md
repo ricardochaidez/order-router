@@ -116,7 +116,7 @@ Out of scope: OR-017 and OR-019 (the factory keeps throwing for EXP-1 and EXP-3 
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-018-exp2-cold-start-prior.md`; `src/OrderRouter.Domain/Routing/Policies/ColdStartPriorPolicy.cs`; `tests/OrderRouter.UnitTests/Domain/Routing/Policies/ColdStartPriorPolicyTests.cs` |
+| New | `Plans/OR-018-exp2-cold-start-prior.md`; `src/OrderRouter.Domain/Routing/Policies/ColdStartPriorPolicy.cs`; `tests/OrderRouter.Tests/Domain/Routing/Policies/ColdStartPriorPolicyTests.cs` |
 | Modified | `src/OrderRouter.Domain/Routing/Policies/RoutingPolicyFactory.cs`; `tests/.../Policies/RoutingPolicyFactoryTests.cs`; `tests/.../OrderRoutingServiceTests.cs`; ADR-0001 or ADR-0005 (note) |
 | Reused | `IEffectiveRatingPolicy`, `UnratedLastPolicy` (pattern and test style), `RoutingParameters.UnratedPrior` and its validation, `ExperimentsOptionsMapper`, `StrictPriorityPolicy` (constructor-validation pattern), the OR-016 test factories |
 | Unchanged | `OrderRoutingService`, plan search, `experiments.json`, Infrastructure, Api, `Docs/Data/**` |

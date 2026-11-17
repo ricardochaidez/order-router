@@ -32,7 +32,7 @@ Out of scope: eligibility rules (OR-010), the work budget, the 8-category limit 
 | Assignment inside a cover | When several chosen suppliers can take a category, give it to the higher effective rating, then to local. Remaining exact ties become separate plans (ADR-0003). A plan counts only if every chosen supplier receives at least one category; otherwise it is a smaller cover already found. |
 | Bitmask | One `uint` bit per distinct demanded category (≤ 32; the 8-category limit is OR-012). Over 32 categories throws an `ArgumentException` here as a safety net until OR-012 adds the greedy path. |
 | Bound | Branch-and-bound is an optimisation only: it must never change the result. It is verified against a brute-force oracle in tests. It is applied **within one shipment count only** (AC8, AC9). |
-| Tests | xUnit v3 in `tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/`, naming `MethodName_Condition_ExpectedResult` (follow nearby style, no Arrange/Act/Assert comments). Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3 in `tests/OrderRouter.Tests/Domain/Routing/PlanSearch/`, naming `MethodName_Condition_ExpectedResult` (follow nearby style, no Arrange/Act/Assert comments). Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
@@ -43,7 +43,7 @@ src/OrderRouter.Domain/Routing/PlanSearch/
   RoutingPlan.cs, PlanSearchResult.cs                             outputs
   CandidatePreparer.cs           bit assignment + dominance pruning (keeps equal-rating twins)
   PlanSearcher.cs                exact cover by increasing size, +1 when requested, quality band per size
-tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/
+tests/OrderRouter.Tests/Domain/Routing/PlanSearch/
   PlanSearchRequestTests.cs, CandidatePreparerTests.cs, PlanSearcherTests.cs, PlanSearcherOracleTests.cs
 ```
 
@@ -149,7 +149,7 @@ Covers AC8, AC9.
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-011-plan-search-exact.md`, `src/OrderRouter.Domain/Routing/PlanSearch/*`, `tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/*` |
+| New | `Plans/OR-011-plan-search-exact.md`, `src/OrderRouter.Domain/Routing/PlanSearch/*`, `tests/OrderRouter.Tests/Domain/Routing/PlanSearch/*` |
 | Reused | `Category` (`src/OrderRouter.Domain/ReferenceData/Category.cs`, ordinal equality and hashing); `Rating` for ratings; `DomainValidationException` (`src/OrderRouter.Domain/Common/`) and the `Supplier` constructor's all-errors-at-once pattern |
 | Unchanged | Application, Api, Infrastructure, migrations, `Docs/Data/**` |
 

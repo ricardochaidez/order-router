@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- xUnit v3 test projects are executables. -->
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- Test classes don't need XML docs. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- All four layers are referenced so the architecture tests can load their assemblies. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OrderRouter.Domain\OrderRouter.Domain.csproj" />
+    
+    <ProjectReference Include="..\..\src\OrderRouter.Infrastructure\OrderRouter.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\OrderRouter.Api\OrderRouter.Api.csproj" />
+  </ItemGroup>
+
+  <!-- The offline normalizer tool is unit-tested here; the API never references it. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\OrderRouter.DataNormalizer\OrderRouter.DataNormalizer.csproj" />
+  </ItemGroup>
+
+</Project>

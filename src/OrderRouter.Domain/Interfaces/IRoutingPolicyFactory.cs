@@ -1,5 +1,5 @@
-using OrderRouter.Domain.Routing.Experiments;
-using OrderRouter.Domain.Routing.Policies;
+using OrderRouter.Domain.Entities.Experiments;
+using OrderRouter.Domain.Entities.Routing;
 
 namespace OrderRouter.Domain.Interfaces;
 

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using OrderRouter.DataNormalizer;
 using OrderRouter.DataNormalizer.Reporting;
+using OrderRouter.DataNormalizer;
 
 // Offline tool: regenerates Docs/Data/Seed from the raw CSVs. Exit code 0 on success, 1 on a fatal error.
 using var loggerFactory = LoggerFactory.Create(builder => builder.AddSimpleConsole(options => options.SingleLine = true));

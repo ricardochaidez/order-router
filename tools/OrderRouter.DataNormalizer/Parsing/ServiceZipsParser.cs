@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Domain.Entities.ReferenceData;
 
 namespace OrderRouter.DataNormalizer.Parsing;
 

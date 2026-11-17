@@ -1,7 +1,7 @@
 using System.Globalization;
-using CsvHelper;
 using CsvHelper.Configuration;
-using OrderRouter.Domain.ReferenceData;
+using CsvHelper;
+using OrderRouter.Domain.Entities.ReferenceData;
 
 namespace OrderRouter.DataNormalizer.Output;
 

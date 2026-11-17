@@ -1,6 +1,6 @@
 using System.Globalization;
-using CsvHelper;
 using CsvHelper.Configuration;
+using CsvHelper;
 using OrderRouter.DataNormalizer.Reporting;
 
 namespace OrderRouter.DataNormalizer.Csv;

@@ -39,7 +39,7 @@ Out of scope: orchestration and the HTTP response (OR-015), decision log (OR-021
 | Warning log | Application `PlanSearchService` logs one `Warning` via `[LoggerMessage]` (same pattern as `DependencyStartupCheck`, `DevApiKeyIgnoredNotice`), with reason, category count, `MaxExactCategories` and `NodeBudget`. No PII: no ZIP, order id or caller. Exact runs log nothing at warning level. |
 | Config validation | `PlanSearchOptions` (Application, `SectionName = "PlanSearch"`) with defaults 8 / 200,000. An `IValidateOptions<PlanSearchOptions>` reuses the domain `PlanSearchLimits` rules, so bad values stop the API at startup (fail fast, like `JwtAuthenticationOptions`). |
 | Defaults in `appsettings.json` | Add the `PlanSearch` section with the defaults so it is visible and overridable by environment (`PlanSearch__NodeBudget`). |
-| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/PlanSearchTestData.cs`). Integration tests reuse `AuthApiFactory` / `RouteApiFactory`. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Routing/PlanSearch/PlanSearchTestData.cs`). Integration tests reuse `AuthApiFactory` / `RouteApiFactory`. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
@@ -56,11 +56,11 @@ src/OrderRouter.Application/Routing/PlanSearch/
   IPlanSearchService.cs, PlanSearchService.cs   reads options, calls PlanSearcher, logs the warning
 src/OrderRouter.Api/Program.cs  bind PlanSearch section, ValidateOnStart, register IPlanSearchService
 src/OrderRouter.Api/appsettings.json   PlanSearch defaults
-tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/
+tests/OrderRouter.Tests/Domain/Routing/PlanSearch/
   PlanSearchLimitsTests.cs, GreedyPlanSearcherTests.cs, PlanSearcherGuardRailTests.cs
-tests/OrderRouter.UnitTests/Application/Routing/PlanSearch/
+tests/OrderRouter.Tests/Application/Routing/PlanSearch/
   PlanSearchOptionsValidatorTests.cs, PlanSearchServiceTests.cs
-tests/OrderRouter.IntegrationTests/Routing/PlanSearchConfigurationTests.cs
+tests/OrderRouter.Api.IntegrationTests/Routing/PlanSearchConfigurationTests.cs
 ```
 
 ## Working rules (apply to every phase)
@@ -150,7 +150,7 @@ Covers the "warning is logged" part of AC1/AC2, and AC4.
 - [x] `PlanSearchOptions` (`SectionName = "PlanSearch"`, defaults 8 / 200,000, `ToLimits()`), `PlanSearchOptionsValidator : IValidateOptions<PlanSearchOptions>` (reuses `PlanSearchLimits` rules, reports every failure).
 - [x] `IPlanSearchService` / `PlanSearchService(IOptions<PlanSearchOptions>, ILogger<PlanSearchService>)`: calls `PlanSearcher`, logs one `[LoggerMessage]` warning when mode is `Greedy` (reason, category count, limits; no PII).
 - [x] Api `Program.cs`: `AddOptions<PlanSearchOptions>().Bind(...).ValidateOnStart()`, register the validator and `IPlanSearchService` as singletons. `appsettings.json`: `"PlanSearch": { "MaxExactCategories": 8, "NodeBudget": 200000 }`.
-- [x] Unit tests: validator (valid, each invalid field, all errors at once); service logs a warning for AC1 and AC2 cases and nothing at warning level for AC3 (use a capturing logger like `tests/OrderRouter.IntegrationTests/Persistence/CapturingLogger.cs`, or `FakeLogger` if already referenced; otherwise a small test fake); service uses the options it was given.
+- [x] Unit tests: validator (valid, each invalid field, all errors at once); service logs a warning for AC1 and AC2 cases and nothing at warning level for AC3 (use a capturing logger like `tests/OrderRouter.Api.IntegrationTests/Persistence/CapturingLogger.cs`, or `FakeLogger` if already referenced; otherwise a small test fake); service uses the options it was given.
 - [x] Integration test `PlanSearchConfigurationTests` (AC4): host with `PlanSearch:MaxExactCategories = 2` and `PlanSearch:NodeBudget = 5` overrides → resolved `IOptions<PlanSearchOptions>` has those values and the resolved `IPlanSearchService` falls back on a 3-category order; host with no override → defaults; invalid value (`NodeBudget = 0`) → host fails to start.
 - [x] `LayerDependencyTests` and other architecture tests still green.
 

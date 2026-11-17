@@ -36,7 +36,7 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
 | Response | `RouteResponse.Id` filled from the stored `id`. Endpoint returns `TypedResults.Created($"/api/v1/route/{id}", response)` for both v1 and the alias (AC5): `Location` always points to the v1 path. |
 | Failure | A store exception is not caught in the use case. The existing global handler returns a 500 ProblemDetails without internals; no `id` is in the body (AC7). A 400 or 401 never reaches the use case, so nothing is stored (AC6). |
 | OpenAPI (AC9) | Document 201 with `Location`, 400, 401 and 500 on both paths; examples for routed, partially routed and not routed in `RouteOpenApiTransformer`. |
-| Existing tests | OR-015 and OR-019 assertions of 200 become 201 (ticket says so). Find them with a search for `HttpStatusCode.OK` in `tests/OrderRouter.IntegrationTests/Routing`. |
+| Existing tests | OR-015 and OR-019 assertions of 200 become 201 (ticket says so). Find them with a search for `HttpStatusCode.OK` in `tests/OrderRouter.Api.IntegrationTests/Routing`. |
 | Layering | Ports in Application; EF store and hasher in Infrastructure; endpoint change in Api. `LayerDependencyTests` stay green. Scoped store (same lifetime as the DbContext); hasher is a singleton. |
 
 ## Working rules (apply to every phase)

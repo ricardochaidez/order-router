@@ -1,7 +1,7 @@
 # Plan: OR-025: Write the README and update AI_PROMPTS.md
 
 **Ticket:** [Docs/Tickets/OR-025-readme-and-docs.md](../Docs/Tickets/OR-025-readme-and-docs.md)
-**Depends on:** OR-023 (done: `tests/OrderRouter.IntegrationTests/Acceptance/*`), OR-028 (done: `GET /api/v1/route/{id}`).
+**Depends on:** OR-023 (done: `tests/OrderRouter.Api.IntegrationTests/Acceptance/*`), OR-028 (done: `GET /api/v1/route/{id}`).
 **References:** Technical Requirements BR-20, BR-21, FR-04, FR-13, FR-19, FR-21, SC-18, SC-29, SC-31, SC-32, SC-33, DEV-07, DEV-14, NFR-01; [ADR-0002](../Docs/ADRs/ADR-0002-reference-data-database.md) (Getting started); [ADR-0004](../Docs/ADRs/ADR-0004-response-contract-evolution.md); [ADR-0005](../Docs/ADRs/ADR-0005-experiment-assignment.md); [ADR-0007](../Docs/ADRs/ADR-0007-routing-decision-persistence.md); `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`.
 
 > **Save location:** Phase 0 copies this plan to `Plans/OR-025-readme-and-docs.md`. Update that file as each phase is done.
@@ -23,7 +23,7 @@ BR-20 asks for a README that explains how to build, run and test the service; BR
 | POST codes | same + `RouteEnvelopeAttribute` | 201 + `Location`; 400 in the route envelope (all validation errors); 500 ProblemDetails. 401 + `WWW-Authenticate` from auth. |
 | Health / docs | `Controllers/HealthController.cs`, `Program.cs` | `/health` anonymous; OpenAPI `/openapi/v1.json` and Scalar `/scalar` Development-only. |
 | Dev key | `.env.example`, `docker-compose.yml` | `DEV_API_KEY` → `X-Api-Key`; Development only; `CALLER_HASHING_SECRET` required. |
-| DB for tests | `tests/OrderRouter.IntegrationTests/ReferenceDataFixture.cs` | Env var `OrderRouterDbContextFactory.ConnectionStringVariable`, else `DefaultConnectionString` (same DB as compose). |
+| DB for tests | `tests/OrderRouter.Api.IntegrationTests/ReferenceDataFixture.cs` | Env var `OrderRouterDbContextFactory.ConnectionStringVariable`, else `DefaultConnectionString` (same DB as compose). |
 | Generator | `tools/OrderRouter.DataNormalizer/Program.cs`, `ToolPaths.cs` | Defaults `Docs/Data` → `Docs/Data/Seed`; `--input`/`--output` overrides; exit 0/1; writes nothing on failure. |
 | Experiments | `src/OrderRouter.Api/experiments.json`, compose bind mount | `Enabled`, `TreatmentPercentage`, `Salt`, `Targeting` (Callers, ZipPrefixes, ZipRanges), `Parameters`; `Routing.SimilarityBand`; polling file watcher; edit the file in place. |
 

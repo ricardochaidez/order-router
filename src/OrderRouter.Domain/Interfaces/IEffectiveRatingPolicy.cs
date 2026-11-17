@@ -1,4 +1,4 @@
-using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Domain.Entities.ReferenceData;
 
 namespace OrderRouter.Domain.Interfaces;
 

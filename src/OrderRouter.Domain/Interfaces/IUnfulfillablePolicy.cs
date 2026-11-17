@@ -1,5 +1,5 @@
-using OrderRouter.Domain.Routing.PlanSearch;
-using OrderRouter.Domain.Routing.Policies;
+using OrderRouter.Domain.Entities.Routing;
+using OrderRouter.Domain.Models.PlanSearch;
 
 namespace OrderRouter.Domain.Interfaces;
 

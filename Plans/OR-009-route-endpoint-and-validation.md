@@ -58,10 +58,10 @@ src/OrderRouter.Api/
   Routing/ValidationErrorFormatter.cs        error keys → snake_case messages, stable order
   Routing/RoutingNotAvailableUseCase.cs      temporary placeholder (removed by OR-015)
   Routing/RouteOpenApiTransformer.cs         examples + alias note
-tests/OrderRouter.UnitTests/
+tests/OrderRouter.Tests/
   Application/Routing/RouteResponseTests.cs, RouteOrderCommandTests.cs
   Api/Routing/ValidationErrorFormatterTests.cs
-tests/OrderRouter.IntegrationTests/
+tests/OrderRouter.Api.IntegrationTests/
   Routing/RouteApiFactory.cs                 extends AuthApiFactory setup; swaps IRouteOrderUseCase for a recording fake
   Routing/RouteValidationTests.cs            AC1–AC7, AC9 on both paths ([Theory] over the two paths)
   Routing/RouteAliasTests.cs                 AC8
@@ -211,9 +211,9 @@ Covers AC10.
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-009-route-endpoint-and-validation.md`, `src/OrderRouter.Application/Routing/**`, `src/OrderRouter.Api/Routing/**`, `tests/OrderRouter.UnitTests/Application/Routing/*`, `tests/OrderRouter.UnitTests/Api/Routing/*`, `tests/OrderRouter.IntegrationTests/Routing/*` |
+| New | `Plans/OR-009-route-endpoint-and-validation.md`, `src/OrderRouter.Application/Routing/**`, `src/OrderRouter.Api/Routing/**`, `tests/OrderRouter.Tests/Application/Routing/*`, `tests/OrderRouter.Tests/Api/Routing/*`, `tests/OrderRouter.Api.IntegrationTests/Routing/*` |
 | Modified | `src/OrderRouter.Api/Program.cs`, `src/OrderRouter.Api/OrderRouter.Api.http` |
-| Reused | `RequireRouteCaller()` (`src/OrderRouter.Api/Authentication/RouteCallerEndpointExtensions.cs`); `SecuritySchemeTransformer` (adds 401 + security to the new operations); `AuthApiFactory` + `TestJwt` (`tests/OrderRouter.IntegrationTests/Authentication/`); `ApiHostTests` pattern for fetching `/openapi/v1.json` |
+| Reused | `RequireRouteCaller()` (`src/OrderRouter.Api/Authentication/RouteCallerEndpointExtensions.cs`); `SecuritySchemeTransformer` (adds 401 + security to the new operations); `AuthApiFactory` + `TestJwt` (`tests/OrderRouter.Api.IntegrationTests/Authentication/`); `ApiHostTests` pattern for fetching `/openapi/v1.json` |
 | Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Infrastructure/**`, migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)

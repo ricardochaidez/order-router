@@ -61,7 +61,7 @@ OrderRouter.Domain/
    - XML doc comments on every public type and member, with `<example>`/`<code>` where useful (e.g. `Category`, `ZipRange.Parse`). Comments explain *why* (cite the requirement ID, e.g. `// SC-09`).
    - Immutable value objects; domain logic lives in the domain types (rich model), not in helpers.
    - Domain stays free of framework, configuration and EF Core references (the OR-001 architecture tests enforce the project graph).
-   - Tests: `MethodName_Condition_ExpectedResult`, no `Arrange`/`Act`/`Assert` comments, follow the style in `tests/OrderRouter.UnitTests`. Cover edge cases and error scenarios; test value-object equality and immutability. Target ≥ 85% coverage of the new domain code.
+   - Tests: `MethodName_Condition_ExpectedResult`, no `Arrange`/`Act`/`Assert` comments, follow the style in `tests/OrderRouter.Tests`. Cover edge cases and error scenarios; test value-object equality and immutability. Target ≥ 85% coverage of the new domain code.
 2. **Tests must pass after each phase.** Before you mark a phase done, run from the repo root `dotnet build` (0 errors, 0 new warnings), `dotnet test` (all pass, including the OR-001 architecture tests) and `dotnet format --verify-no-changes` (clean), plus the phase's own checks.
 3. **Mark each phase as done.** When a phase's checks pass, change its heading status from `⬜ Not started` to `✅ Done` in this file, tick its checklist items, and add a short **Result** line (test counts, anything that deviated from the plan).
 4. **Ask before the next phase.** After you mark a phase done, stop. Summarize what changed and the test results, then ask the engineer for approval before you start the next phase.
@@ -91,7 +91,7 @@ OrderRouter.Domain/
   - `TryCreate(string?, out Category)` for callers that don't want exceptions.
   - `ToString()` returns `Value`.
   - Document the `default(Category)` caveat (a struct can't stop `default`), and make `Value` of a default instance fail clearly rather than return `null`.
-- [x] Add `tests/OrderRouter.UnitTests/Domain/ReferenceData/CategoryTests.cs`:
+- [x] Add `tests/OrderRouter.Tests/Domain/ReferenceData/CategoryTests.cs`:
   - AC1: `" CPAP "` and `"cpap"` are equal and have the same hash code; they collapse to one entry in a `HashSet<Category>`.
   - AC2: `""`, `"   "`, `null` → `DomainValidationException` with a clear message (`[Theory]`).
   - Mixed case/inner text kept (`"Hospital Bed"` → `"hospital bed"`); `TryCreate` returns `false` for bad input.
@@ -129,7 +129,7 @@ OrderRouter.Domain/
   - Built from a non-empty collection of `ZipRange`; copies it into an immutable list (callers can't change it later). Empty → `DomainValidationException`.
   - `Contains(ZipCode)`: true if any segment contains the ZIP. Overlaps allowed.
   - `IsExactly(ZipRange)`: true only when there is exactly one segment and it equals the given range (confirmed "single segment" rule).
-- [x] Add tests under `tests/OrderRouter.UnitTests/Domain/ReferenceData/`:
+- [x] Add tests under `tests/OrderRouter.Tests/Domain/ReferenceData/`:
   - `ZipCodeTests`: AC3 (`"02130"` accepted; `"2130"`, `"0213A"` rejected), plus the edge cases above, `00000`, `99999`, `FromNumber` bounds (`-1`, `100000` rejected; `2130` → `"02130"`), equality.
   - `ZipRangeTests`: AC4 at range level (`02114-02212` contains `02114` and `02212`, not `02213` or `02113`); start > end rejected; single ZIP; `Parse` valid and invalid (`"2114-2212"`, `"02114 - 02212"`, `"02114-"`).
   - `ServiceAreaTests`: empty rejected; overlapping segments; `IsExactly` true for `{00100-99999}`, false for `{00100-99999, 00050}` and `{00100-50000, 50001-99999}`; list is immutable from outside.
@@ -183,7 +183,7 @@ OrderRouter.Domain/
 
 ## Phase 5 — Clean-up, full verification and post-implementation review ✅ Done
 
-- [x] Delete `tests/OrderRouter.UnitTests/PlaceholderTests.cs`. Its comment says real tests replace it from OR-002 on.
+- [x] Delete `tests/OrderRouter.Tests/PlaceholderTests.cs`. Its comment says real tests replace it from OR-002 on.
 - [ ] Run coverage for the Domain project (`dotnet test --collect:"XPlat Code Coverage"` or the Microsoft.Testing.Platform coverage extension, whichever works with the OR-001 `global.json` runner setting). Target ≥ 85% for `OrderRouter.Domain/ReferenceData`. If adding a coverage package is needed, ask first.
 - [x] Run the `ddd-implementation` §5 review and record it under **Review report** below. Report honestly:
   - **Applies:** value objects immutable with value equality; invariants in the domain; ubiquitous language matches §3; SRP; no framework references in Domain; XML docs; test naming; edge-case and error tests; `decimal` for ratings.
@@ -212,8 +212,8 @@ OrderRouter.Domain/
 |---|---|
 | New | `Plans/OR-002-domain-reference-model.md` |
 | New (domain) | `src/OrderRouter.Domain/Common/DomainValidationException.cs`; `src/OrderRouter.Domain/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Supplier,Product}.cs` |
-| New (tests) | `tests/OrderRouter.UnitTests/Domain/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Product,Supplier}Tests.cs` |
-| Deleted | `tests/OrderRouter.UnitTests/PlaceholderTests.cs` |
+| New (tests) | `tests/OrderRouter.Tests/Domain/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Product,Supplier}Tests.cs` |
+| Deleted | `tests/OrderRouter.Tests/PlaceholderTests.cs` |
 | Unchanged | `src/OrderRouter.Domain/DomainAssemblyMarker.cs` (still used by the architecture tests) |
 
 ## Verification summary (ticket acceptance criteria)

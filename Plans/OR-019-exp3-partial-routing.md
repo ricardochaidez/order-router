@@ -127,7 +127,7 @@ Out of scope: the decision log (OR-021), storing the decision and returning 201 
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-019-exp3-partial-routing.md`; `src/OrderRouter.Domain/Routing/Policies/PartialRoutingPolicy.cs`; `tests/OrderRouter.UnitTests/Domain/Routing/Policies/PartialRoutingPolicyTests.cs` |
+| New | `Plans/OR-019-exp3-partial-routing.md`; `src/OrderRouter.Domain/Routing/Policies/PartialRoutingPolicy.cs`; `tests/OrderRouter.Tests/Domain/Routing/Policies/PartialRoutingPolicyTests.cs` |
 | Modified | `src/OrderRouter.Domain/Routing/Policies/RoutingPolicyFactory.cs`; `RoutingPolicyFactoryTests.cs`; `OrderRoutingServiceTests.cs`; `RouteResponseMapperTests.cs`; API integration tests; ADR-0001 (note) |
 | Reused | `IUnfulfillablePolicy`, `AllOrNothingPolicy` (pattern and tests), `RoutingOutcome` and its validation, `RouteResponseMapper`, OR-016 `RouteApiFactory` and temp-config helpers |
 | Unchanged | `OrderRoutingService`, plan search, `RouteEndpoints` (stays 200), `experiments.json`, Infrastructure, `Docs/Data/**` |

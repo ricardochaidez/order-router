@@ -117,7 +117,7 @@ IntegrationTests→ Api
 
 ## Phase 3 — Test projects with placeholder tests (AC3) ✅ Done
 
-- [x] Create `tests/OrderRouter.UnitTests` and `tests/OrderRouter.IntegrationTests`. Only the xUnit **v2** template (`xunit`) is installed, so create each with `dotnet new xunit` and then switch it to xUnit v3:
+- [x] Create `tests/OrderRouter.Tests` and `tests/OrderRouter.Api.IntegrationTests`. Only the xUnit **v2** template (`xunit`) is installed, so create each with `dotnet new xunit` and then switch it to xUnit v3:
   - Replace `xunit` with `xunit.v3`.
   - Keep `xunit.runner.visualstudio` and `Microsoft.NET.Test.Sdk` (v3-compatible versions).
   - Set `<OutputType>Exe</OutputType>`, which xUnit v3 requires.
@@ -140,7 +140,7 @@ IntegrationTests→ Api
 
 ## Phase 4 — Architecture test that enforces the layer references (AC2) ✅ Done
 
-- [x] Add `tests/OrderRouter.UnitTests/Architecture/LayerDependencyTests.cs`.
+- [x] Add `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`.
 - [x] Add a project-reference check, which is the main AC2 assertion:
   - Find the repo root by walking up from `AppContext.BaseDirectory` until `OrderRouter.slnx` is found.
   - Parse `src/<Layer>/<Layer>.csproj` with `System.Xml.Linq`, and collect the file names of its `ProjectReference` `Include` values.
@@ -220,8 +220,8 @@ IntegrationTests→ Api
 |---|---|
 | New | `.editorconfig`, `Directory.Build.props`, `OrderRouter.slnx`, `Plans/OR-001-solution-skeleton.md` |
 | Moved, then edited | `order-router.csproj` → `src/OrderRouter.Api/OrderRouter.Api.csproj`; `Program.cs`, `appsettings*.json`, `Properties/launchSettings.json` → `src/OrderRouter.Api/`; `order-router.http` → `src/OrderRouter.Api/OrderRouter.Api.http` |
-| New projects | `src/OrderRouter.Domain`, `src/OrderRouter.Application`, `src/OrderRouter.Infrastructure`, `tests/OrderRouter.UnitTests`, `tests/OrderRouter.IntegrationTests` |
-| New tests | `tests/OrderRouter.UnitTests/PlaceholderTests.cs`, `tests/OrderRouter.UnitTests/Architecture/LayerDependencyTests.cs`, `tests/OrderRouter.IntegrationTests/ApiHostTests.cs` |
+| New projects | `src/OrderRouter.Domain`, `src/OrderRouter.Application`, `src/OrderRouter.Infrastructure`, `tests/OrderRouter.Tests`, `tests/OrderRouter.Api.IntegrationTests` |
+| New tests | `tests/OrderRouter.Tests/PlaceholderTests.cs`, `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, `tests/OrderRouter.Api.IntegrationTests/ApiHostTests.cs` |
 
 ## Verification summary (ticket acceptance criteria)
 

@@ -1,8 +1,8 @@
 using OrderRouter.DataNormalizer.Csv;
 using OrderRouter.DataNormalizer.Parsing;
 using OrderRouter.DataNormalizer.Reporting;
-using OrderRouter.Domain.Common;
-using OrderRouter.Domain.ReferenceData;
+using OrderRouter.Domain.Entities.ReferenceData;
+using OrderRouter.Domain.Models;
 
 namespace OrderRouter.DataNormalizer.Suppliers;
 

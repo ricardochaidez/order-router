@@ -61,9 +61,9 @@ src/OrderRouter.Infrastructure/
       SupplierServiceAreaRowConfiguration.cs, ProductRowConfiguration.cs
     Migrations/
       <timestamp>_InitialReferenceDataSchema.cs (+ Designer), OrderRouterDbContextModelSnapshot.cs
-tests/OrderRouter.UnitTests/Infrastructure/Persistence/
+tests/OrderRouter.Tests/Infrastructure/Persistence/
   OrderRouterDbContextModelTests.cs                  model metadata, no DB needed
-tests/OrderRouter.IntegrationTests/Persistence/
+tests/OrderRouter.Api.IntegrationTests/Persistence/
   ThrowawayDatabase.cs                               create / migrate / drop a uniquely named DB
   SchemaMigrationTests.cs                            AC1, AC2, AC3 against real PostgreSQL
 ```
@@ -159,7 +159,7 @@ tests/OrderRouter.IntegrationTests/Persistence/
 - [x] Add one `IEntityTypeConfiguration<T>` per table, implementing the physical schema, names, indexes, check constraints and cascade FKs from the design table. `rating` is `numeric(4,2)`.
 - [x] Add `OrderRouterDbContext` (`ApplyConfigurationsFromAssembly`), and `AddOrderRouterDatabase(IServiceCollection, string connectionString)` that registers it with `UseNpgsql`. It throws `ArgumentException` for an empty connection string. It **never** calls `Migrate` or opens a connection.
 - [x] Add `OrderRouterDbContextFactory : IDesignTimeDbContextFactory<OrderRouterDbContext>`, used only by `dotnet ef`. It reads `ConnectionStrings__OrderRouter` and falls back to the compose default.
-- [x] Tests in `tests/OrderRouter.UnitTests/Infrastructure/Persistence/OrderRouterDbContextModelTests.cs`. Build the context with `UseNpgsql` on a dummy connection string; no database is opened. Inspect `context.Model` / `GetRelationalModel()`:
+- [x] Tests in `tests/OrderRouter.Tests/Infrastructure/Persistence/OrderRouterDbContextModelTests.cs`. Build the context with `UseNpgsql` on a dummy connection string; no database is opened. Inspect `context.Model` / `GetRelationalModel()`:
   - exactly the four tables with the expected names;
   - each table's columns, types (`rating` is `numeric(4,2)`, ZIPs are `integer`), nullability and PKs;
   - **AC3:** `suppliers` has no column whose name contains `mail_only` / `mailonly` (case-insensitive), and its column set is exactly `supplier_id, name, rating, can_mail_order, seeded_at`;
@@ -191,7 +191,7 @@ tests/OrderRouter.IntegrationTests/Persistence/
 
 ## Phase 4: Schema integration tests against PostgreSQL (AC1, AC2, AC3) ✅ Done
 
-- [x] `tests/OrderRouter.IntegrationTests/Persistence/ThrowawayDatabase.cs` (`IAsyncDisposable`):
+- [x] `tests/OrderRouter.Api.IntegrationTests/Persistence/ThrowawayDatabase.cs` (`IAsyncDisposable`):
   - reads `ConnectionStrings__OrderRouter` (defaults to the compose server);
   - creates `or_schema_test_<guid-n>` through a connection to the server's maintenance database;
   - exposes a connection string and an `OrderRouterDbContext` for it;
@@ -263,8 +263,8 @@ tests/OrderRouter.IntegrationTests/Persistence/
 | New | `Plans/OR-004-database-schema.md` |
 | New | `docker-compose.yml`, `.config/dotnet-tools.json` |
 | New (Infrastructure) | `src/OrderRouter.Infrastructure/Persistence/**` (see Target structure), including generated `Migrations/**` |
-| New (tests) | `tests/OrderRouter.UnitTests/Infrastructure/Persistence/OrderRouterDbContextModelTests.cs`, `tests/OrderRouter.IntegrationTests/Persistence/{ThrowawayDatabase,SchemaMigrationTests}.cs` |
-| Modified | `src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj` (packages), `tests/OrderRouter.UnitTests/Architecture/LayerDependencyTests.cs`, possibly `.editorconfig` (generated migrations only) |
+| New (tests) | `tests/OrderRouter.Tests/Infrastructure/Persistence/OrderRouterDbContextModelTests.cs`, `tests/OrderRouter.Api.IntegrationTests/Persistence/{ThrowawayDatabase,SchemaMigrationTests}.cs` |
+| Modified | `src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj` (packages), `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, possibly `.editorconfig` (generated migrations only) |
 | Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Api/Program.cs`, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)

@@ -1,13 +1,12 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/OrderRouter.Api/OrderRouter.Api.csproj" />
-    <Project Path="src/OrderRouter.Application/OrderRouter.Application.csproj" />
     <Project Path="src/OrderRouter.Domain/OrderRouter.Domain.csproj" />
     <Project Path="src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/OrderRouter.IntegrationTests/OrderRouter.IntegrationTests.csproj" />
-    <Project Path="tests/OrderRouter.UnitTests/OrderRouter.UnitTests.csproj" />
+    <Project Path="tests/OrderRouter.Api.IntegrationTests/OrderRouter.Api.IntegrationTests.csproj" />
+    <Project Path="tests/OrderRouter.Tests/OrderRouter.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/OrderRouter.DataNormalizer/OrderRouter.DataNormalizer.csproj" />

@@ -11,9 +11,9 @@
   <ItemGroup>
     <!-- CsvHelper (ADR-0002): reads and writes the CSV files, including quoted cells and CRLF.
          Pinned to 33.x on purpose: 34.0 is a rewrite with a different, byte/stream-based API. -->
-    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="CsvHelper" />
     <!-- Console logging for the data-quality report (NFR-04); used by this tool only. -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
 
   <ItemGroup>

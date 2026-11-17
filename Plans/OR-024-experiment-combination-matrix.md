@@ -82,7 +82,7 @@ This ticket adds tests and documentation only. It changes no production code. If
 
 ## Phase 2 — Test harness for pinning arms and the random source ✅ Done
 
-- [x] Add a small test helper in `tests/OrderRouter.IntegrationTests/Acceptance/` (for example `ExperimentArmsHost`) that builds the host with all three experiments pinned to a given `(exp1, exp2, exp3)` combination through a temp `experiments.json` (enabled at 100% for treatment, disabled for control) and a fixed `IRandomSource`.
+- [x] Add a small test helper in `tests/OrderRouter.Api.IntegrationTests/Acceptance/` (for example `ExperimentArmsHost`) that builds the host with all three experiments pinned to a given `(exp1, exp2, exp3)` combination through a temp `experiments.json` (enabled at 100% for treatment, disabled for control) and a fixed `IRandomSource`.
 - [x] Reuse `TempExperimentsFile` logic from `BoundedTradeOffHostTests` rather than copying it. If that needs a move to a shared internal helper, keep the existing tests unchanged in behavior.
 - [x] Add one test that proves the helper pins the arms: the stored decision/assignment (or `diagnostics`, if the response exposes the arms) shows the expected arm for each experiment, and `config_version` is present.
 - [x] Add one test that proves the fixed random source is used for a tie (for example `SUP-T003` / `SUP-T004` at `00003`).
@@ -93,7 +93,7 @@ This ticket adds tests and documentation only. It changes no production code. If
 
 ## Phase 3 — The eight combination tests (AC1) ✅ Done
 
-- [x] Add `ExperimentCombinationMatrixTests` in `tests/OrderRouter.IntegrationTests/Acceptance/`, with the combination table from Phase 1 in the class XML docs.
+- [x] Add `ExperimentCombinationMatrixTests` in `tests/OrderRouter.Api.IntegrationTests/Acceptance/`, with the combination table from Phase 1 in the class XML docs.
 - [x] One test per combination, as an xUnit `Theory` with 8 `MemberData` rows (or 8 named `Fact`s, so each failure names its combination). Each test routes the sentinel orders from Phase 1 with the pinned arms and asserts the documented result: shipments, supplier ids, `status`, `feasible`, and `unfulfilled_items`.
 - [x] Include the interaction scenario from Phase 1 in the combinations where it applies (at least one combination where EXP-1 and EXP-2 are both treatment).
 - [x] Unique `order_id` per request, because the database accumulates stored orders and tests run in parallel.

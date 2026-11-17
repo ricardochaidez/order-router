@@ -1,0 +1,427 @@
+using OrderRouter.Api.Mappers;
+using OrderRouter.Api.ViewModels.Response;
+using OrderRouter.Domain.Entities.Experiments;
+using OrderRouter.Domain.Entities.ReferenceData;
+using OrderRouter.Domain.Entities.Routing;
+using OrderRouter.Domain.Helpers;
+using OrderRouter.Domain.Interfaces;
+using OrderRouter.Domain.Models;
+using OrderRouter.Domain.Sections;
+using OrderRouter.Domain.Services.Policies;
+using OrderRouter.Domain.Services;
+using OrderRouter.Tests.TestData;
+
+namespace OrderRouter.Tests.Domain.Services;
+
+public class RouteOrderServiceTests
+{
+    private static readonly CancellationToken token = CancellationToken.None;
+
+    private readonly FakeCatalog catalog = new();
+    private readonly FakeReader reader = new();
+    private readonly FakeAssigner assigner = new();
+    private readonly CapturingPolicyFactory policyFactory = new();
+    private readonly FakeHasher hasher = new();
+    private readonly List<string> calls = [];
+    private readonly FakeStore store;
+    private readonly FakeLog log;
+    private static readonly DateTimeOffset now = new(2026, 11, 15, 10, 0, 0, TimeSpan.Zero);
+    private bool exposeDiagnostics;
+
+    public RouteOrderServiceTests()
+    {
+        store = new FakeStore(calls);
+        log = new FakeLog(calls);
+    }
+
+    // The service returns the stored order; these tests assert on the v1 response, so the adapter applies the Api mapper
+    // exactly as the controller does.
+    private ResponseAdapter UseCase()
+        => new(new RouteOrderService(
+            catalog,
+            reader,
+            assigner,
+            policyFactory,
+            new OrderRoutingService(
+                new SupplierEligibility(ZipRange.Parse("00100-99999")),
+                new CountingPlanSearch(),
+                new UniformRandomTieBreaker(new FixedRandomSource(0))),
+            hasher,
+            store,
+            log,
+            new FixedClock(now)), exposeDiagnostics);
+
+    private sealed class ResponseAdapter(RouteOrderService service, bool exposeDiagnostics)
+    {
+        public async Task<RouteResponseViewModel> RouteAsync(RouteOrderCommand command, CancellationToken ct)
+            => (await service.RouteAsync(command, ct)).ToRouteViewModel(exposeDiagnostics);
+    }
+
+    private static RouteOrderCommand Command(params string[] codes)
+        => RouteOrderCommand.Create("ORD-1", "10015", false, [.. codes.Select(code => new RouteOrderLine(code, 1))]);
+
+    [Fact]
+    public async Task RouteAsync_ResolvesAllCodesInOneCall()
+    {
+        catalog.Known["A"] = new Category("cane");
+        catalog.Known["B"] = new Category("cane");
+        reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
+
+        var response = await UseCase().RouteAsync(Command("A", "B", "A"), token);
+
+        Assert.Equal(1, catalog.BatchCalls);
+        Assert.Equal(["a", "b"], catalog.LastKeys);
+        Assert.Equal(RoutingStatus.Routed, response.Status);
+        Assert.Equal(3, Assert.Single(response.Routing).Items.Count);
+    }
+
+    [Fact]
+    public async Task RouteAsync_CodeMissingFromCatalog_IsUnknown()
+    {
+        var response = await UseCase().RouteAsync(Command("MISSING"), token);
+
+        var item = Assert.Single(response.UnfulfilledItems);
+        Assert.Equal("UNKNOWN_PRODUCT", item.ReasonCode);
+        Assert.Equal(RoutingStatus.NotRouted, response.Status);
+    }
+
+    [Fact]
+    public async Task RouteAsync_EverythingUnknown_DoesNotReadSuppliers()
+    {
+        // AC6
+        var response = await UseCase().RouteAsync(Command("X", "Y"), token);
+
+        Assert.Equal(0, reader.Calls);
+        Assert.False(response.Feasible);
+        Assert.Equal(2, response.UnfulfilledItems.Count);
+    }
+
+    [Fact]
+    public async Task RouteAsync_KnownProducts_ReadsSuppliersOnceForTheDistinctCategories()
+    {
+        catalog.Known["A"] = new Category("cane");
+        catalog.Known["B"] = new Category("cane");
+        catalog.Known["C"] = new Category("walker");
+
+        await UseCase().RouteAsync(Command("A", "B", "C", "UNKNOWN"), token);
+
+        Assert.Equal(1, reader.Calls);
+        Assert.Equal([new Category("cane"), new Category("walker")], reader.LastCategories.Order(Comparer<Category>.Create((a, b) => string.CompareOrdinal(a.Value, b.Value))));
+    }
+
+    [Fact]
+    public async Task RouteAsync_PassesCallerZipAndOrderIdToTheAssigner()
+    {
+        var command = RouteOrderCommand.Create("ORD-9", "02114", false, [new RouteOrderLine("A", 1)], "portal-client");
+
+        await UseCase().RouteAsync(command, token);
+
+        var context = Assert.Single(assigner.Contexts);
+        Assert.Equal(new AssignmentContext("portal-client", ZipCode.Parse("02114"), "ORD-9"), context);
+    }
+
+    [Fact]
+    public async Task RouteAsync_NoCaller_PassesNullCallerToTheAssigner()
+    {
+        await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.Null(Assert.Single(assigner.Contexts).CallerId);
+    }
+
+    [Fact]
+    public async Task RouteAsync_GivesThePolicyFactoryExactlyTheAssignmentTheAssignerReturned()
+    {
+        var assignment = new ExperimentAssignment(ExperimentArms.AllControl, new RoutingParameters(similarityBand: 0.25m), ExperimentReasons.AllDisabled, "v-test");
+        assigner.Result = assignment;
+
+        await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.Same(assignment, Assert.Single(policyFactory.Assignments));
+    }
+
+    // FR-20, SC-28: the response carries the id of the stored order.
+    [Fact]
+    public async Task RouteAsync_ValidOrder_StoresOnceAndReturnsTheStoredId()
+    {
+        catalog.Known["A"] = new Category("cane");
+        reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
+
+        var response = await UseCase().RouteAsync(Command("A"), token);
+
+        var stored = Assert.Single(store.Saved);
+        Assert.NotNull(response.Id);
+        Assert.Equal(response.Id, stored.Id);
+        Assert.Equal(7, stored.Id.Version);
+        Assert.Equal("ORD-1", stored.OrderId);
+        Assert.Equal(now, stored.CreatedAt);
+        Assert.Equal("routed", stored.Status);
+    }
+
+    // AB-04: one event per stored order, written after the save, with the stored id.
+    [Fact]
+    public async Task RouteAsync_ValidOrder_LogsOneEventAfterTheSaveWithTheStoredId()
+    {
+        var response = await UseCase().RouteAsync(Command("A"), token);
+
+        var entry = Assert.Single(log.Entries);
+        Assert.Equal(response.Id, entry.Id);
+        Assert.Equal("ORD-1", entry.OrderId);
+        Assert.Equal("10015", entry.CustomerZip);
+        Assert.Equal(["save", "log"], calls);
+    }
+
+    // AC5: no stored order, no event.
+    [Fact]
+    public async Task RouteAsync_SaveFails_WritesNoEvent()
+    {
+        store.Failure = new InvalidOperationException("db down");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => UseCase().RouteAsync(Command("A"), token));
+
+        Assert.Empty(log.Entries);
+    }
+
+    // AC3: the entry carries the hash, never the caller ID.
+    [Fact]
+    public async Task RouteAsync_WithCaller_LogsTheHashAndNotTheCallerId()
+    {
+        var command = RouteOrderCommand.Create("ORD-1", "10015", false, [new RouteOrderLine("A", 1)], "user-123");
+
+        await UseCase().RouteAsync(command, token);
+
+        var entry = Assert.Single(log.Entries);
+        Assert.Equal("hash-of-user-123", entry.CallerHash);
+        Assert.DoesNotContain("user-123", entry.ToString().Replace("hash-of-user-123", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
+    }
+
+    // The answer must not exist before the save: nothing may come back for an order that was not stored.
+    [Fact]
+    public async Task RouteAsync_SaveFails_ThrowsAndReturnsNoResponse()
+    {
+        store.Failure = new InvalidOperationException("db down");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => UseCase().RouteAsync(Command("A"), token));
+    }
+
+    // SC-29: every POST creates a new record.
+    [Fact]
+    public async Task RouteAsync_SameRequestTwice_StoresTwoOrdersWithDifferentIds()
+    {
+        var first = await UseCase().RouteAsync(Command("A"), token);
+        var second = await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.Equal(2, store.Saved.Count);
+    }
+
+    // NFR-11: only the hash is stored.
+    [Fact]
+    public async Task RouteAsync_WithCaller_StoresTheHashAndNotTheCallerId()
+    {
+        var command = RouteOrderCommand.Create("ORD-1", "10015", false, [new RouteOrderLine("A", 1)], "user-123");
+
+        await UseCase().RouteAsync(command, token);
+
+        var stored = Assert.Single(store.Saved);
+        Assert.Equal("hash-of-user-123", stored.CallerHash);
+        Assert.DoesNotContain("user-123", stored.ExperimentArmsJson + stored.OrderId + stored.ConfigVersion, StringComparison.Ordinal);
+    }
+
+    // Decided with the engineer: no caller ID means a null hash, so the order can never be read back.
+    [Fact]
+    public async Task RouteAsync_NoCaller_StoresNullHashWithoutCallingTheHasher()
+    {
+        await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.Null(Assert.Single(store.Saved).CallerHash);
+        Assert.Empty(hasher.Hashed);
+    }
+
+    // AB-05, AC1: the default is off, so the field is absent.
+    [Fact]
+    public async Task RouteAsync_FlagOffByDefault_HasNoDiagnostics()
+    {
+        catalog.Known["A"] = new Category("cane");
+
+        var response = await UseCase().RouteAsync(Command("A"), token);
+
+        Assert.False(new RoutingOptions().ExposeDiagnostics);
+        Assert.Null(response.Diagnostics);
+    }
+
+    // AC2: arms and reasons of the assignment, and the search mode of the decision.
+    [Fact]
+    public async Task RouteAsync_FlagOn_ShowsTheArmsReasonsAndSearchMode()
+    {
+        exposeDiagnostics = true;
+        catalog.Known["A"] = new Category("cane");
+        reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
+        assigner.Result = new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
+            RoutingParameters.Default,
+            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted),
+            "v-test");
+
+        var response = await UseCase().RouteAsync(Command("A"), token);
+
+        var diagnostics = Assert.IsType<DiagnosticsResponseViewModel>(response.Diagnostics);
+        Assert.Equal(new ExperimentDiagnosticResponseViewModel("control", "disabled"), diagnostics.ExperimentArms["exp1_consolidation_vs_quality"]);
+        Assert.Equal(new ExperimentDiagnosticResponseViewModel("treatment", "bucketed"), diagnostics.ExperimentArms["exp2_unrated_suppliers"]);
+        Assert.Equal(new ExperimentDiagnosticResponseViewModel("control", "not_targeted"), diagnostics.ExperimentArms["exp3_partial_routing"]);
+        Assert.Equal(Assert.Single(store.Saved).SearchMode, diagnostics.SearchMode);
+        Assert.Equal("exact", diagnostics.SearchMode);
+    }
+
+    // The flag only changes the body: what is stored is the same either way.
+    [Fact]
+    public async Task RouteAsync_FlagOn_StoresTheSameRecordAsFlagOff()
+    {
+        catalog.Known["A"] = new Category("cane");
+
+        await UseCase().RouteAsync(Command("A"), token);
+        exposeDiagnostics = true;
+        await UseCase().RouteAsync(Command("A"), token);
+
+        var (off, on) = (store.Saved[0], store.Saved[1]);
+        Assert.Equal(off.ExperimentArmsJson, on.ExperimentArmsJson);
+        Assert.Equal(off.SearchMode, on.SearchMode);
+        Assert.Equal(off.ConfigVersion, on.ConfigVersion);
+        Assert.Equal(off.Status, on.Status);
+    }
+
+    // Decided with the engineer: no search ran, so search_mode is omitted but the arms are still shown.
+    [Fact]
+    public async Task RouteAsync_FlagOnAndNoKnownProduct_ShowsArmsWithoutSearchMode()
+    {
+        exposeDiagnostics = true;
+
+        var response = await UseCase().RouteAsync(Command("UNKNOWN"), token);
+
+        var diagnostics = Assert.IsType<DiagnosticsResponseViewModel>(response.Diagnostics);
+        Assert.Equal(3, diagnostics.ExperimentArms.Count);
+        Assert.Null(diagnostics.SearchMode);
+    }
+
+    [Fact]
+    public async Task RouteAsync_NullCommand_Throws()
+        => await Assert.ThrowsAsync<ArgumentNullException>(() => UseCase().RouteAsync(null!, token));
+
+    private sealed class FakeHasher : ICallerHasher
+    {
+        public List<string> Hashed { get; } = [];
+
+        public string Hash(string callerId)
+        {
+            Hashed.Add(callerId);
+
+            return $"hash-of-{callerId}";
+        }
+    }
+
+    private sealed class FakeLog(List<string> calls) : IRoutingDecisionLog
+    {
+        public List<RoutingDecisionLogEntry> Entries { get; } = [];
+
+        public void Record(RoutingDecisionLogEntry entry)
+        {
+            calls.Add("log");
+            Entries.Add(entry);
+        }
+    }
+
+    private sealed class FakeStore(List<string> calls) : IRoutingOrderStore
+    {
+        public List<StoredRoutingOrder> Saved { get; } = [];
+
+        public Exception? Failure { get; set; }
+
+        public Task SaveAsync(StoredRoutingOrder order, CancellationToken ct)
+        {
+            if (Failure is not null)
+            {
+                return Task.FromException(Failure);
+            }
+
+            calls.Add("save");
+            Saved.Add(order);
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class FakeAssigner : IExperimentAssigner
+    {
+        public List<AssignmentContext> Contexts { get; } = [];
+
+        public ExperimentAssignment Result { get; set; } = ExperimentAssignment.AllControl;
+
+        public ExperimentAssignment Assign(AssignmentContext context)
+        {
+            Contexts.Add(context);
+
+            return Result;
+        }
+    }
+
+    private sealed class CapturingPolicyFactory : IRoutingPolicyFactory
+    {
+        public List<ExperimentAssignment> Assignments { get; } = [];
+
+        public RoutingPolicy Create(ExperimentAssignment assignment)
+        {
+            Assignments.Add(assignment);
+
+            // Control rules, but carrying the assignment it was given, so the decision (and the stored order) shows it.
+            var control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+
+            return new RoutingPolicy(control.Rating, control.Selection, control.Unfulfillable, assignment);
+        }
+    }
+
+    private sealed class FakeCatalog : IProductCatalog
+    {
+        public Dictionary<string, Category> Known { get; } = [];
+
+        public int BatchCalls { get; private set; }
+
+        public List<string> LastKeys { get; private set; } = [];
+
+        public Task<IReadOnlyList<Product>> FindByKeysAsync(IReadOnlyCollection<ProductCodeKey> keys, CancellationToken ct)
+        {
+            BatchCalls++;
+            LastKeys = [.. keys.Select(key => key.Value)];
+
+            // Matches by key like the real catalog, so the use case goes through ProductCodeLookup end to end.
+            IReadOnlyList<Product> result =
+            [
+                .. Known
+                    .Where(entry => ProductCodeKey.TryCreate(entry.Key, out var key) && keys.Contains(key))
+                    .Select(entry => new Product(entry.Key, entry.Key, entry.Value)),
+            ];
+
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class FakeReader : IReferenceDataReader
+    {
+        public List<Supplier> Suppliers { get; } = [];
+
+        public int Calls { get; private set; }
+
+        public List<Category> LastCategories { get; private set; } = [];
+
+        public Task<IReadOnlyList<Supplier>> GetSuppliersHandlingAsync(IEnumerable<Category> categories, CancellationToken ct)
+        {
+            Calls++;
+            LastCategories = [.. categories];
+
+            return Task.FromResult<IReadOnlyList<Supplier>>(Suppliers);
+        }
+    }
+}

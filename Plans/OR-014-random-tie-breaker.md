@@ -30,7 +30,7 @@ Out of scope: `OrderRoutingService`, `RoutingDecision`, DI wiring and response m
 | `TieBreakResult` | Immutable record: `RoutingPlan Chosen`, `IReadOnlyList<RoutingPlan> TiedCandidates` (never null; a defensive read-only copy of the input, in input order), `bool UsedRandom` (true only when `TiedCandidates.Count > 1`). Invariant: `Chosen` is one of `TiedCandidates`. XML doc says it feeds the decision log (AB-04). |
 | Candidate order | Kept as given. `PlanSearchResult.Plans` is ordered by shipment count, then supplier ids (ordinal), and `SelectBest` keeps input order, so a fixed index maps to a stable plan in tests. |
 | `SystemRandomSource` | Infrastructure, `sealed`, uses `Random.Shared.Next(maxExclusive)` (thread-safe, not seeded: SC-17 "truly random"). Validates `maxExclusive` ≥ 1 (`ArgumentOutOfRangeException`). Comment explains why it is not seeded and why it lives outside the Domain. |
-| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. A hand-written `FixedRandomSource` test double (returns a set value, counts calls) in `tests/OrderRouter.UnitTests/Domain/Routing/TieBreaking/`. Reuse `PlanSearchTestData` (`Local(...)`, `Ids(...)`). AC3 runs 200 iterations; the chance of a false failure is 2⁻¹⁹⁹ (negligible), so no retry is needed. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. A hand-written `FixedRandomSource` test double (returns a set value, counts calls) in `tests/OrderRouter.Tests/Domain/Routing/TieBreaking/`. Reuse `PlanSearchTestData` (`Local(...)`, `Ids(...)`). AC3 runs 200 iterations; the chance of a false failure is 2⁻¹⁹⁹ (negligible), so no retry is needed. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
@@ -42,9 +42,9 @@ src/OrderRouter.Domain/Routing/TieBreaking/
   UniformRandomTieBreaker.cs    FR-13 key 5
 src/OrderRouter.Infrastructure/Randomness/
   SystemRandomSource.cs         Random.Shared
-tests/OrderRouter.UnitTests/Domain/Routing/TieBreaking/
+tests/OrderRouter.Tests/Domain/Routing/TieBreaking/
   FixedRandomSource.cs, TieBreakResultTests.cs, UniformRandomTieBreakerTests.cs, TieBreakPipelineTests.cs
-tests/OrderRouter.UnitTests/Infrastructure/Randomness/
+tests/OrderRouter.Tests/Infrastructure/Randomness/
   SystemRandomSourceTests.cs
 Docs/ADRs/ADR-0001-routing-strategy-composition.md   (note: Pick returns TieBreakResult)
 ```
@@ -141,7 +141,7 @@ Docs/ADRs/ADR-0001-routing-strategy-composition.md   (note: Pick returns TieBrea
 |---|---|
 | New | `Plans/OR-014-random-tie-breaker.md`; Domain, Infrastructure and test files listed in *Target structure* |
 | Modified | `Docs/ADRs/ADR-0001-routing-strategy-composition.md` (signature note only) |
-| Reused | `RoutingPlan`, `PlanSearcher`, `PlanSearchRequest`, `PlanSearchResult` (`src/OrderRouter.Domain/Routing/PlanSearch/`); `StrictPriorityPolicy` (`src/OrderRouter.Domain/Routing/Policies/`); `PlanSearchTestData` (`tests/OrderRouter.UnitTests/Domain/Routing/PlanSearch/`) |
+| Reused | `RoutingPlan`, `PlanSearcher`, `PlanSearchRequest`, `PlanSearchResult` (`src/OrderRouter.Domain/Routing/PlanSearch/`); `StrictPriorityPolicy` (`src/OrderRouter.Domain/Routing/Policies/`); `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Routing/PlanSearch/`) |
 | Unchanged | Application, Api (`Program.cs`, no DI changes), `RoutingPolicy` / `RoutingPolicyFactory` (the tie-breaker is shared, not per arm, ADR-0001), migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
