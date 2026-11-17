@@ -38,7 +38,8 @@ paths:
 - Organize code using feature folders or domain-driven design principles, with one exception: interfaces.
 - Put every interface in a flat `Interfaces/` folder at the root of the project that owns it (e.g., `src/OrderRouter.Domain/Interfaces/`), one interface per file, with the namespace `<ProjectName>.Interfaces` (e.g., `OrderRouter.Domain.Interfaces`). Implementations stay in their feature folders.
 - Maintain proper separation of concerns with models, services, and data access layers.
-- Use the Program.cs and configuration system in ASP.NET Core 10, including environment-specific settings.
+- Use the configuration system in ASP.NET Core 10, including environment-specific settings. In the Api, `Program.cs` only builds and runs the host; service registration goes in `Extensions/` and the pipeline in `Startup.cs`.
+- The Api is controller-based: controllers live in `Controllers/V<n>/` (the version is in the attribute route, e.g. `api/v1/route`), request/response types are `*ViewModel` classes in `ViewModels/Request` and `ViewModels/Response`, and filters, security, OpenAPI transformers and mappers each have their own folder.
 
 ## Nullable Reference Types
 
@@ -60,7 +61,7 @@ paths:
 - Follow OAuth 2.0 and OpenID Connect concepts as they relate to ASP.NET Core.
 - Implement role-based and policy-based authorization.
 - Integrate with Microsoft Entra ID (formerly Azure AD).
-- Secure both controller-based and Minimal APIs consistently.
+- Secure every controller with `[Authorize(Policy = ...)]`; only health checks use `[AllowAnonymous]`.
 
 ## Validation and Error Handling
 
@@ -75,7 +76,7 @@ paths:
 - Implement and apply an API versioning strategy.
 - Implement Swagger/OpenAPI with proper documentation.
 - Document endpoints, parameters, responses, and authentication.
-- Apply versioning in both controller-based and Minimal APIs.
+- Apply versioning with explicit `/api/v<n>/...` attribute routes on controllers in a matching `Controllers/V<n>/` folder.
 - Write meaningful API documentation that helps consumers.
 
 ## Logging and Monitoring

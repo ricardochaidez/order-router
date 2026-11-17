@@ -6,13 +6,13 @@
 
 ## Context
 
-The repo has only the ASP.NET Core template project (`order-router.csproj` at the root, with the `/weatherforecast` sample). Every later ticket (OR-002 onward) assumes a layered DDD solution. OR-001 creates that structure with no business logic: a .NET 10 solution with Domain, Application, Infrastructure and Api projects, a unit test project and an integration test project. It also adds an architecture test that enforces the layer rules, so everyone builds on the same structure.
+The repo has only the ASP.NET Core template project (`order-router.csproj` at the root, with the `/weatherforecast` sample). Every later ticket (OR-002 onward) assumes a layered DDD solution. OR-001 creates that structure with no business logic: a .NET 10 solution with Domain, Infrastructure and Api projects (the original plan also had an Application project; it was removed later, and its contents now live in Domain and Api), a unit test project and an integration test project. It also adds an architecture test that enforces the layer rules, so everyone builds on the same structure.
 
 ### Decisions confirmed with the engineer
 
 | Topic | Decision |
 |---|---|
-| Layout and names | `src/OrderRouter.{Domain,Application,Infrastructure,Api}`, `tests/OrderRouter.{UnitTests,IntegrationTests}`. This matches `tools/OrderRouter.DataNormalizer` from OR-003. `order-router.csproj` is moved and renamed to `src/OrderRouter.Api/OrderRouter.Api.csproj`. |
+| Layout and names | `src/OrderRouter.{Domain,Infrastructure,Api}`, `tests/OrderRouter.{Tests,Api.IntegrationTests}`. This matches `tools/OrderRouter.DataNormalizer` from OR-003. `order-router.csproj` is moved and renamed to `src/OrderRouter.Api/OrderRouter.Api.csproj`. |
 | Test stack | xUnit v3. No architecture-test library. |
 | Architecture test (AC2) | Read each layer's `.csproj` and assert the **exact** `ProjectReference` set. Also run a **reflection** check that no forbidden assembly is referenced at compile time. A reflection check alone can't prove the *required* references, because the compiler drops references to unused projects. |
 | Template sample | Remove `/weatherforecast` and its `.http` request. Keep the OpenAPI wiring. |
@@ -22,11 +22,10 @@ The repo has only the ASP.NET Core template project (`order-router.csproj` at th
 
 ```
 Domain          → (nothing)
-Application     → Domain
-Infrastructure  → Domain, Application
-Api             → Application, Infrastructure
-UnitTests       → all four src projects (needed to load assemblies for the reflection check)
-IntegrationTests→ Api
+Infrastructure  → Domain
+Api             → Domain, Infrastructure
+Tests           → all three src projects (needed to load assemblies for the reflection check)
+Api.IntegrationTests → Api
 ```
 
 ## Working rules (apply to every phase)
@@ -90,20 +89,18 @@ IntegrationTests→ Api
 
 ---
 
-## Phase 2 — Domain, Application and Infrastructure projects ✅ Done
+## Phase 2 — Domain and Infrastructure projects ✅ Done
 
 - [x] Create the projects with `dotnet new classlib`:
   - `src/OrderRouter.Domain`
-  - `src/OrderRouter.Application`
   - `src/OrderRouter.Infrastructure`
 - [x] Delete the template `Class1.cs` files, and remove the properties that duplicate `Directory.Build.props`.
-- [x] Add one marker type to each layer: `DomainAssemblyMarker`, `ApplicationAssemblyMarker` and `InfrastructureAssemblyMarker`.
+- [x] Add one marker type to each layer: `DomainAssemblyMarker` and `InfrastructureAssemblyMarker`.
   - Each is a `public static class` with an XML doc that explains why it exists: tests and DI scanning use it to get the layer's `Assembly`.
   - It contains no business logic. The Api layer uses `Program` instead.
 - [x] Add the project references from the AC2 graph (`dotnet add reference`):
-  - Application → Domain
-  - Infrastructure → Domain and Application
-  - Api → Application and Infrastructure
+  - Infrastructure → Domain
+  - Api → Domain and Infrastructure
 - [x] Add all three projects to `OrderRouter.slnx`, in `src` solution folders.
 
 **Result:** `dotnet build` 4 projects, 0 warnings / 0 errors; `dotnet format --verify-no-changes` clean; `dotnet list reference` matches the AC2 graph exactly; `dotnet test` has no test projects yet.
@@ -123,10 +120,10 @@ IntegrationTests→ Api
   - Set `<OutputType>Exe</OutputType>`, which xUnit v3 requires.
   - Pin explicit versions.
   - If installing `xunit.v3.templates` is the better choice, ask the engineer first, because it changes their global templates.
-- [x] UnitTests references all four `src` projects. IntegrationTests references Api and adds `Microsoft.AspNetCore.Mvc.Testing` (10.0.x).
+- [x] `OrderRouter.Tests` references all three `src` projects. `OrderRouter.Api.IntegrationTests` references Api and adds `Microsoft.AspNetCore.Mvc.Testing` (10.0.x).
 - [x] Add placeholder tests:
-  - UnitTests: `Placeholder_WhenRun_Passes`. It's a trivial assertion, with an XML/inline comment saying it gets replaced by real tests in OR-002+.
-  - IntegrationTests: `GetOpenApiDocument_InDevelopment_ReturnsOk`. It uses `WebApplicationFactory<Program>` with the `Development` environment and calls `GET /openapi/v1.json`. This proves the host composes and boots without adding business logic.
+  - `OrderRouter.Tests`: `Placeholder_WhenRun_Passes`. It's a trivial assertion, with an XML/inline comment saying it gets replaced by real tests in OR-002+.
+  - `OrderRouter.Api.IntegrationTests`: `GetOpenApiDocument_InDevelopment_ReturnsOk`. It uses `WebApplicationFactory<Program>` with the `Development` environment and calls `GET /openapi/v1.json`. This proves the host composes and boots without adding business logic.
 - [x] Add both projects to `OrderRouter.slnx`, in `tests` solution folders.
 
 **Result:** `dotnet build` 6 projects, 0 warnings / 0 errors; `dotnet test` 2 passed, 0 failed; `dotnet format --verify-no-changes` clean. Deviation: xUnit v3 runs on Microsoft.Testing.Platform, and the .NET 10 SDK refuses `dotnet test` unless opted in, so a root `global.json` with `"test": {"runner": "Microsoft.Testing.Platform"}` was added (no SDK pin).
@@ -146,18 +143,17 @@ IntegrationTests→ Api
   - Parse `src/<Layer>/<Layer>.csproj` with `System.Xml.Linq`, and collect the file names of its `ProjectReference` `Include` values.
   - Use a `[Theory]` with one row per layer to assert the **exact** expected set:
     - Domain → ∅
-    - Application → {Domain}
-    - Infrastructure → {Domain, Application}
-    - Api → {Application, Infrastructure}
+    - Infrastructure → {Domain}
+    - Api → {Domain, Infrastructure}
   - Example test name: `ProjectReferences_ForLayer_MatchAllowedSet`.
 - [x] Add a compile-time reflection check. It loads each layer through its marker type or `Program`, then reads `Assembly.GetReferencedAssemblies()` and asserts that no **forbidden** `OrderRouter.*` assembly appears. For example, Domain references no `OrderRouter.*` assembly. Example test name: `ReferencedAssemblies_ForLayer_ContainNoForbiddenLayer`.
   - Add a comment explaining why this check only covers forbidden references: the compiler drops references to unused projects, so a required reference can't be proven here.
 - [x] Do a one-time manual check that the test actually catches violations, then revert it:
-  - Temporarily add a forbidden reference (Domain → Application) and confirm the test fails.
+  - Temporarily add a forbidden reference (Domain → Infrastructure) and confirm the test fails.
   - Revert the change.
   - Note the result in the plan file.
 
-**Negative check result:** the plan's example (Domain → Application) can't be built: MSBuild rejects it as a circular dependency before any test runs. That holds for every forbidden edge among the layers except one that skips a layer, so I used Api → Domain instead. `ProjectReferences_ForLayer_MatchAllowedSet(layer: "Api")` failed as expected (1 of 10 failed); the change was reverted and all 10 pass again. The reflection test is not triggered by this case, because the compiler drops the unused reference.
+**Negative check result:** the plan's example (Domain → Infrastructure; originally Domain → Application) can't be built: MSBuild rejects it as a circular dependency before any test runs. That holds for every forbidden edge among the layers except one that skips a layer, so, in the original four-layer graph, I used Api → Domain instead (that edge is allowed in the current Domain / Infrastructure / Api structure, where only Domain → Infrastructure, Domain → Api and Infrastructure → Api are forbidden). `ProjectReferences_ForLayer_MatchAllowedSet(layer: "Api")` failed as expected (1 of 10 failed); the change was reverted and all 10 pass again. The reflection test is not triggered by this case, because the compiler drops the unused reference.
 
 **Result:** `dotnet test` 10 passed, 0 failed (2 placeholders + 4 + 4 architecture rows); `dotnet format --verify-no-changes` clean.
 
@@ -196,7 +192,7 @@ IntegrationTests→ Api
 **Applies**
 | Check | Result |
 |---|---|
-| Layering / DIP direction | Met. Domain → ∅, Application → Domain, Infrastructure → Domain + Application, Api → Application + Infrastructure; enforced by `LayerDependencyTests`. |
+| Layering / DIP direction | Met. Domain → ∅, Infrastructure → Domain, Api → Domain + Infrastructure; enforced by `LayerDependencyTests`. |
 | Naming conventions | Met. PascalCase types, `I`-prefix rule and camelCase private fields set in `.editorconfig`; the one private field (`allowedReferences`, `layerAssemblies`) is camelCase. |
 | XML docs on public types | Met for all `src` types (the three markers). Partly met in tests: `LayerDependencyTests` is documented, `PlaceholderTests`, `ApiHostTests` and the `Layers` member are not. Test projects have `GenerateDocumentationFile` off; I treated test classes as not public APIs. Say if you want docs added. |
 | Test naming / no AAA comments | Met. `MethodName_Condition_ExpectedResult`; no Arrange/Act/Assert comments. |
@@ -206,7 +202,7 @@ IntegrationTests→ Api
 
 **N/A for this ticket:** aggregates and domain logic (no domain concepts yet); domain events and audit trail (no state changes); `decimal` / money and rounding (no money); transaction boundaries (no persistence); compliance (PCI-DSS, SOX, LGPD; no regulated data handled).
 
-**Deviations from the plan:** root `global.json` was added so `dotnet test` works with xUnit v3 on the .NET 10 SDK (Phase 3); the negative check used Api → Domain because Domain → Application is a circular reference MSBuild rejects (Phase 4).
+**Deviations from the plan:** root `global.json` was added so `dotnet test` works with xUnit v3 on the .NET 10 SDK (Phase 3); the negative check used Api → Domain because the planned edge is a circular reference MSBuild rejects (Phase 4).
 
 **Follow-ups for other tickets (not done here):** README build/run/test section is OR-025; container and health checks are OR-007; authentication is OR-008.
 
@@ -220,7 +216,7 @@ IntegrationTests→ Api
 |---|---|
 | New | `.editorconfig`, `Directory.Build.props`, `OrderRouter.slnx`, `Plans/OR-001-solution-skeleton.md` |
 | Moved, then edited | `order-router.csproj` → `src/OrderRouter.Api/OrderRouter.Api.csproj`; `Program.cs`, `appsettings*.json`, `Properties/launchSettings.json` → `src/OrderRouter.Api/`; `order-router.http` → `src/OrderRouter.Api/OrderRouter.Api.http` |
-| New projects | `src/OrderRouter.Domain`, `src/OrderRouter.Application`, `src/OrderRouter.Infrastructure`, `tests/OrderRouter.Tests`, `tests/OrderRouter.Api.IntegrationTests` |
+| New projects | `src/OrderRouter.Domain`, `src/OrderRouter.Infrastructure`, `tests/OrderRouter.Tests`, `tests/OrderRouter.Api.IntegrationTests` |
 | New tests | `tests/OrderRouter.Tests/PlaceholderTests.cs`, `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, `tests/OrderRouter.Api.IntegrationTests/ApiHostTests.cs` |
 
 ## Verification summary (ticket acceptance criteria)

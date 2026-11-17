@@ -154,7 +154,7 @@ sequenceDiagram
 
 The API never writes **reference data**. It only inserts stored routing orders into separate tables ([ADR-0007](ADR-0007-routing-decision-persistence.md)). Repositories (interfaces in Domain, EF Core implementations in Infrastructure) use `AsNoTracking` projections into domain reference objects.
 
-**Health (SC-23, NFR-06):** `/health` checks that **dependency services are up and reachable**. Today the only dependency is PostgreSQL. The check uses ASP.NET Core health checks, e.g. `AddDbContextCheck<OrderRouterDbContext>()`, which opens a connection. It does **not** check row counts or the schema: a reachable database is healthy even when it is empty or not yet migrated (SC-33). Empty reference data is a seeding concern, not an availability concern. API startup does not inspect the data either; it only needs dependencies to be reachable. The README getting-started steps tell the reader to run the integration tests to seed the data.
+**Health (SC-23, NFR-06):** `/health` checks that **dependency services are up and reachable**. Today the only dependency is PostgreSQL. The check uses ASP.NET Core health checks, e.g. `AddDbContextCheck<OrderRouterDataContext>()`, which opens a connection. It does **not** check row counts or the schema: a reachable database is healthy even when it is empty or not yet migrated (SC-33). Empty reference data is a seeding concern, not an availability concern. API startup does not inspect the data either; it only needs dependencies to be reachable. The README getting-started steps tell the reader to run the integration tests to seed the data.
 
 ```mermaid
 flowchart LR

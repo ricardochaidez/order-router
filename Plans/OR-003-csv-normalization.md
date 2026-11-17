@@ -102,7 +102,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
 
 - [x] Write the `ddd-implementation` §1 domain analysis and §2 architecture review under **Phase 1 notes**:
   - Concepts: raw row → normalized row → `Supplier`/`Product`. Terms from §3.
-  - Layers: the tool sits outside Domain/Application/Infrastructure and references only Domain.
+  - Layers: the tool sits outside Domain/Infrastructure and references only Domain.
   - Invariants: they stay in the domain. The normalizer only cleans syntax (padding, splitting, casing, header aliases).
   - No domain events, and why.
   - Fail-safe behavior (NFR-10).
@@ -126,7 +126,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
 **Domain analysis (ddd-implementation §1)**
 - Concepts: a raw CSV row becomes a normalized row, which becomes a `Supplier` / `Product`. Terms follow Technical Requirements §3 (supplier, product, category, service area, ZIP range, rating).
 - Aggregate boundaries: unchanged. `Supplier` and `Product` stay OR-002's read-only reference data; the tool builds them but does not own or extend them.
-- Layers: the tool sits outside Domain/Application/Infrastructure, references only Domain, and nothing under `src/` references it (both enforced by `LayerDependencyTests`).
+- Layers: the tool sits outside Domain/Infrastructure, references only Domain, and nothing under `src/` references it (both enforced by `LayerDependencyTests`).
 - Invariants stay in the domain. The normalizer cleans syntax only: header aliases, ZIP padding, splitting, casing. Rating range, ZIP validity, non-empty fields and category rules are enforced by building the domain objects.
 - Fail-safe (NFR-10): a bad row is skipped and reported; a fatal file-level problem (missing/ambiguous column, conflicting duplicate product, duplicate supplier id) fails the run and writes nothing.
 - No PHI: the data is supplier and product reference data only. No patient, prescriber or order data is read.
@@ -292,7 +292,7 @@ Docs/Data/Seed/suppliers.normalized.csv, products.normalized.csv   generated, co
 | New (generated, committed) | `Docs/Data/Seed/suppliers.normalized.csv`, `Docs/Data/Seed/products.normalized.csv` |
 | New (tests) | `tests/OrderRouter.Tests/DataNormalizer/**` |
 | Modified | `OrderRouter.slnx` (adds `/tools/`), `tests/OrderRouter.Tests/OrderRouter.Tests.csproj` (tool reference), `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, `.gitattributes` |
-| Reused (unchanged) | `src/OrderRouter.Domain/ReferenceData/{Supplier,Product,Category,ZipCode,ZipRange,ServiceArea,Rating}.cs`, `src/OrderRouter.Domain/Common/DomainValidationException.cs` |
+| Reused (unchanged) | `src/OrderRouter.Domain/Entities/ReferenceData/{Supplier,Product,Category,ZipCode,ZipRange,ServiceArea,Rating}.cs`, `src/OrderRouter.Domain/Models/DomainValidationException.cs` |
 | Never modified | `Docs/Data/suppliers.csv`, `Docs/Data/products.csv`, `Docs/Data/sample_orders.json` |
 
 ## Verification summary (ticket acceptance criteria)

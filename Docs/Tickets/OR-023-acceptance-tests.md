@@ -66,9 +66,9 @@ Add endpoint-level integration tests against the seeded database for the sample 
 ### AC10: Coverage
 
 - **Given** the full test run (unit and integration)
-- **When** coverage is measured for the Domain and Application projects
+- **When** coverage is measured for the Domain projects
 - **Then** it is at least 85% (NFR-08)
 
 ## Notes
 
-- Coverage measured with `dotnet test --coverage --coverage-output-format cobertura --results-directory <dir>` over both test projects, merging the Cobertura files by file and line: Domain 98.5%, Application 98.7% (baseline and final are the same; the existing suite already exceeded 85%).
+- Coverage measured with `dotnet test --coverage --coverage-output-format cobertura --results-directory <dir>` over both test projects, merging the Cobertura files by file and line: Domain 98.5%, the former Domain project 98.7% (now part of Domain) (baseline and final are the same; the existing suite already exceeded 85%).

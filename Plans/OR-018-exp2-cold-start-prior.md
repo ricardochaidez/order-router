@@ -14,7 +14,7 @@ EXP-2 control (`UnratedLastPolicy`) gives an unrated supplier an effective ratin
 Most of the plumbing exists already, so the change is small:
 - `IEffectiveRatingPolicy` is the seam. `OrderRoutingService` calls `policy.Rating.EffectiveRating(supplier)` when it builds each `SupplierCandidate`.
 - `RoutingParameters.UnratedPrior` is validated (1–10, default 6.5).
-- `ExperimentsOptionsMapper` and `ExperimentConfiguration` already read `Exp2UnratedSuppliers.Parameters.UnratedPrior` from the reloadable `experiments.json` and put it in `ExperimentAssignment.Parameters`.
+- `ExperimentMappingExtensions` and `ExperimentConfiguration` already read `Exp2UnratedSuppliers.Parameters.UnratedPrior` from the reloadable `experiments.json` and put it in `ExperimentAssignment.Parameters`.
 - `RoutingPolicyFactory` throws `NotSupportedException` for the EXP-2 treatment arm. The comment on it says the treatment ticket replaces that throw.
 
 So AC4 (prior from config) mostly needs a test that proves the policy takes the prior from the per-request parameters and never captures it.
@@ -25,10 +25,10 @@ Out of scope: OR-017 and OR-019 (the factory keeps throwing for EXP-1 and EXP-3 
 
 | Topic | Choice and reason |
 |---|---|
-| New type | `ColdStartPriorPolicy : IEffectiveRatingPolicy` in `src/OrderRouter.Domain/Routing/Policies/`. Constructor takes the prior and validates 1–10 with a `DomainValidationException`, the same pattern as `StrictPriorityPolicy`. A rated supplier keeps its own rating, and an unrated one gets the prior. Immutable and stateless, so it is safe to share. |
+| New type | `ColdStartPriorPolicy : IEffectiveRatingPolicy` in `src/OrderRouter.Domain/Services/Policies/`. Constructor takes the prior and validates 1–10 with a `DomainValidationException`, the same pattern as `StrictPriorityPolicy`. A rated supplier keeps its own rating, and an unrated one gets the prior. Immutable and stateless, so it is safe to share. |
 | Prior source | `RoutingPolicyFactory` builds it per request with `assignment.Parameters.UnratedPrior` (ADR-0001, "policies never read configuration or capture it at startup"). That gives AC4: the next request after a reload gets the new prior. |
 | Factory | Replace only the EXP-2 treatment `throw` with `new ColdStartPriorPolicy(assignment.Parameters.UnratedPrior)`. EXP-1 and EXP-3 still throw (AB-06: adding an arm changes one line in the factory and nothing in the routing core). Update the class remark and the exception doc. |
-| Layering | Pure Domain change. No Application, Infrastructure or Api change, because the config, assigner and DI already carry the parameter. `LayerDependencyTests` must stay green. |
+| Layering | Pure Domain change. No Infrastructure or Api change, because the config, assigner and DI already carry the parameter. `LayerDependencyTests` must stay green. |
 | AC2 fixture note | The band (default 0.5) only decides local-over-mail among plans of equal shipment count. For "unrated (6.5) beats 6.0" the two suppliers must have the same fulfillment mode, because 6.5 and 6.0 are within the band and a local 6.0 would then beat a mail 6.5. Build the AC2/AC3 fixtures with equal modes and say so in a test comment. |
 | Known risk | After this ticket, enabling only EXP-2 works. Enabling EXP-1 or EXP-3 in a deployment still makes targeted treatment requests return 500 until OR-017 and OR-019 land. Record it in the ADR-0005 note. |
 
@@ -116,9 +116,9 @@ Out of scope: OR-017 and OR-019 (the factory keeps throwing for EXP-1 and EXP-3 
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-018-exp2-cold-start-prior.md`; `src/OrderRouter.Domain/Routing/Policies/ColdStartPriorPolicy.cs`; `tests/OrderRouter.Tests/Domain/Routing/Policies/ColdStartPriorPolicyTests.cs` |
-| Modified | `src/OrderRouter.Domain/Routing/Policies/RoutingPolicyFactory.cs`; `tests/.../Policies/RoutingPolicyFactoryTests.cs`; `tests/.../OrderRoutingServiceTests.cs`; ADR-0001 or ADR-0005 (note) |
-| Reused | `IEffectiveRatingPolicy`, `UnratedLastPolicy` (pattern and test style), `RoutingParameters.UnratedPrior` and its validation, `ExperimentsOptionsMapper`, `StrictPriorityPolicy` (constructor-validation pattern), the OR-016 test factories |
+| New | `Plans/OR-018-exp2-cold-start-prior.md`; `src/OrderRouter.Domain/Services/Policies/ColdStartPriorPolicy.cs`; `tests/OrderRouter.Tests/Domain/Services/Policies/ColdStartPriorPolicyTests.cs` |
+| Modified | `src/OrderRouter.Domain/Services/Policies/RoutingPolicyFactory.cs`; `tests/.../Policies/RoutingPolicyFactoryTests.cs`; `tests/.../OrderRoutingServiceTests.cs`; ADR-0001 or ADR-0005 (note) |
+| Reused | `IEffectiveRatingPolicy`, `UnratedLastPolicy` (pattern and test style), `RoutingParameters.UnratedPrior` and its validation, `ExperimentMappingExtensions`, `StrictPriorityPolicy` (constructor-validation pattern), the OR-016 test factories |
 | Unchanged | `OrderRoutingService`, plan search, `experiments.json`, Infrastructure, Api, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)

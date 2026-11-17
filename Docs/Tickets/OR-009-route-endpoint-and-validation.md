@@ -5,7 +5,7 @@
 
 ## Description
 
-Expose `POST /api/v1/route` (canonical) and `POST /api/route` (a permanent alias pinned to v1), both using the same handler, auth and validator. Define the snake_case request and response DTOs. Validate every request and return **400 with all errors** in the same envelope as a successful response. Valid requests are passed to the routing use case (`IRouteOrderUseCase`), which is wired up in OR-015. Publish the OpenAPI document `v1`.
+Expose `POST /api/v1/route` (canonical) and `POST /api/route` (a permanent alias pinned to v1), both using the same handler, auth and validator. Define the snake_case request and response view models. Validate every request and return **400 with all errors** in the same envelope as a successful response. Valid requests are passed to the routing service (`IRouteOrderService`), which is wired up in OR-015. Publish the OpenAPI document `v1`.
 
 ## Acceptance criteria
 

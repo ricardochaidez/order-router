@@ -11,7 +11,7 @@
 
 The schema (OR-004), the seeder (OR-005) and the read ports (OR-006) exist, but the API host doesn't use the database yet, and nothing runs it in a container. OR-007 does three things:
 
-1. It wires the database into `Program.cs`. The API **never** migrates or seeds (SC-22, SC-33).
+1. It wires the database into `Startup.cs`. The API **never** migrates or seeds (SC-22, SC-33).
 2. It adds an anonymous `GET /health` that only checks that PostgreSQL is reachable. An empty or unmigrated database is still healthy (SC-23, NFR-06, ADR-0002).
 3. It adds a multi-stage, non-root Dockerfile and puts the API in `docker-compose.yml`, running in `Development` (NFR-07, FR-17, SC-32).
 
@@ -22,24 +22,24 @@ Out of scope: authentication and the dev-key handler (OR-008), the full README (
 | Topic | Decision |
 |---|---|
 | AC7 (dev key) | **Split.** OR-007 checks that `ASPNETCORE_ENVIRONMENT=Development` in the container. It also adds a dev-only placeholder key to `.env.example`, and compose passes it to the API. The part that says "a request with the dev key passes authentication" is a **follow-up for OR-008**, which owns the dev-key handler. |
-| Connection string | **Commit the dev default in `appsettings.Development.json`.** It is the same localhost value as `OrderRouterDbContextFactory.DefaultConnectionString`, which already contains the dev-only password, so no new secret is committed. Compose overrides it with the `ConnectionStrings__OrderRouter` environment variable. In any other environment there is no default: if the setting is missing, startup throws `InvalidOperationException` naming `ConnectionStrings:OrderRouter`, without using `!`. |
-| `/health` shape | **Minimal API + `HealthCheckService`.** `app.MapGet("/health", ...)` runs the checks tagged as dependency checks, then returns `200` with `Healthy` or `503` with `Unhealthy` as plain text. It is `.AllowAnonymous()` and is documented in OpenAPI with both status codes. It still uses ASP.NET Core health checks (`AddDbContextCheck<OrderRouterDbContext>`), as ADR-0002 says. |
+| Connection string | **Commit the dev default in `appsettings.Development.json`.** It is the same localhost value as `OrderRouterDataContextFactory.DefaultConnectionString`, which already contains the dev-only password, so no new secret is committed. Compose overrides it with the `ConnectionStrings__OrderRouter` environment variable. In any other environment there is no default: if the setting is missing, startup throws `InvalidOperationException` naming `ConnectionStrings:OrderRouter`, without using `!`. |
+| `/health` shape | **Controller + `HealthCheckService`.** `HealthController` (`Controllers/V1`, `GET /health`) runs the checks tagged as dependency checks, then returns `200` with `Healthy` or `503` with `Unhealthy` as plain text. It is `[AllowAnonymous]` and is documented in OpenAPI with both status codes. It still uses ASP.NET Core health checks (`AddDbContextCheck<OrderRouterDataContext>`), as ADR-0002 says. |
 | Startup | **Fail fast if PostgreSQL is unreachable.** A hosted service runs the **same** dependency health checks when the host starts. If any check is not `Healthy`, it logs the problem and throws, and the process exits. It only opens a connection (`CanConnectAsync`). It never queries tables, so an empty or unmigrated database starts normally (AC6). Compose uses `depends_on: condition: service_healthy` so the API waits for Postgres. |
 
 ### Other design choices (from the ticket, ADRs, rules and existing code; no question needed)
 
 | Topic | Choice and reason |
 |---|---|
-| Health check registration | Add the `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` package (10.0.x) to **Infrastructure**. Add a new extension, `AddOrderRouterDatabaseHealthCheck(this IHealthChecksBuilder)`, in `PersistenceServiceCollectionExtensions`. It registers `AddDbContextCheck<OrderRouterDbContext>(name: "postgresql", tags: [HealthTags.Dependency], customTestQuery: CanConnectAsync)` with a short timeout (5 s). This keeps EF types out of the Api project. The default `AddDbContextCheck` already uses `CanConnectAsync`, which needs no schema (SC-33). |
+| Health check registration | Add the `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` package (10.0.x) to **Infrastructure**. Add a new extension, `AddOrderRouterDatabaseHealthCheck(this IHealthChecksBuilder)`, in `PersistenceServiceCollectionExtensions`. It registers `AddDbContextCheck<OrderRouterDataContext>(name: "postgresql", tags: [HealthTags.Dependency], customTestQuery: CanConnectAsync)` with a short timeout (5 s). This keeps EF types out of the Api project. The default `AddDbContextCheck` already uses `CanConnectAsync`, which needs no schema (SC-33). |
 | Status mapping | A small `internal static` mapper in Api turns `HealthStatus.Healthy` into `200` and anything else (`Degraded`, `Unhealthy`) into `503`. Treating `Degraded` as unhealthy is the fail-safe choice. The body is only the status word. Exception text is never returned (CLAUDE.md, the 500 rule). The response sets `Cache-Control: no-store`, like the built-in health middleware does. |
-| Startup check | `DependencyStartupCheck : IHostedService` in `src/OrderRouter.Api/Health/`. It reuses `HealthCheckService` with the dependency-tag predicate, so "reachable" has one definition (DRY). It logs each check's name and status, and never the connection string (NFR-11). |
+| Startup check | `DependencyStartupCheck : IHostedService` in `src/OrderRouter.Infrastructure/HostedServices/`. It reuses `HealthCheckService` with the dependency-tag predicate, so "reachable" has one definition (DRY). It logs each check's name and status, and never the connection string (NFR-11). |
 | Port | The container listens on **HTTP 8080**, the .NET 10 image default for non-root (`ASPNETCORE_HTTP_PORTS=8080`). Compose maps `${API_PORT:-8080}:8080`. The README documents `http://localhost:8080`. TLS is out of scope here (NFR-11 says HTTPS in production, which ingress handles). `UseHttpsRedirection` stays as it is. Without an HTTPS port configured it doesn't redirect, so container HTTP works. If it does redirect, stop and ask. |
 | Dockerfile | Lives at the repo root (`build: .`). **Build stage:** `mcr.microsoft.com/dotnet/sdk:10.0.x`. It copies `Directory.Build.props`, `.editorconfig` and the four `src` csproj files, restores, then copies `src/` and runs `dotnet publish src/OrderRouter.Api -c Release -o /app /p:UseAppHost=false`. **Final stage:** `mcr.microsoft.com/dotnet/aspnet:10.0.x` (the ASP.NET Core runtime image; the plain `runtime` image can't host ASP.NET). It sets `USER $APP_UID` (the built-in non-root `app` user), `EXPOSE 8080`, and `ENTRYPOINT ["dotnet","OrderRouter.Api.dll"]`. Image tags are pinned to an exact patch, checked at implementation time, the same way compose pins `postgres:18.1`. No CSVs or `Docs/` are copied (FR-17). |
 | `.dockerignore` | Excludes `**/bin`, `**/obj`, `tests/`, `tools/`, `Docs/`, `Plans/`, `TestResults/`, `.git`, `.env`, `.claude/`. |
 | Compose `api` service | `build: .`, `depends_on: postgres: condition: service_healthy`, `ports: "${API_PORT:-8080}:8080"`. Environment: `ASPNETCORE_ENVIRONMENT: Development`, `ConnectionStrings__OrderRouter: Host=postgres;Port=5432;Database=orderrouter;Username=orderrouter;Password=${POSTGRES_PASSWORD:-orderrouter-dev-only}`, `Authentication__DevApiKey: ${DEV_API_KEY:-}` (OR-008 binds or renames this). There is no migrate or seed command (SC-22). The header comment says this file is never used in production. |
 | `.env.example` / `.gitignore` | `.env.example` holds `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `API_PORT` and `DEV_API_KEY=dev-only-change-me`, with a header marking every value as dev-only (SC-32). `.gitignore` gets an explicit `.env` line. The existing `*.env` already matches it, but OR-008 AC6 asks for `.env` to be listed. |
 | README | Add a minimal **Run locally with Docker** section: copy `.env.example` to `.env`, run `docker compose up`, the API is at `http://localhost:8080`, `GET /health`, then run the integration tests to migrate and seed. That last step is required (SC-24, SC-33). OR-025 writes the full README later. |
-| Layers / DDD | This is infrastructure and hosting only: no domain concepts, aggregates, events or money. Domain and Application don't change. `LayerDependencyTests` must stay green. |
+| Layers / DDD | This is infrastructure and hosting only: no domain concepts, aggregates, events or money. Domain don't change. `LayerDependencyTests` must stay green. |
 
 ### Target structure
 
@@ -51,9 +51,9 @@ Dockerfile                                       multi-stage, non-root, aspnet:1
 docker-compose.yml                               + api service (Development, depends_on healthy)
 README.md                                        + Run locally with Docker (port 8080)
 src/OrderRouter.Api/
-  Program.cs                                     DB wiring, health checks, /health, startup check
+  Startup.cs                                     DB wiring, health checks, /health, startup check
   appsettings.Development.json                   + ConnectionStrings:OrderRouter (dev-only)
-  Health/HealthEndpoint.cs                       MapGet /health + OpenAPI metadata
+  Controllers/V1/HealthController.cs             GET /health + OpenAPI metadata
   Health/HealthStatusMapper.cs                   Healthy→200, else 503
   Health/DependencyStartupCheck.cs               fail-fast hosted service
   Health/HealthTags.cs                           "dependency" tag (or in Infrastructure; see Phase 1)
@@ -63,7 +63,7 @@ src/OrderRouter.Infrastructure/
 tests/OrderRouter.Tests/
   Api/Health/HealthStatusMapperTests.cs
   Api/Health/DependencyStartupCheckTests.cs
-  Infrastructure/Persistence/PersistenceRegistrationTests.cs   + health check registered with tag
+  Api/Extensions/ServiceCollectionExtensionsTests.cs   + health check registered with tag
   Architecture/ContainerConfigurationTests.cs    Dockerfile / compose / .env guards
 tests/OrderRouter.Api.IntegrationTests/
   ApiFactory.cs (or helper)                      WebApplicationFactory with a connection string
@@ -118,13 +118,13 @@ tests/OrderRouter.Api.IntegrationTests/
   - fail safe: an unknown or degraded status counts as unhealthy;
   - no events, money, PHI or authorization here (auth is OR-008).
 - [x] Add `ConnectionStrings:OrderRouter` to `appsettings.Development.json` (dev-only comment in the plan and README; JSON has no comments).
-- [x] `Program.cs`:
+- [x] `Startup.cs` (composition root; `Program.cs` only builds and runs the host):
   - read the connection string, and throw `InvalidOperationException` if it's missing;
   - call `AddOrderRouterDatabase(...)`;
   - `AddHealthChecks().AddOrderRouterDatabaseHealthCheck()`;
   - map `/health`.
 - [x] Infrastructure: add the package, `AddOrderRouterDatabaseHealthCheck`, and the dependency tag constant. Put the tag in Infrastructure so both the registration and the Api endpoint can reference it.
-- [x] Api: add `HealthEndpoint` (MapGet, `AllowAnonymous`, `Produces<string>(200, "text/plain")`, `Produces<string>(503, "text/plain")`, a summary and description) and `HealthStatusMapper`.
+- [x] Api: add `HealthController` (`[AllowAnonymous]`, `[ProducesResponseType<string>(200, "text/plain")]`, `[ProducesResponseType<string>(503, "text/plain")]`, a summary and description) and `HealthStatusMapper`.
 - [x] Unit tests:
   - `HealthStatusMapperTests`: Healthy → 200; Degraded and Unhealthy → 503; the body is the status name;
   - `PersistenceRegistrationTests`: the health check is registered under `postgresql` with the dependency tag.
@@ -137,7 +137,7 @@ tests/OrderRouter.Api.IntegrationTests/
 
 **Verify:** working rule 2. `SeedingBoundaryTests` and `LayerDependencyTests` stay green.
 
-**Result:** 387 tests pass, format clean. Deviations: the health check uses a custom test query (`CanConnectAsync` with a 5 s timeout) because `AddDbContextCheck` has no timeout option; `Program.cs` is unchanged apart from wiring (`Program` stays internal, `WebApplicationFactory` already reaches it).
+**Result:** 387 tests pass, format clean. Deviations: the health check uses a custom test query (`CanConnectAsync` with a 5 s timeout) because `AddDbContextCheck` has no timeout option; `Startup.cs` is unchanged apart from wiring (`Program` stays internal, `WebApplicationFactory` already reaches it).
 
 ### Phase 1 notes
 - **Domain (§1):** no domain concepts change. This is hosting and infrastructure only: no aggregates, events, money, PHI or authorization (auth is OR-008).
@@ -152,14 +152,14 @@ tests/OrderRouter.Api.IntegrationTests/
   - if the result isn't `Healthy`, log each failing check's name and status at `Error`, then throw `InvalidOperationException("Dependency check failed at startup: postgresql is Unhealthy.")`;
   - never log the connection string;
   - `StopAsync` does nothing.
-- [x] Register it in `Program.cs` with `AddHostedService`.
+- [x] Register it in `Startup.cs` with `AddHostedService`.
 - [x] Unit tests, `DependencyStartupCheckTests` (stub `HealthCheckService` subclass):
   - Healthy → completes;
   - Unhealthy or Degraded → throws, and the message names the check;
   - the message and logs don't contain the stub's exception text with secrets;
   - only the dependency-tagged checks run (predicate).
 - [x] Integration tests, `StartupTests`:
-  - **AC6:** start the host on an empty, unmigrated `ThrowawayDatabase`, using `ConfigureTestServices` → `ConfigureDbContext<OrderRouterDbContext>` to add the existing `CapturingCommandInterceptor`. Startup succeeds, **no SQL command** reaches the server, and `information_schema.tables` in `public` stays empty (no migration, SC-33);
+  - **AC6:** start the host on an empty, unmigrated `ThrowawayDatabase`, using `ConfigureTestServices` → `ConfigureDbContext<OrderRouterDataContext>` to add the existing `CapturingCommandInterceptor`. Startup succeeds, **no SQL command** reaches the server, and `information_schema.tables` in `public` stays empty (no migration, SC-33);
   - **fail fast:** with `Host=unreachable.invalid;Timeout=1`, `CreateClient()` throws, and the exception chain contains the startup-check message.
 
 **Verify:** working rule 2.
@@ -225,10 +225,10 @@ tests/OrderRouter.Api.IntegrationTests/
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-007-health-and-container.md`, `Dockerfile`, `.dockerignore`, `.env.example`, `src/OrderRouter.Api/Health/*` |
-| Modified | `src/OrderRouter.Api/Program.cs`, `src/OrderRouter.Api/appsettings.Development.json`, `docker-compose.yml`, `.gitignore`, `README.md`, `src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj`, `src/OrderRouter.Infrastructure/Persistence/PersistenceServiceCollectionExtensions.cs` |
-| Reused | `AddOrderRouterDatabase` (OR-004/OR-006); `OrderRouterDbContextFactory.DefaultConnectionString` / `ConnectionStringVariable`; `ThrowawayDatabase`; `CapturingCommandInterceptor`; `ReferenceDataFixture` connection resolution; the `SeedingBoundaryTests` / `TestRepository.Root` source-guard pattern; `ApiHostTests` factory pattern |
-| Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Application/**`, migrations, the seeder, `Docs/Data/**` |
+| New | `Plans/OR-007-health-and-container.md`, `Dockerfile`, `.dockerignore`, `.env.example`, `src/OrderRouter.Api/Mappers/*` |
+| Modified | `src/OrderRouter.Api/Startup.cs`, `src/OrderRouter.Api/appsettings.Development.json`, `docker-compose.yml`, `.gitignore`, `README.md`, `src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj`, `src/OrderRouter.Api/Extensions/ServiceCollectionExtensions.cs` |
+| Reused | `AddOrderRouterDatabase` (OR-004/OR-006); `OrderRouterDataContextFactory.DefaultConnectionString` / `ConnectionStringVariable`; `ThrowawayDatabase`; `CapturingCommandInterceptor`; `ReferenceDataFixture` connection resolution; the `SeedingBoundaryTests` / `TestRepository.Root` source-guard pattern; `ApiHostTests` factory pattern |
+| Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Domain/**`, migrations, the seeder, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

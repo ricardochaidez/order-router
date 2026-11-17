@@ -14,22 +14,22 @@ EXP-3 control (`AllOrNothingPolicy`) routes nothing when any line is unfulfillab
 Most plumbing already exists:
 - `IUnfulfillablePolicy.Apply(RoutingPlan?, IReadOnlyList<UnfulfilledLine>)` is the seam. `OrderRoutingService` already calls it, builds `RoutedLinesFor` from `outcome.Plan`, and passes unfulfilled lines through.
 - `RoutingOutcome` already validates the `PartiallyRouted` shape (plan present and at least one unfulfilled line) and `RoutingOutcomeStatus.PartiallyRouted` exists.
-- `RouteResponseMapper` already maps `PartiallyRouted` to `partially_routed`, fills `unfulfilled_items` and `errors`. `RouteResponse` derives `feasible` from the status.
+- `RoutingOrderMappingExtensions` already maps `PartiallyRouted` to `partially_routed`, fills `unfulfilled_items` and `errors`. `RouteResponseViewModel` derives `feasible` from the status.
 - `Exp3PartialRouting` is already in the assigner, config and `ExperimentArms`.
 - `RoutingPolicyFactory` throws `NotSupportedException` for the EXP-3 treatment arm; this ticket replaces that throw.
 
-So the change is one new Domain class, one factory line, and tests. No Application, Infrastructure or Api production change is expected.
+So the change is one new Domain class, one factory line, and tests. No Infrastructure or Api production change is expected.
 
 Out of scope: the decision log (OR-021), storing the decision and returning 201 (OR-027), the combination matrix (OR-024), README (OR-025). EXP-1 treatment (OR-017) is a separate ticket.
 
 ### Decision made with the engineer
-- **AC1 says 201, the endpoint returns 200 today** (`RouteEndpoints.cs` comment: "200 until OR-027 switches this to 201"). OR-027 is a dependency but not implemented. **Chosen:** do not block. Tests assert the body fields and HTTP 200, with a comment that OR-027 changes it to 201 (OR-027 already says it updates the 200 assertions). Record this as a known gap in the Phase 3 result.
+- **AC1 says 201, the endpoint returns 200 today** (`Controllers/V1/RouteController.cs` comment: "200 until OR-027 switches this to 201"). OR-027 is a dependency but not implemented. **Chosen:** do not block. Tests assert the body fields and HTTP 200, with a comment that OR-027 changes it to 201 (OR-027 already says it updates the 200 assertions). Record this as a known gap in the Phase 3 result.
 
 ### Design choices (from the ticket, ADR-0001 and the code)
 
 | Topic | Choice and reason |
 |---|---|
-| New type | `PartialRoutingPolicy : IUnfulfillablePolicy` in `src/OrderRouter.Domain/Routing/Policies/`, stateless singleton (`Instance`) like `AllOrNothingPolicy`. |
+| New type | `PartialRoutingPolicy : IUnfulfillablePolicy` in `src/OrderRouter.Domain/Services/Policies/`, stateless singleton (`Instance`) like `AllOrNothingPolicy`. |
 | Logic | `plan is null` → `NotRouted` (AC2). `plan` present and no unfulfilled → `Routed` (AC3). `plan` present and unfulfilled → `PartiallyRouted` (AC1). Fail safe: no plan is never routed or partial. |
 | Factory | Replace only the EXP-3 `Treatment` throw with `PartialRoutingPolicy.Instance`. Update the class remark and the exception doc (now only EXP-1 throws). |
 | AC4 | Validation runs before routing (OR-009), so 400 with nothing routed should already hold under every arm. Prove it with a test; make no production change unless the test fails (then stop and ask). |
@@ -54,7 +54,7 @@ Out of scope: the decision log (OR-021), storing the decision and returning 201 
    - an existing test or sentinel fixture that depends on the EXP-3 treatment throwing;
    - the AC4 test failing (validation not blocking under the treatment arm);
    - `LayerDependencyTests` objecting to the new type;
-   - the mapper or `RouteResponse` rejecting a partial outcome.
+   - the mapper or `RouteResponseViewModel` rejecting a partial outcome.
 6. **No commits unless the engineer asks.** If asked, branch off `main` first (for example `feature/OR-019-exp3-partial-routing`).
 
 ---
@@ -96,7 +96,7 @@ Out of scope: the decision log (OR-021), storing the decision and returning 201 
   - AC2: no routable line → `NotRouted`, no routed lines;
   - AC3: fully routable → `Routed`, no unfulfilled lines;
   - control arm on the AC1 order → `NotRouted` with nothing routed (EXP-3 control unchanged, SC-10).
-- [x] `RouteResponseMapperTests`: partial decision → `status:"partially_routed"`, `feasible:false`, routed item in `routing`, unfulfilled item in `unfulfilled_items` and its message in `errors`; `warnings` empty.
+- [x] `RoutingOrderMappingExtensionsRouteTests`: partial decision → `status:"partially_routed"`, `feasible:false`, routed item in `routing`, unfulfilled item in `unfulfilled_items` and its message in `errors`; `warnings` empty.
 - [x] API integration test through the real host with a temp `experiments.json` enabling EXP-3 at 100% (reuse OR-016's `RouteApiFactory`):
   - AC1: response body as above; assert HTTP 200 with a comment that OR-027 changes it to 201 (decision above);
   - AC2 and AC3 through HTTP;
@@ -127,10 +127,10 @@ Out of scope: the decision log (OR-021), storing the decision and returning 201 
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-019-exp3-partial-routing.md`; `src/OrderRouter.Domain/Routing/Policies/PartialRoutingPolicy.cs`; `tests/OrderRouter.Tests/Domain/Routing/Policies/PartialRoutingPolicyTests.cs` |
-| Modified | `src/OrderRouter.Domain/Routing/Policies/RoutingPolicyFactory.cs`; `RoutingPolicyFactoryTests.cs`; `OrderRoutingServiceTests.cs`; `RouteResponseMapperTests.cs`; API integration tests; ADR-0001 (note) |
-| Reused | `IUnfulfillablePolicy`, `AllOrNothingPolicy` (pattern and tests), `RoutingOutcome` and its validation, `RouteResponseMapper`, OR-016 `RouteApiFactory` and temp-config helpers |
-| Unchanged | `OrderRoutingService`, plan search, `RouteEndpoints` (stays 200), `experiments.json`, Infrastructure, `Docs/Data/**` |
+| New | `Plans/OR-019-exp3-partial-routing.md`; `src/OrderRouter.Domain/Services/Policies/PartialRoutingPolicy.cs`; `tests/OrderRouter.Tests/Domain/Services/Policies/PartialRoutingPolicyTests.cs` |
+| Modified | `src/OrderRouter.Domain/Services/Policies/RoutingPolicyFactory.cs`; `RoutingPolicyFactoryTests.cs`; `OrderRoutingServiceTests.cs`; `RoutingOrderMappingExtensionsRouteTests.cs`; API integration tests; ADR-0001 (note) |
+| Reused | `IUnfulfillablePolicy`, `AllOrNothingPolicy` (pattern and tests), `RoutingOutcome` and its validation, `RoutingOrderMappingExtensions`, OR-016 `RouteApiFactory` and temp-config helpers |
+| Unchanged | `OrderRoutingService`, plan search, `RouteController` (stays 200), `experiments.json`, Infrastructure, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

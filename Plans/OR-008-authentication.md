@@ -27,15 +27,15 @@ Out of scope: permissions/scopes (SC-16), HMAC-hashing caller IDs for storage (N
 
 | Topic | Choice and reason |
 |---|---|
-| Location | Everything lives in `src/OrderRouter.Api/Authentication/`. This is a hosting concern: no domain concepts, aggregates, events or money. Domain, Application and Infrastructure don't change. `LayerDependencyTests` must stay green. |
+| Location | Everything lives in `src/OrderRouter.Api/Security/`. This is a hosting concern: no domain concepts, aggregates, events or money. Domain and Infrastructure don't change. `LayerDependencyTests` must stay green. |
 | Package | `Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.x (match the existing 10.0.15) in the Api project. Tests use `Microsoft.IdentityModel.JsonWebTokens` (comes with it) to mint tokens. |
-| JWT validation | `ValidateIssuer`, `ValidateAudience`, `ValidateLifetime`, `ValidateIssuerSigningKey` all `true`, `RequireExpirationTime` and `RequireSignedTokens` `true`. Keep the default clock skew. `RequireHttpsMetadata` stays `true` except in `Development`. Options are bound from a `JwtAuthenticationOptions` record (`Authority`, `Audience`) with `ValidateOnStart` outside Development. Missing values → `InvalidOperationException` naming the setting, matching the connection-string pattern in `Program.cs`. |
+| JWT validation | `ValidateIssuer`, `ValidateAudience`, `ValidateLifetime`, `ValidateIssuerSigningKey` all `true`, `RequireExpirationTime` and `RequireSignedTokens` `true`. Keep the default clock skew. `RequireHttpsMetadata` stays `true` except in `Development`. Options are bound from a `JwtAuthenticationOptions` record (`Authority`, `Audience`) with `ValidateOnStart` outside Development. Missing values → `InvalidOperationException` naming the setting, matching the connection-string pattern in `Startup.cs`. |
 | Dev key scheme | `DevApiKeyAuthenticationHandler : AuthenticationHandler<DevApiKeyAuthenticationOptions>`, scheme name `DevApiKey`, header `X-Api-Key`. It is **registered only when `builder.Environment.IsDevelopment()` and `Authentication:DevApiKey` is non-empty**. In any other environment the scheme does not exist, so no configuration can turn it on (AC5). If a key is configured outside Development, log one warning that it is ignored (never the value). |
 | Dev key source | `Authentication:DevApiKey`, the name compose already passes (`Authentication__DevApiKey`). It comes from environment variables or user-secrets (add `<UserSecretsId>` to the Api csproj). Never from `appsettings*.json`; a guard test enforces that. |
 | Dev key check | Compare with `CryptographicOperations.FixedTimeEquals` over SHA-256 hashes of both values (constant time, and no length leak). No header → `NoResult`. Wrong key → `Fail` with a fixed message that never contains the value. Success → principal with `ClaimTypes.NameIdentifier`/`sub` = `dev-key` (ADR-0005). |
-| Policy | `AuthorizationPolicyNames.RouteCaller` (`"RouteCaller"`): `AddAuthenticationSchemes(Bearer[, DevApiKey])` + `RequireAuthenticatedUser()`. One named hook for a later scope check (SC-16). The same policy object is set as `FallbackPolicy`. A `RequireRouteCaller()` endpoint extension is what OR-009 calls. |
+| Policy | `AuthorizationPolicyNames.RouteCaller` (`"RouteCaller"`): `AddAuthenticationSchemes(Bearer[, DevApiKey])` + `RequireAuthenticatedUser()`. One named hook for a later scope check (SC-16). The same policy object is set as `FallbackPolicy`. Controllers apply it with `[Authorize(Policy = AuthorizationPolicyNames.RouteCaller)]` (OR-009 puts it on `RouteController`). |
 | 401 shape | Default scheme is `JwtBearer`, so the challenge sends `WWW-Authenticate: Bearer`. The body is empty (§9.4 allows empty or ProblemDetails). |
-| Pipeline | `Program.cs` calls `UseAuthentication()` and `UseAuthorization()` explicitly after `UseHttpsRedirection()` and before mapping endpoints. `/health` already has `.AllowAnonymous()`; `MapOpenApi()` gets it too. |
+| Pipeline | `Startup.cs` calls `UseAuthentication()` and `UseAuthorization()` explicitly after `UseHttpsRedirection()` and before mapping controllers. `HealthController` is `[AllowAnonymous]`; `MapOpenApi()` gets it too. |
 | Logging (AC8) | Never log header values, tokens or keys. Leave `IdentityModelEventSource.ShowPII` and `LogCompleteSecurityArtifact` at their defaults (`false`); a guard test checks no code sets them. |
 | OpenAPI | A document transformer adds the `Bearer` security scheme (and `ApiKey` in Development) so OR-009's routes are documented with 401. |
 
@@ -48,7 +48,7 @@ README.md                                        + short "Authenticate" note (de
 src/OrderRouter.Api/
   OrderRouter.Api.csproj                         + JwtBearer package, + UserSecretsId
   OrderRouter.Api.http                           + X-Api-Key example using a variable (no real key)
-  Program.cs                                     AddOrderRouterAuthentication, UseAuthentication/UseAuthorization, OpenAPI AllowAnonymous
+  Startup.cs                                     AddOrderRouterAuthentication, UseAuthentication/UseAuthorization, OpenAPI AllowAnonymous
   appsettings.json                               + Authentication:Jwt section with empty Authority/Audience (no secrets)
   Authentication/AuthenticationServiceCollectionExtensions.cs   schemes, policy, fallback, startup checks
   Authentication/AuthorizationPolicyNames.cs     "RouteCaller"
@@ -56,7 +56,7 @@ src/OrderRouter.Api/
   Authentication/DevApiKeyAuthenticationHandler.cs
   Authentication/DevApiKeyAuthenticationOptions.cs
   Authentication/DevApiKeyDefaults.cs            scheme name, header name, caller id "dev-key"
-  Authentication/RouteCallerEndpointExtensions.cs  RequireRouteCaller()
+  Constants/AuthorizationPolicyNames.cs         RouteCaller policy name, applied with [Authorize]
   Authentication/SecuritySchemeTransformer.cs    OpenAPI security schemes
 tests/OrderRouter.Tests/
   Api/Authentication/DevApiKeyAuthenticationHandlerTests.cs
@@ -113,10 +113,10 @@ tests/OrderRouter.Api.IntegrationTests/
 Covers AC1 (401 + `WWW-Authenticate`), AC2, AC3, AC7.
 
 - [x] Run `ddd-implementation` §1 and §2; record the short result in this phase's **Result**.
-- [x] Add the JwtBearer package; add `JwtAuthenticationOptions`, `AuthorizationPolicyNames`, `RouteCallerEndpointExtensions`.
+- [x] Add the JwtBearer package; add `JwtAuthenticationOptions`, `AuthorizationPolicyNames` (applied with `[Authorize(Policy = ...)]`).
 - [x] Add `AddOrderRouterAuthentication(this WebApplicationBuilder)` (or `IServiceCollection` + environment): JwtBearer as default scheme, the `RouteCaller` policy, `FallbackPolicy` = that policy, fail-fast config check outside Development.
-- [x] `Program.cs`: call it; add `UseAuthentication()` / `UseAuthorization()`; `MapOpenApi().AllowAnonymous()`. Add the empty `Authentication:Jwt` section to `appsettings.json`.
-- [x] Test infrastructure: `TestJwt` (RSA or symmetric test key; builds valid, expired, bad-signature and wrong-audience tokens) and a factory that sets `JwtBearerOptions.Configuration` to a static `OpenIdConnectConfiguration` (issuer + test key) so no metadata is fetched. Add a test-only probe endpoint protected by `RequireRouteCaller()`. **First spike how to add the probe so it still runs through `Program.cs`'s pipeline**; if that isn't possible cleanly, stop and ask (working rule 5).
+- [x] `Startup.cs`: call it; add `UseAuthentication()` / `UseAuthorization()`; `MapOpenApi().AllowAnonymous()`. Add the empty `Authentication:Jwt` section to `appsettings.json`.
+- [x] Test infrastructure: `TestJwt` (RSA or symmetric test key; builds valid, expired, bad-signature and wrong-audience tokens) and a factory that sets `JwtBearerOptions.Configuration` to a static `OpenIdConnectConfiguration` (issuer + test key) so no metadata is fetched. Add a test-only probe endpoint protected by `[Authorize(Policy = AuthorizationPolicyNames.RouteCaller)]`. **First spike how to add the probe so it still runs through `Startup.cs`'s pipeline**; if that isn't possible cleanly, stop and ask (working rule 5).
 - [x] Unit tests: options validation (missing Authority / Audience outside Development throws, naming the setting; Development tolerates them missing).
 - [x] Integration tests:
   - no credentials on the probe → `401` + `WWW-Authenticate: Bearer`, and the probe handler did not run (AC1);
@@ -126,7 +126,7 @@ Covers AC1 (401 + `WWW-Authenticate`), AC2, AC3, AC7.
 
 **Verify:** working rule 2.
 
-**Result:** DDD §1/§2: no domain, application or infrastructure change; hosting concern only, security/compliance are the main concerns. The probe is added with an `IStartupFilter` that calls `UseEndpoints` after `Program.cs`'s pipeline, so requests go through the real middleware. Deviation: the fallback policy also returns `401` for unmatched paths (not `404`), which is secure by default and reveals no routes; the test asserts that. 426 tests passed.
+**Result:** DDD §1/§2: no domain, application or infrastructure change; hosting concern only, security/compliance are the main concerns. The probe is added with an `IStartupFilter` that calls `UseEndpoints` after `Startup.cs`'s pipeline, so requests go through the real middleware. Deviation: the fallback policy also returns `401` for unmatched paths (not `404`), which is secure by default and reveals no routes; the test asserts that. 426 tests passed.
 
 ---
 
@@ -169,7 +169,7 @@ Covers AC8, plus documentation and the OR-007 follow-up.
 
 - [x] `ddd-implementation` §5 review: what **applies and is met** (layering, fail-safe secure-by-default fallback, REST 401 semantics, no secrets committed or logged, dev key impossible outside Development), what is **N/A** and why (domain events, money, aggregates), and what was **not verified** (e.g. coverage %, a real OIDC provider). Be honest.
 - [x] Record follow-ups (don't do them here):
-  - **OR-009:** call `RequireRouteCaller()` on `POST /api/v1/route` and `POST /api/route`; add a test that no credentials + an invalid body → `401` and the validator never runs (finishes AC1 on the real route); document 401 on both routes in OpenAPI;
+  - **OR-009:** put `[Authorize(Policy = AuthorizationPolicyNames.RouteCaller)]` on `POST /api/v1/route` and `POST /api/route`; add a test that no credentials + an invalid body → `401` and the validator never runs (finishes AC1 on the real route); document 401 on both routes in OpenAPI;
   - **OR-015/ADR-0005:** read the caller ID from `sub` (JWT) or `dev-key`;
   - **OR-023:** reuse `TestJwt` and the factory for the end-to-end auth cases;
   - **OR-025:** README section on JWT settings and the dev key.
@@ -182,10 +182,10 @@ Covers AC8, plus documentation and the OR-007 follow-up.
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-008-authentication.md`, `src/OrderRouter.Api/Authentication/*`, `tests/OrderRouter.Tests/Api/Authentication/*`, `tests/OrderRouter.Tests/Architecture/SecretsConfigurationTests.cs`, `tests/OrderRouter.Api.IntegrationTests/Authentication/*` |
-| Modified | `src/OrderRouter.Api/Program.cs`, `src/OrderRouter.Api/OrderRouter.Api.csproj`, `src/OrderRouter.Api/appsettings.json`, `src/OrderRouter.Api/OrderRouter.Api.http`, `docker-compose.yml` (comment), `.env.example` (comment), `README.md` |
+| New | `Plans/OR-008-authentication.md`, `src/OrderRouter.Api/Security/*`, `tests/OrderRouter.Tests/Api/Security/*`, `tests/OrderRouter.Tests/Architecture/SecretsConfigurationTests.cs`, `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/*` |
+| Modified | `src/OrderRouter.Api/Startup.cs`, `src/OrderRouter.Api/OrderRouter.Api.csproj`, `src/OrderRouter.Api/appsettings.json`, `src/OrderRouter.Api/OrderRouter.Api.http`, `docker-compose.yml` (comment), `.env.example` (comment), `README.md` |
 | Reused | `Health/ApiFactory` pattern (`WebApplicationFactory<Program>`, `UseEnvironment`, `UseSetting`, `ConfigureTestServices`); `CapturingLogger` idea for the logging test; `TestRepository.Root` source-guard pattern from `ContainerConfigurationTests`; the fail-fast configuration pattern in `Program.cs`; `/health`'s existing `.AllowAnonymous()` |
-| Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Application/**`, `src/OrderRouter.Infrastructure/**`, migrations, `Docs/Data/**` |
+| Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Domain/**`, `src/OrderRouter.Infrastructure/**`, migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

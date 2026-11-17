@@ -5,7 +5,7 @@
 
 ## Description
 
-Add PostgreSQL to `docker-compose` and create the EF Core 10 (Npgsql) `OrderRouterDbContext` (one context for reference data and, later, stored orders) with tables `suppliers`, `supplier_categories`, `supplier_service_areas` and `products`, plus the indexes described in ADR-0002. Do **not** store the mail-only flag; the domain works it out at read time.
+Add PostgreSQL to `docker-compose` and create the EF Core 10 (Npgsql) `OrderRouterDataContext` (one context for reference data and, later, stored orders) with tables `suppliers`, `supplier_categories`, `supplier_service_areas` and `products`, plus the indexes described in ADR-0002. Do **not** store the mail-only flag; the domain works it out at read time.
 
 ## Acceptance criteria
 

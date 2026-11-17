@@ -30,21 +30,21 @@ Out of scope: `OrderRoutingService`, `RoutingDecision`, DI wiring and response m
 | `TieBreakResult` | Immutable record: `RoutingPlan Chosen`, `IReadOnlyList<RoutingPlan> TiedCandidates` (never null; a defensive read-only copy of the input, in input order), `bool UsedRandom` (true only when `TiedCandidates.Count > 1`). Invariant: `Chosen` is one of `TiedCandidates`. XML doc says it feeds the decision log (AB-04). |
 | Candidate order | Kept as given. `PlanSearchResult.Plans` is ordered by shipment count, then supplier ids (ordinal), and `SelectBest` keeps input order, so a fixed index maps to a stable plan in tests. |
 | `SystemRandomSource` | Infrastructure, `sealed`, uses `Random.Shared.Next(maxExclusive)` (thread-safe, not seeded: SC-17 "truly random"). Validates `maxExclusive` ≥ 1 (`ArgumentOutOfRangeException`). Comment explains why it is not seeded and why it lives outside the Domain. |
-| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. A hand-written `FixedRandomSource` test double (returns a set value, counts calls) in `tests/OrderRouter.Tests/Domain/Routing/TieBreaking/`. Reuse `PlanSearchTestData` (`Local(...)`, `Ids(...)`). AC3 runs 200 iterations; the chance of a false failure is 2⁻¹⁹⁹ (negligible), so no retry is needed. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. A hand-written `FixedRandomSource` test double (returns a set value, counts calls) in `tests/OrderRouter.Tests/Domain/Services/`. Reuse `PlanSearchTestData` (`Local(...)`, `Ids(...)`). AC3 runs 200 iterations; the chance of a false failure is 2⁻¹⁹⁹ (negligible), so no retry is needed. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Routing/TieBreaking/
+src/OrderRouter.Domain/Services/ (UniformRandomTieBreaker) and OrderRouter.Domain/Models/ (TieBreakResult)
   IRandomSource.cs              NextInt(int maxExclusive)
   ITieBreaker.cs                TieBreakResult Pick(IReadOnlyList<RoutingPlan> tied)
   TieBreakResult.cs             Chosen, TiedCandidates, UsedRandom
   UniformRandomTieBreaker.cs    FR-13 key 5
-src/OrderRouter.Infrastructure/Randomness/
+src/OrderRouter.Infrastructure/Services/
   SystemRandomSource.cs         Random.Shared
-tests/OrderRouter.Tests/Domain/Routing/TieBreaking/
+tests/OrderRouter.Tests/Domain/Services/
   FixedRandomSource.cs, TieBreakResultTests.cs, UniformRandomTieBreakerTests.cs, TieBreakPipelineTests.cs
-tests/OrderRouter.Tests/Infrastructure/Randomness/
+tests/OrderRouter.Tests/Infrastructure/Services/
   SystemRandomSourceTests.cs
 Docs/ADRs/ADR-0001-routing-strategy-composition.md   (note: Pick returns TieBreakResult)
 ```
@@ -101,7 +101,7 @@ Docs/ADRs/ADR-0001-routing-strategy-composition.md   (note: Pick returns TieBrea
 
 ## Phase 2: Real random source (Infrastructure) ✅ Done
 
-- [x] `SystemRandomSource : IRandomSource` in `src/OrderRouter.Infrastructure/Randomness/` using `Random.Shared` (rules in *Design choices*). No DI registration (OR-015).
+- [x] `SystemRandomSource : IRandomSource` in `src/OrderRouter.Infrastructure/Services/` using `Random.Shared` (rules in *Design choices*). No DI registration (OR-015).
 - [x] Tests (`SystemRandomSourceTests`): `NextInt(1)` always 0; many calls to `NextInt(3)` stay in [0, 3) and hit every value; `maxExclusive` 0 or negative → `ArgumentOutOfRangeException`.
 - [x] `LayerDependencyTests` and other architecture tests still green.
 
@@ -141,8 +141,8 @@ Docs/ADRs/ADR-0001-routing-strategy-composition.md   (note: Pick returns TieBrea
 |---|---|
 | New | `Plans/OR-014-random-tie-breaker.md`; Domain, Infrastructure and test files listed in *Target structure* |
 | Modified | `Docs/ADRs/ADR-0001-routing-strategy-composition.md` (signature note only) |
-| Reused | `RoutingPlan`, `PlanSearcher`, `PlanSearchRequest`, `PlanSearchResult` (`src/OrderRouter.Domain/Routing/PlanSearch/`); `StrictPriorityPolicy` (`src/OrderRouter.Domain/Routing/Policies/`); `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Routing/PlanSearch/`) |
-| Unchanged | Application, Api (`Program.cs`, no DI changes), `RoutingPolicy` / `RoutingPolicyFactory` (the tie-breaker is shared, not per arm, ADR-0001), migrations, `Docs/Data/**` |
+| Reused | `RoutingPlan`, `PlanSearcher`, `PlanSearchRequest`, `PlanSearchResult` (`src/OrderRouter.Domain/Models/PlanSearch/`); `StrictPriorityPolicy` (`src/OrderRouter.Domain/Services/Policies/`); `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Services/PlanSearch/`) |
+| Unchanged | Api (`Startup.cs`, no DI changes), `RoutingPolicy` / `RoutingPolicyFactory` (the tie-breaker is shared, not per arm, ADR-0001), migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

@@ -5,7 +5,7 @@
 
 ## Description
 
-Implement `OrderRoutingService` and the `IRouteOrderUseCase` application service: resolve products, find eligible suppliers, search plans, apply the policies and tie-break, then map the result to the v1 response. Until OR-016 lands, use an all-control `ExperimentAssignment`. `feasible` is always computed from `status` and never set separately. Return 200 for now; OR-027 stores the decision, changes the success status to 201 and updates the 200 assertions in this ticket's tests.
+Implement `OrderRoutingService` and the `IRouteOrderService` domain service: resolve products, find eligible suppliers, search plans, apply the policies and tie-break, then map the result to the v1 response. Until OR-016 lands, use an all-control `ExperimentAssignment`. `feasible` is always computed from `status` and never set separately. Return 200 for now; OR-027 stores the decision, changes the success status to 201 and updates the 200 assertions in this ticket's tests.
 
 ## Acceptance criteria
 

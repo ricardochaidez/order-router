@@ -1,7 +1,7 @@
 # Plan: OR-016: Assign experiment arms from reloadable configuration
 
 **Ticket:** [Docs/Tickets/OR-016-experiment-assignment.md](../Docs/Tickets/OR-016-experiment-assignment.md)
-**Depends on:** OR-008 (JWT + dev key; the dev key already emits `sub = dev-key`), OR-013 (`ExperimentAssignment`, `RoutingParameters`, `RoutingPolicyFactory`), OR-015 (`RouteOrderUseCase` with the temporary `AllControl`). All three are done.
+**Depends on:** OR-008 (JWT + dev key; the dev key already emits `sub = dev-key`), OR-013 (`ExperimentAssignment`, `RoutingParameters`, `RoutingPolicyFactory`), OR-015 (`RouteOrderService` with the temporary `AllControl`). All three are done.
 **References:** [ADR-0005](../Docs/ADRs/ADR-0005-experiment-assignment.md) (port, algorithm, reload, `config_version`); Technical Requirements §8.2, AB-01, AB-02, AB-03, SC-25, SC-26, NFR-11, OQ-25; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
 **Feeds:** OR-017/018/019 (treatment arms; they replace the factory throws and read `Parameters`), OR-021 (logs arms, reasons, `config_version`), OR-022 (diagnostics), OR-025 (README: how to edit `experiments.json`), OR-027 (stores arms and `config_version`).
 
@@ -9,7 +9,7 @@
 
 ## Context
 
-Every request still runs on `ExperimentAssignment.AllControl`; see the `// TEMPORARY until OR-016` line in `src/OrderRouter.Application/Routing/RouteOrderUseCase.cs`. SC-25 and SC-26 require experiments that:
+Every request still runs on `ExperimentAssignment.AllControl`; see the `// TEMPORARY until OR-016` line in `src/OrderRouter.Domain/Services/RouteOrderService.cs`. SC-25 and SC-26 require experiments that:
 - can be switched on or off without a deploy, through a reloadable `experiments.json`;
 - are targeted by caller and by customer ZIP prefix or range;
 - are then split per caller with a stable salted SHA-256 bucket;
@@ -36,45 +36,45 @@ Out of scope:
 
 | Topic | Choice and reason |
 |---|---|
-| Layering | Same rule as OR-015: **the Domain has all business rules**. The targeting, bucketing and per-experiment evaluation are pure Domain code. The port `IExperimentAssigner` and `AssignmentContext` live in **Application** (ADR-0005 calls it an application port). The config binding, validation, snapshot swap, `config_version` and logging live in **Infrastructure** (`ConfigurationExperimentAssigner`). Api only extracts the principal and registers. `LayerDependencyTests` must stay green. |
-| Domain types (`Domain/Routing/Experiments/`) | `ExposureReason` enum: `Disabled`, `NotTargeted`, `Bucketed`. It serializes as `disabled`, `not_targeted` and `bucketed` under the snake_case policy.<br>`ExperimentReasons(Exp1, Exp2, Exp3)` mirrors `ExperimentArms`.<br>`ExperimentTargeting(Callers, ZipPrefixes, ZipRanges)` is a value object. Callers are matched with ordinal comparison, and an empty list means everyone. A prefix has 1–5 ASCII digits. Ranges are domain `ZipRange`s. When prefixes and ranges are both empty, the experiment applies everywhere.<br>`ExperimentDefinition(Id, Enabled, TreatmentPercentage 0–100, Salt non-empty, Targeting)` reports every error in one `DomainValidationException`, the same pattern as `RoutingParameters`.<br>`ExperimentBucketer.Bucket(id, salt, unit)` computes `SHA256(UTF8("{id}:{salt}:{unit}"))`, reads the first 8 bytes with **`BinaryPrimitives.ReadUInt64BigEndian`** (explicit byte order, so results match across platforms, AC4), and takes the result `% 100`. `string.GetHashCode` is never used.<br>`ExperimentConfiguration(exp1, exp2, exp3, RoutingParameters, ConfigVersion)` is the immutable snapshot. Its `Assign(string? callerId, ZipCode zip, string orderId)` → `ExperimentAssignment` follows the ADR flowchart for each experiment: disabled → targeted → bucket on `callerId ?? orderId` → `bucket < pct`. |
+| Layering | Same rule as OR-015: **the Domain has all business rules**. The targeting, bucketing and per-experiment evaluation are pure Domain code. The port `IExperimentAssigner` and `AssignmentContext` live in **Domain** (ADR-0005 calls it an application port). The config binding, validation, snapshot swap, `config_version` and logging live in **Infrastructure** (`ConfigurationExperimentAssigner`). Api only extracts the principal and registers. `LayerDependencyTests` must stay green. |
+| Domain types (`Domain/Entities/Experiments/`) | `ExposureReason` enum: `Disabled`, `NotTargeted`, `Bucketed`. It serializes as `disabled`, `not_targeted` and `bucketed` under the snake_case policy.<br>`ExperimentReasons(Exp1, Exp2, Exp3)` mirrors `ExperimentArms`.<br>`ExperimentTargeting(Callers, ZipPrefixes, ZipRanges)` is a value object. Callers are matched with ordinal comparison, and an empty list means everyone. A prefix has 1–5 ASCII digits. Ranges are domain `ZipRange`s. When prefixes and ranges are both empty, the experiment applies everywhere.<br>`ExperimentDefinition(Id, Enabled, TreatmentPercentage 0–100, Salt non-empty, Targeting)` reports every error in one `DomainValidationException`, the same pattern as `RoutingParameters`.<br>`ExperimentBucketer.Bucket(id, salt, unit)` computes `SHA256(UTF8("{id}:{salt}:{unit}"))`, reads the first 8 bytes with **`BinaryPrimitives.ReadUInt64BigEndian`** (explicit byte order, so results match across platforms, AC4), and takes the result `% 100`. `string.GetHashCode` is never used.<br>`ExperimentConfiguration(exp1, exp2, exp3, RoutingParameters, ConfigVersion)` is the immutable snapshot. Its `Assign(string? callerId, ZipCode zip, string orderId)` → `ExperimentAssignment` follows the ADR flowchart for each experiment: disabled → targeted → bucket on `callerId ?? orderId` → `bucket < pct`. |
 | Experiment IDs | They are the config section keys `Exp1ConsolidationVsQuality`, `Exp2UnratedSuppliers` and `Exp3PartialRouting`, the same names as the `ExperimentArms` properties. Each experiment has its own ID and salt, so arms are independent (AC8). |
 | `ExperimentAssignment` | Gains `Reasons` (`ExperimentReasons`) and `ConfigVersion` (non-empty string). `AllControl` stays, with reasons `Disabled` and `ConfigVersion = "defaults"`, and is still used by tests and fallbacks. Update `ExperimentAssignmentTests` for the new constructor. |
-| Port (`Application/Routing/Experiments/`) | `IExperimentAssigner { ExperimentAssignment Assign(AssignmentContext context); }` is synchronous and never throws on a valid context. `AssignmentContext(string? CallerId, ZipCode CustomerZip, string OrderId)`. |
-| Caller ID | `CallerIdentity.Resolve(ClaimsPrincipal)` lives in Application and uses only BCL `System.Security.Claims`; the order is the one in *Decisions*. `RouteOrderCommand` gains a trailing `string? CallerId = null`, and `Create` gains an optional `callerId`, so existing calls still compile. `RouteEndpoints.HandleAsync` binds `ClaimsPrincipal user` and passes the resolved ID. The raw caller ID is never logged (NFR-11). |
-| Use case | `RouteOrderUseCase` takes `IExperimentAssigner`. It calls `Assign(new AssignmentContext(command.CallerId, command.CustomerZip, command.OrderId))` and passes the result to `policyFactory.Create`. The `TEMPORARY` line is removed. |
+| Port (`Domain/Helpers/ and Domain/Interfaces/`) | `IExperimentAssigner { ExperimentAssignment Assign(AssignmentContext context); }` is synchronous and never throws on a valid context. `AssignmentContext(string? CallerId, ZipCode CustomerZip, string OrderId)`. |
+| Caller ID | `CallerIdentity.Resolve(ClaimsPrincipal)` lives in Domain and uses only BCL `System.Security.Claims`; the order is the one in *Decisions*. `RouteOrderCommand` gains a trailing `string? CallerId = null`, and `Create` gains an optional `callerId`, so existing calls still compile. `RouteController.RouteOrder` binds `ClaimsPrincipal user` and passes the resolved ID. The raw caller ID is never logged (NFR-11). |
+| Service | `RouteOrderService` takes `IExperimentAssigner`. It calls `Assign(new AssignmentContext(command.CallerId, command.CustomerZip, command.OrderId))` and passes the result to `policyFactory.Create`. The `TEMPORARY` line is removed. |
 | Configuration shape (`experiments.json`) | Same as the ADR-0005 example, with every experiment `Enabled: false`, `TreatmentPercentage: 0`, salts `exp1`/`exp2`/`exp3`, empty targeting, default parameters, and `"Routing": { "SimilarityBand": 0.5 }`. The options classes (Infrastructure) are bound to the **configuration root**, so `Experiments` and `Routing:SimilarityBand` reload as one snapshot. Unknown keys are ignored. A missing experiment section counts as disabled (fail safe, AB-03). |
-| Validation | One mapper, `ExperimentsOptionsMapper.TryBuild(options, out ExperimentConfiguration?, out errors)`, turns options into the domain snapshot. The startup validator (`ValidateOnStart`) and the reload path both use it, so the two can never disagree. It rejects:<br>• a percentage outside 0–100 (AC7);<br>• an empty salt;<br>• a ZIP range that is not 5 digits, such as `2100-2199` (AC12, via `ZipRange.TryParse`, no padding);<br>• a prefix that is not 1–5 digits;<br>• invalid `RoutingParameters`.<br>All errors are reported at once. Error text never echoes caller values (NFR-11); ZIP values from config are fine. |
+| Validation | One mapper, `ExperimentMappingExtensions.TryBuild(options, out ExperimentConfiguration?, out errors)`, turns options into the domain snapshot. The startup validator (`ValidateOnStart`) and the reload path both use it, so the two can never disagree. It rejects:<br>• a percentage outside 0–100 (AC7);<br>• an empty salt;<br>• a ZIP range that is not 5 digits, such as `2100-2199` (AC12, via `ZipRange.TryParse`, no padding);<br>• a prefix that is not 1–5 digits;<br>• invalid `RoutingParameters`.<br>All errors are reported at once. Error text never echoes caller values (NFR-11); ZIP values from config are fine. |
 | Reload and last known good | `ConfigurationExperimentAssigner` (singleton) builds its first snapshot from `IOptionsMonitor<ExperimentsOptions>.CurrentValue` and subscribes with `OnChange`. A valid change swaps the immutable snapshot atomically (`Volatile.Write`) and logs `ExperimentsConfigApplied(config_version)` at Information. An invalid change keeps the old snapshot and logs `ExperimentsConfigRejected(kept config_version, errors)` at Error (AC7, AC12). Logging uses `[LoggerMessage]`. The subscription is disposed with the assigner. **Spike first (Phase 3):** check whether `OptionsMonitor` throws inside its change callback when a registered `IValidateOptions` fails. If it does, keep validation out of the monitor: validate at startup with a hosted check that calls the same mapper, and validate on reload in the assigner. That stays faithful to ADR-0005's behaviour, but if it means departing from its wording, stop and ask. |
 | `config_version` | The first 12 lowercase hex characters of SHA-256 over the canonical JSON of the accepted snapshot. The JSON is built from parsed values in a fixed property order (System.Text.Json), so a whitespace-only edit keeps the version and any value change alters it (AC6). |
 | File loading | `builder.Configuration.AddJsonFile("experiments.json", optional: true, reloadOnChange: true)`. It is inserted so that environment variables and the command line still override it (ADR-0005). The file is copied to the output and the publish folder. A missing file means all disabled, the fail-safe default. `docker-compose.yml` mounts it read-only into `/app` and sets `DOTNET_USE_POLLING_FILE_WATCHER=true`. |
-| DI | Infrastructure gets a new `AddOrderRouterExperiments()` extension that binds the options, adds the validator and `ValidateOnStart`, and registers `IExperimentAssigner` → `ConfigurationExperimentAssigner` as a singleton. Api calls it in `Program.cs`, and `Program.cs` names no Domain types. |
-| Tests | xUnit v3, `MethodName_Condition_ExpectedResult`, in the nearby style with no Arrange/Act/Assert comments. Domain tests are pure. Assigner tests use a small test `IOptionsMonitor` that can trigger `OnChange`. Host tests extend `RouteApiFactory`/`AuthApiFactory`:<br>• a **temp experiments file** added through `ConfigureAppConfiguration` with `reloadOnChange`;<br>• a **`RecordingPolicyFactory`** that captures the assignment and returns the control `RoutingPolicy`;<br>• `TestJwt` overloads for a custom `sub`, for `client_id`/`azp`, and for no caller claim;<br>• the existing `CapturingLogger` for the error log.<br>Reload tests poll with a timeout rather than a fixed sleep. Target ≥ 85% coverage of the new Domain/Application code; measure it or say it was not measured. |
+| DI | Infrastructure gets a new `AddOrderRouterExperiments()` extension that binds the options, adds the validator and `ValidateOnStart`, and registers `IExperimentAssigner` → `ConfigurationExperimentAssigner` as a singleton. Api calls it in `Startup.cs`, and `Startup.cs` names no Domain types. |
+| Tests | xUnit v3, `MethodName_Condition_ExpectedResult`, in the nearby style with no Arrange/Act/Assert comments. Domain tests are pure. Assigner tests use a small test `IOptionsMonitor` that can trigger `OnChange`. Host tests extend `RouteApiFactory`/`AuthApiFactory`:<br>• a **temp experiments file** added through `ConfigureAppConfiguration` with `reloadOnChange`;<br>• a **`RecordingPolicyFactory`** that captures the assignment and returns the control `RoutingPolicy`;<br>• `TestJwt` overloads for a custom `sub`, for `client_id`/`azp`, and for no caller claim;<br>• the existing `CapturingLogger` for the error log.<br>Reload tests poll with a timeout rather than a fixed sleep. Target ≥ 85% coverage of the new Domain/Domain code; measure it or say it was not measured. |
 
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Routing/Experiments/
+src/OrderRouter.Domain/Entities/Experiments/
   ExposureReason.cs, ExperimentReasons.cs                 reasons
   ExperimentTargeting.cs, ExperimentDefinition.cs         rules + validation
   ExperimentBucketer.cs                                   salted SHA-256 bucket
   ExperimentConfiguration.cs                              snapshot + Assign (pure)
   ExperimentAssignment.cs                                 + Reasons, ConfigVersion
-src/OrderRouter.Application/Routing/Experiments/
+src/OrderRouter.Domain/Helpers/
   IExperimentAssigner.cs, AssignmentContext.cs, CallerIdentity.cs
-src/OrderRouter.Application/Routing/
-  RouteOrderCommand.cs (+CallerId), RouteOrderUseCase.cs (uses assigner)
-src/OrderRouter.Infrastructure/Experiments/
-  ExperimentsOptions.cs, ExperimentsOptionsMapper.cs, ExperimentsOptionsValidator.cs
+src/OrderRouter.Domain/Services/
+  RouteOrderCommand.cs (+CallerId), RouteOrderService.cs (uses assigner)
+src/OrderRouter.Infrastructure/Services/
+  ExperimentsOptions.cs, ExperimentMappingExtensions.cs, ExperimentsOptionsValidator.cs
   ConfigVersion.cs, ConfigurationExperimentAssigner.cs, ExperimentsServiceCollectionExtensions.cs
 src/OrderRouter.Api/
-  experiments.json (new, all disabled), Program.cs, OrderRouter.Api.csproj (copy file)
-  Routing/RouteEndpoints.cs (ClaimsPrincipal → CallerId)
+  experiments.json (new, all disabled), Startup.cs, OrderRouter.Api.csproj (copy file)
+  Controllers/V1/RouteController.cs (User → CallerId)
 docker-compose.yml                                        mount + polling watcher
-tests/OrderRouter.Tests/Domain/Routing/Experiments/   Targeting, Definition, Bucketer, Configuration, Assignment
-tests/OrderRouter.Tests/Application/Routing/          CallerIdentityTests, RouteOrderUseCaseTests (updated)
-tests/OrderRouter.Tests/Infrastructure/Experiments/   Mapper/Validator, ConfigVersion, ConfigurationExperimentAssigner, shipped-file test
-tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignmentHostTests, RecordingPolicyFactory, TestJwt overloads
+tests/OrderRouter.Tests/Domain/Entities/Experiments/   Targeting, Definition, Bucketer, Configuration, Assignment
+tests/OrderRouter.Tests/Domain/Services/          CallerIdentityTests, RouteOrderServiceTests (updated)
+tests/OrderRouter.Tests/Infrastructure/Services/   Mapper/Validator, ConfigVersion, ConfigurationExperimentAssigner, shipped-file test
+tests/OrderRouter.Api.IntegrationTests/Controllers/V1/               ExperimentAssignmentHostTests, RecordingPolicyFactory, TestJwt overloads
 ```
 
 ## Working rules (apply to every phase)
@@ -87,7 +87,7 @@ tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignme
    - **Data:** never edit `Docs/Data/*`.
 2. **Tests must pass after each phase.** Before marking a phase done, run these from the repo root. Start PostgreSQL first with `docker compose up -d postgres` so the integration tests run too.
    - `dotnet build`: 0 errors, 0 new warnings.
-   - `dotnet test`: everything passes, including every existing test. The only intended changes to existing tests are the `ExperimentAssignment` constructor update (Phase 1) and the `RouteOrderUseCase` constructor update (Phase 2). Record any other change in the phase result.
+   - `dotnet test`: everything passes, including every existing test. The only intended changes to existing tests are the `ExperimentAssignment` constructor update (Phase 1) and the `RouteOrderService` constructor update (Phase 2). Record any other change in the phase result.
    - `dotnet format --verify-no-changes`: clean. The known import-order issue in `src/OrderRouter.Api/Program.cs` predates this work; don't count it and don't fix it here.
 3. **Mark each phase as done.** When a phase's checks pass, change its heading status from `⬜ Not started` to `✅ Done` in `Plans/OR-016-experiment-assignment.md`, tick its checklist items, and add a short **Result** line with test counts and any deviation.
 4. **Ask before the next phase.** After marking a phase done, stop. Summarize what changed and the test results, then ask the engineer for approval before starting the next phase.
@@ -137,26 +137,26 @@ tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignme
 
 ---
 
-## Phase 2: Application port, caller ID and use case ✅ Done
+## Phase 2: Domain port, caller ID and service ✅ Done
 
 - [x] Add `IExperimentAssigner`, `AssignmentContext` and `CallerIdentity`.
 - [x] Add `CallerId` to `RouteOrderCommand` (trailing optional) and to `Create`.
-- [x] `RouteOrderUseCase`: inject `IExperimentAssigner`, build the context, and remove the `TEMPORARY` `AllControl` line. Update the `RouteOrderUseCaseTests` constructor.
+- [x] `RouteOrderService`: inject `IExperimentAssigner`, build the context, and remove the `TEMPORARY` `AllControl` line. Update the `RouteOrderServiceTests` constructor.
 - [x] Register nothing new in `AddOrderRouterRouting`; the assigner comes from Infrastructure (Phase 3). Note that in the XML doc of the extension.
 - [x] Tests:
   - `CallerIdentityTests`: `sub` wins; `client_id` when there is no `sub`; `azp` when there is neither; blank `sub` falls through; no claims → null; a dev-key principal → `dev-key`.
-  - `RouteOrderUseCaseTests`: the fake assigner receives the caller ID, ZIP and order ID; the factory receives exactly the assignment the assigner returned.
+  - `RouteOrderServiceTests`: the fake assigner receives the caller ID, ZIP and order ID; the factory receives exactly the assignment the assigner returned.
 
 **Verify:** build, test, format. The host cannot start until Phase 3 registers the assigner, so if integration tests fail only because `IExperimentAssigner` is not registered, register a temporary `AllControl` assigner in Api for this phase and record it.
 
-**Result:** Port, `CallerIdentity`, `RouteOrderCommand.CallerId` and the use case done; 990 unit tests pass. Integration tests could not start the host until Phase 3 registered the assigner, so no temporary registration was added; the phases were completed back to back.
+**Result:** Port, `CallerIdentity`, `RouteOrderCommand.CallerId` and the service done; 990 unit tests pass. Integration tests could not start the host until Phase 3 registered the assigner, so no temporary registration was added; the phases were completed back to back.
 
 ---
 
 ## Phase 3: Infrastructure: options, validation, reload ✅ Done
 
 - [x] **Spike:** write a test that shows how `IOptionsMonitor` behaves on a reload that fails validation. Pick the reload design from *Design choices* according to the result. If it deviates from ADR-0005's wording, stop and ask.
-- [x] Add `ExperimentsOptions` (root-bound), `ExperimentsOptionsMapper`, `ExperimentsOptionsValidator`, `ConfigVersion`, `ConfigurationExperimentAssigner` (atomic swap, last known good, `[LoggerMessage]` applied/rejected events) and `AddOrderRouterExperiments`.
+- [x] Add `ExperimentsOptions` (root-bound), `ExperimentMappingExtensions`, `ExperimentsOptionsValidator`, `ConfigVersion`, `ConfigurationExperimentAssigner` (atomic swap, last known good, `[LoggerMessage]` applied/rejected events) and `AddOrderRouterExperiments`.
 - [x] Tests:
   - Mapper/validator: valid config; AC7 (150); AC12 (`2100-2199`); a bad prefix; an empty salt; invalid parameters (`UnratedPrior` 11, `SimilarityBand` −1); all errors at once; missing sections → disabled with defaults; error text without caller values.
   - `ConfigVersion`: stable for the same values, changes when any value changes, ignores whitespace and formatting.
@@ -172,8 +172,8 @@ tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignme
 ## Phase 4: API wiring, container and host tests ✅ Done
 
 - [x] Add `src/OrderRouter.Api/experiments.json` (all disabled) and copy it to the output and publish folders.
-- [x] `Program.cs`: add the file source with `reloadOnChange`, keeping env and command-line precedence; call `AddOrderRouterExperiments()`; remove any temporary Phase 2 registration.
-- [x] `RouteEndpoints.HandleAsync`: bind `ClaimsPrincipal`, call `CallerIdentity.Resolve`, pass the ID into the command.
+- [x] `Startup.cs`: add the file source with `reloadOnChange`, keeping env and command-line precedence; call `AddOrderRouterExperiments()`; remove any temporary Phase 2 registration.
+- [x] `RouteController.RouteOrder`: read `User`, call `CallerIdentity.Resolve`, pass the ID into the command.
 - [x] `docker-compose.yml`: mount `experiments.json` read-only into `/app` and set `DOTNET_USE_POLLING_FILE_WATCHER=true`.
 - [x] Test support: the `RecordingPolicyFactory`, a temp-file option in the factory, and `TestJwt` overloads (custom `sub`, `client_id`, `azp`, no caller claim).
 - [x] `ExperimentAssignmentHostTests` (real host, seeded DB, recording factory):
@@ -203,7 +203,7 @@ tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignme
   - the reload design chosen in the Phase 3 spike;
   - the known risk of enabling an experiment before OR-017–019.
 - [x] Run the `ddd-implementation` §5 review and report it honestly:
-  - **met:** rules in the Domain, a port in Application, the adapter in Infrastructure, DIP, fail safe, deterministic hashing, no PII in logs;
+  - **met:** rules in the Domain, a port in Domain, the adapter in Infrastructure, DIP, fail safe, deterministic hashing, no PII in logs;
   - **N/A, with reasons:** aggregates, domain events, money, persistence, authorization;
   - **not verified:** treatment routing (OR-017–019), decision log (OR-021), multi-instance reload timing, coverage % if it was not measured.
 - [x] Record follow-ups (don't do them here):
@@ -215,7 +215,7 @@ tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignme
   - OQ-25 (single service identity).
 - [x] Final run: `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes`, all green.
 
-**Result:** ADR-0005 implementation note added. Line coverage of the new/changed Domain, Application and Infrastructure code from unit tests: 100% (branch coverage not measured). Final build/test/format results are in the hand-off message. §5 review: met — rules in Domain, port in Application, adapter in Infrastructure, DIP, fail safe, deterministic hashing, no caller IDs in logs. N/A — aggregates, domain events, money, persistence, authorization. Not verified — treatment routing (OR-017..019), decision log (OR-021), multi-instance reload timing. Follow-ups: OR-017/018/019 replace the factory throws; OR-021 logs `Reasons`, `ConfigVersion` and `caller_hash`; OR-022 exposes arms; OR-025 documents editing `experiments.json` (in-place edits, polling watcher); OR-027 stores arms and `config_version`; OQ-25.
+**Result:** ADR-0005 implementation note added. Line coverage of the new/changed Domain and Infrastructure code from unit tests: 100% (branch coverage not measured). Final build/test/format results are in the hand-off message. §5 review: met — rules in Domain, port in Domain, adapter in Infrastructure, DIP, fail safe, deterministic hashing, no caller IDs in logs. N/A — aggregates, domain events, money, persistence, authorization. Not verified — treatment routing (OR-017..019), decision log (OR-021), multi-instance reload timing. Follow-ups: OR-017/018/019 replace the factory throws; OR-021 logs `Reasons`, `ConfigVersion` and `caller_hash`; OR-022 exposes arms; OR-025 documents editing `experiments.json` (in-place edits, polling watcher); OR-027 stores arms and `config_version`; OQ-25.
 
 ---
 
@@ -223,8 +223,8 @@ tests/OrderRouter.Api.IntegrationTests/Routing/               ExperimentAssignme
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-016-experiment-assignment.md`; the Domain, Application, Infrastructure and test files in *Target structure*; `src/OrderRouter.Api/experiments.json` |
-| Modified | `src/OrderRouter.Domain/Routing/Experiments/ExperimentAssignment.cs`; `src/OrderRouter.Application/Routing/RouteOrderCommand.cs`, `RouteOrderUseCase.cs`; `src/OrderRouter.Api/Program.cs`, `OrderRouter.Api.csproj`, `Routing/RouteEndpoints.cs`; `docker-compose.yml`; `tests/.../ExperimentAssignmentTests.cs`, `RouteOrderUseCaseTests.cs`, `Authentication/TestJwt.cs`, `Routing/RouteApiFactory.cs`; ADR-0005 (note) |
+| New | `Plans/OR-016-experiment-assignment.md`; the Domain, Infrastructure and test files in *Target structure*; `src/OrderRouter.Api/experiments.json` |
+| Modified | `src/OrderRouter.Domain/Entities/Experiments/ExperimentAssignment.cs`; `src/OrderRouter.Domain/Models/RouteOrderCommand.cs`, `RouteOrderService.cs`; `src/OrderRouter.Api/Startup.cs`, `OrderRouter.Api.csproj`, `Controllers/V1/RouteController.cs`; `docker-compose.yml`; `tests/.../ExperimentAssignmentTests.cs`, `RouteOrderServiceTests.cs`, `Authentication/TestJwt.cs`, `Routing/RouteApiFactory.cs`; ADR-0005 (note) |
 | Reused | `ZipCode`, `ZipRange` (`Domain/ReferenceData`, no padding); `RoutingParameters` and its validation; `DomainValidationException` with the all-errors pattern; `ExperimentArms`; `RoutingPolicyFactory` (control path, unchanged); `DevApiKeyDefaults.CallerId` (`dev-key`); `RoutingOptionsValidator` and `PlanSearchOptionsValidator` (validator pattern); `AuthApiFactory`, `RouteApiFactory`, `TestJwt`, `CapturingLogger`, `ReferenceDataFixture` |
 | Unchanged | `RoutingPolicyFactory` (still throws for treatment), policies, `OrderRoutingService`, persistence, `Docs/Data/**` |
 

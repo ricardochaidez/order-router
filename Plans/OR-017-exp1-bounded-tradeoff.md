@@ -17,10 +17,10 @@ EXP-1 control (`StrictPriorityPolicy`) always picks the fewest shipments, so a b
 Most of the plumbing already exists:
 - `PlanSearcher` explores `minimum + MaxExtraShipments`, and applies the similarity band within each shipment count (ADR-0003). The search already returns the minimum-shipment plans the policy must compare against.
 - `OrderRoutingService` already passes `policy.Selection.MaxExtraShipments` into `PlanSearchRequest` and calls `policy.Selection.SelectBest(search.Plans)` before the tie-break.
-- `RoutingParameters.QualityUpliftThreshold` (validated `> 0`, default 2.0) is read from the reloadable `experiments.json` by `ExperimentsOptionsMapper` and arrives in `ExperimentAssignment.Parameters`.
+- `RoutingParameters.QualityUpliftThreshold` (validated `> 0`, default 2.0) is read from the reloadable `experiments.json` by `ExperimentMappingExtensions` and arrives in `ExperimentAssignment.Parameters`.
 - `RoutingPolicyFactory` throws `NotSupportedException` for the EXP-1 treatment arm. This is the last treatment throw; its remark says the treatment ticket replaces it.
 
-So the change is one new Domain class, a small shared ranking helper, one factory line, and tests. No Application, Infrastructure or Api production change is expected. AC4 (threshold from config) needs a test that proves the next request gets the new threshold, not new reload code.
+So the change is one new Domain class, a small shared ranking helper, one factory line, and tests. No Infrastructure or Api production change is expected. AC4 (threshold from config) needs a test that proves the next request gets the new threshold, not new reload code.
 
 Out of scope: OR-018/019 (done); the decision log fields (OR-021); the combination matrix (OR-024); README (OR-025); a weighted-score EXP-1 variant (the requirements say it would be a later, separate strategy).
 
@@ -34,7 +34,7 @@ Out of scope: OR-018/019 (done); the decision log fields (OR-021); the combinati
 
 | Topic | Choice and reason |
 |---|---|
-| Layer | **Domain only** (pure, no I/O, no configuration). The policy lives in `src/OrderRouter.Domain/Routing/Policies/`. |
+| Layer | **Domain only** (pure, no I/O, no configuration). The policy lives in `src/OrderRouter.Domain/Services/Policies/`. |
 | New type | `BoundedTradeOffPolicy : IPlanSelectionPolicy`, immutable. Constructor `(decimal similarityBand, decimal qualityUpliftThreshold)`. It validates `similarityBand ≥ 0` and `qualityUpliftThreshold > 0`, and reports both errors in one `DomainValidationException` (the `RoutingParameters` pattern). `MaxExtraShipments => 1`. |
 | Selection rule | 1. Empty input → empty. 2. `min` = the lowest shipment count. 3. **Baseline** = the strict-priority pick among plans with `min` shipments. 4. **Challenger** = the same ranking (band → most local → highest quality) among plans with `min + 1` shipments. 5. No challenger → baseline. 6. `challenger.Quality − baseline.Quality ≥ QualityUpliftThreshold` (inclusive, "at least") → return the challenger set; otherwise the baseline set. Plans with `min + 2` or more shipments are ignored (AC3 defence in depth: the search never returns them, and the policy never picks them even if a caller passes them). Returns every plan still tied, so the tie-break (OR-014) picks fairly. |
 | Why the band is applied inside each group | ADR-0003 and §7.2: the band applies within each shipment count, never across counts. The same helper ranks both groups, so control and treatment cannot drift apart. |
@@ -46,18 +46,17 @@ Out of scope: OR-018/019 (done); the decision log fields (OR-021); the combinati
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Routing/Policies/
+src/OrderRouter.Domain/Services/Policies/
   BoundedTradeOffPolicy.cs      new: EXP-1 treatment
   PlanRanking.cs                new (internal): keys 2-4 within one shipment count, shared
   StrictPriorityPolicy.cs       modified: calls PlanRanking (behaviour unchanged)
   RoutingPolicyFactory.cs       modified: EXP-1 treatment -> BoundedTradeOffPolicy; remove throw helper
-tests/OrderRouter.Tests/Domain/Routing/Policies/
+tests/OrderRouter.Tests/Domain/Services/Policies/
   BoundedTradeOffPolicyTests.cs new
   RoutingPolicyFactoryTests.cs  modified
   StrictPriorityPolicyTests.cs  unchanged (guards the refactor)
-tests/OrderRouter.Tests/Domain/Routing/
-  (a service-level EXP-1 test next to OrderRoutingServiceTests / ColdStartRoutingTests)
-tests/OrderRouter.Api.IntegrationTests/Routing/
+tests/OrderRouter.Tests/Domain/Services/   (a service-level EXP-1 test next to OrderRoutingServiceTests / ColdStartRoutingTests)
+tests/OrderRouter.Api.IntegrationTests/Controllers/V1/
   (host test for AC4 reload, extending the OR-016 temp-file pattern)
 Docs/ADRs/ADR-0001, ADR-0005   implementation note (OR-017)
 ```
@@ -139,7 +138,7 @@ Docs/ADRs/ADR-0001, ADR-0005   implementation note (OR-017)
 
 - [x] Look in `Docs/Data/Seed` (read only) for a sample or sentinel order where a minimum-shipment plan and a `+1` plan both exist with a quality gap above and below 2.0. If none exists, **stop and ask** (working rule 5); never edit `Docs/Data/*`.
 - [x] Plan-search-level test with real `PlanSearcher` and `PlanSearchTestData`: with `MaxExtraShipments = 1` the search returns both the minimum and `+1` plans (including the case where the `+1` plan is better than the minimum plan by more than the band, ADR-0003), then `BoundedTradeOffPolicy` picks per AC1 and AC2.
-- [x] Host test (extend the OR-016 pattern, `RouteApiFactory` with a temp `experiments.json` and `reloadOnChange`; real use case, real factory, no recording factory): EXP-1 enabled at 100%.
+- [x] Host test (extend the OR-016 pattern, `RouteApiFactory` with a temp `experiments.json` and `reloadOnChange`; real service, real factory, no recording factory): EXP-1 enabled at 100%.
   - Treatment arm, uplift above the threshold → the response routes the `+1` plan.
   - Edit the file in place, raising `QualityUpliftThreshold` above that uplift → the **next** request routes the strict-priority plan, with no restart (AC4). Poll with a timeout; no fixed sleep.
   - Control arm (experiment disabled) with the same order → the fewest-shipment plan (AC5).
@@ -170,10 +169,10 @@ Docs/ADRs/ADR-0001, ADR-0005   implementation note (OR-017)
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-017-exp1-bounded-tradeoff.md`; `src/OrderRouter.Domain/Routing/Policies/BoundedTradeOffPolicy.cs`, `PlanRanking.cs`; `tests/.../Policies/BoundedTradeOffPolicyTests.cs`; the service-level and host tests in *Target structure* |
-| Modified | `src/OrderRouter.Domain/Routing/Policies/StrictPriorityPolicy.cs` (calls the shared helper), `RoutingPolicyFactory.cs`; `tests/.../Policies/RoutingPolicyFactoryTests.cs`; ADR-0001 and ADR-0005 (notes) |
+| New | `Plans/OR-017-exp1-bounded-tradeoff.md`; `src/OrderRouter.Domain/Services/Policies/BoundedTradeOffPolicy.cs`, `PlanRanking.cs`; `tests/.../Policies/BoundedTradeOffPolicyTests.cs`; the service-level and host tests in *Target structure* |
+| Modified | `src/OrderRouter.Domain/Services/Policies/StrictPriorityPolicy.cs` (calls the shared helper), `RoutingPolicyFactory.cs`; `tests/.../Policies/RoutingPolicyFactoryTests.cs`; ADR-0001 and ADR-0005 (notes) |
 | Reused | `RoutingPlan` (`ShipmentCount`, `Quality`, `LocalLineCount`); `RoutingParameters.QualityUpliftThreshold` and `SimilarityBand`; `PlanSearcher` (`MaxExtraShipments`); `OrderRoutingService`; `DomainValidationException` and the all-errors-at-once pattern; `PlanSearchTestData`; `RouteApiFactory` and the OR-016 temp-file host-test pattern |
-| Unchanged | `PlanSearcher`, `OrderRoutingService`, Application, Infrastructure, Api, `experiments.json` (already carries the threshold), migrations, `Docs/Data/**` |
+| Unchanged | `PlanSearcher`, `OrderRoutingService`, Infrastructure, Api, `experiments.json` (already carries the threshold), migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

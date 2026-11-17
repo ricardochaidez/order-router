@@ -1,7 +1,7 @@
 # Plan: OR-013: Add the routing policy seams and the control arms
 
 **Ticket:** [Docs/Tickets/OR-013-routing-policies-control.md](../Docs/Tickets/OR-013-routing-policies-control.md)
-**Depends on:** OR-011 / OR-012 (done: `PlanSearcher`, `RoutingPlan`, `SupplierCandidate`, `PlanScoring` in `src/OrderRouter.Domain/Routing/PlanSearch/`).
+**Depends on:** OR-011 / OR-012 (done: `PlanSearcher`, `RoutingPlan`, `SupplierCandidate`, `PlanScoring` in `src/OrderRouter.Domain/Models/PlanSearch/`).
 **References:** [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md) (policy seams, composition); [ADR-0005](../Docs/ADRs/ADR-0005-experiment-assignment.md) (`ExperimentAssignment` shape); Technical Requirements §7.3, §8.1, FR-11, FR-12, FR-14, AB-03, AB-06; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
 **Feeds:** OR-014 (`ITieBreaker` picks from `SelectBest`'s tied list), OR-015 (`OrderRoutingService` uses `RoutingPolicy`, all-control assignment), OR-016 (assigner produces `ExperimentAssignment`), OR-017 / OR-018 / OR-019 (treatment arms replace the factory's `NotSupportedException`).
 
@@ -19,7 +19,7 @@ ADR-0001 composes routing behaviour from one policy interface per experiment, so
 
 Plus the `RoutingPolicy` record and `IRoutingPolicyFactory`, which builds a policy per request from an `ExperimentAssignment`. Policies never read configuration.
 
-Out of scope: tie-break and `IRandomSource` (OR-014), `OrderRoutingService`, use case, DI wiring and response mapping (OR-015), the assigner and `experiments.json` (OR-016), treatment arms (OR-017/018/019), decision log (OR-021).
+Out of scope: tie-break and `IRandomSource` (OR-014), `OrderRoutingService`, service, DI wiring and response mapping (OR-015), the assigner and `experiments.json` (OR-016), treatment arms (OR-017/018/019), decision log (OR-021).
 
 ### Decisions confirmed with the engineer
 
@@ -34,34 +34,34 @@ Out of scope: tie-break and `IRandomSource` (OR-014), `OrderRoutingService`, use
 
 | Topic | Choice and reason |
 |---|---|
-| Layer | All new types are **Domain** (pure, no I/O, no config): ADR-0001 calls them domain interfaces. Experiment types in `Domain/Routing/Experiments/`, policies in `Domain/Routing/Policies/`. No Application, Infrastructure or Api changes. |
+| Layer | All new types are **Domain** (pure, no I/O, no config): ADR-0001 calls them domain interfaces. Experiment types in `Domain/Entities/Experiments/`, policies in `Domain/Services/Policies/`. No Infrastructure or Api changes. |
 | Plan type | ADR's `CandidatePlan` = the existing `RoutingPlan` (reuse; no new type). |
 | `StrictPriorityPolicy.SelectBest` | Empty input → empty. Keep plans with the minimum `ShipmentCount` (key 2). Among them, best quality *Q*; keep quality ≥ *Q* − band; then most `LocalLineCount`; then highest `Quality`. Returns **every** plan still tied (key 5 belongs to OR-014's tie-breaker). Band validated ≥ 0. Implementation follows §7.3 "find Q, keep ≥ Q − band, prefer most-local, then highest quality" because the band is not transitive. |
 | Plan quality (AC6) | Already computed line-weighted by `PlanScoring.Score` (OR-011, FR-12: each order line counts once). Not re-implemented; AC6 is proved through `PlanSearcher`, including a case where a 0 effective rating counts in the mean. |
-| Unfulfillable inputs/outputs | New domain record `UnfulfilledLine(string ProductCode, int Quantity, Category? Category, string ReasonCode)` (mirrors the v1 contract; the Domain can't reference `Application.Contracts`). New `RoutingOutcome(RoutingOutcomeStatus Status, RoutingPlan? Plan, IReadOnlyList<UnfulfilledLine> Unfulfilled)` with `RoutingOutcomeStatus { Routed, PartiallyRouted, NotRouted }`. Named differently from the Application `RoutingStatus` to avoid a clash; OR-015 maps it. Invariant: `Routed` ⇔ plan present and no unfulfilled lines. |
+| Unfulfillable inputs/outputs | New domain record `UnfulfilledLine(string ProductCode, int Quantity, Category? Category, string ReasonCode)` (mirrors the v1 contract; the Domain can't reference `Api.ViewModels.Response`). New `RoutingOutcome(RoutingOutcomeStatus Status, RoutingPlan? Plan, IReadOnlyList<UnfulfilledLine> Unfulfilled)` with `RoutingOutcomeStatus { Routed, PartiallyRouted, NotRouted }`. Named differently from the Domain `RoutingStatus` to avoid a clash; OR-015 maps it. Invariant: `Routed` ⇔ plan present and no unfulfilled lines. |
 | `AllOrNothingPolicy.Apply(plan, unfulfilled)` | Any unfulfilled line → `NotRouted`, plan dropped, lines returned unchanged. No plan (null) → `NotRouted` (fail safe). Otherwise `Routed`. Never `PartiallyRouted`. |
 | `RoutingParameters` validation | `SimilarityBand ≥ 0`, `QualityUpliftThreshold > 0`, `UnratedPrior` 1–10. All errors in one `DomainValidationException` (same pattern as `PlanSearchRequest`). `static Default` = (0.5, 2.0, 6.5). Defaults match `PlanSearchRequest.DefaultSimilarityBand` (reuse that constant). |
 | Factory | `RoutingPolicyFactory : IRoutingPolicyFactory`, stateless, Domain. `switch` per arm; an undefined enum value → `ArgumentOutOfRangeException`; `Treatment` → `NotSupportedException`. `RoutingPolicy` keeps the `Assignment` for the decision log (AB-04). |
-| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Routing/PlanSearch/`). Sentinel ids (`SUP-T007` etc.) used in test data for readability. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Services/PlanSearch/`). Sentinel ids (`SUP-T007` etc.) used in test data for readability. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Routing/Experiments/
+src/OrderRouter.Domain/Entities/Experiments/
   ExperimentArm.cs            Control | Treatment
   ExperimentArms.cs           Exp1ConsolidationVsQuality, Exp2UnratedSuppliers, Exp3PartialRouting; AllControl
   RoutingParameters.cs        SimilarityBand, QualityUpliftThreshold, UnratedPrior; validated; Default
   ExperimentAssignment.cs     Arms, Parameters; AllControl
-src/OrderRouter.Domain/Routing/Policies/
+src/OrderRouter.Domain/Services/Policies/
   IEffectiveRatingPolicy.cs, UnratedLastPolicy.cs
   IPlanSelectionPolicy.cs, StrictPriorityPolicy.cs
   IUnfulfillablePolicy.cs, AllOrNothingPolicy.cs
   UnfulfilledLine.cs, RoutingOutcome.cs, RoutingOutcomeStatus.cs
   RoutingPolicy.cs, IRoutingPolicyFactory.cs, RoutingPolicyFactory.cs
-src/OrderRouter.Domain/Routing/PlanSearch/SupplierCandidate.cs   (modified) effective rating 0–10
-tests/OrderRouter.Tests/Domain/Routing/Experiments/
+src/OrderRouter.Domain/Models/PlanSearch/SupplierCandidate.cs   (modified) effective rating 0–10
+tests/OrderRouter.Tests/Domain/Entities/Experiments/
   RoutingParametersTests.cs, ExperimentAssignmentTests.cs
-tests/OrderRouter.Tests/Domain/Routing/Policies/
+tests/OrderRouter.Tests/Domain/Services/Policies/
   UnratedLastPolicyTests.cs, PlanQualityTests.cs, StrictPriorityPolicyTests.cs,
   AllOrNothingPolicyTests.cs, RoutingOutcomeTests.cs, RoutingPolicyFactoryTests.cs
 ```
@@ -187,9 +187,9 @@ tests/OrderRouter.Tests/Domain/Routing/Policies/
 | Action | Path |
 |---|---|
 | New | `Plans/OR-013-routing-policies-control.md`; Domain files and tests listed in *Target structure* |
-| Modified | `src/OrderRouter.Domain/Routing/PlanSearch/SupplierCandidate.cs` (0–10); its existing tests (the 0-rating case) |
+| Modified | `src/OrderRouter.Domain/Models/PlanSearch/SupplierCandidate.cs` (0–10); its existing tests (the 0-rating case) |
 | Reused | `RoutingPlan`, `PlanSearcher`, `PlanScoring` (quality); `PlanSearchRequest.DefaultSimilarityBand`; `Supplier.Rating` / `Rating`; `DomainValidationException` and the all-errors-at-once pattern from `PlanSearchRequest`; `PlanSearchTestData` |
-| Unchanged | Application, Infrastructure, Api, migrations, `RoutingNotAvailableUseCase` (OR-015), `Docs/Data/**` |
+| Unchanged | Infrastructure, Api, migrations, the routing placeholder (OR-015), `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

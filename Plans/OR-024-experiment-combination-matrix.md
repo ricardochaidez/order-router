@@ -82,7 +82,7 @@ This ticket adds tests and documentation only. It changes no production code. If
 
 ## Phase 2 — Test harness for pinning arms and the random source ✅ Done
 
-- [x] Add a small test helper in `tests/OrderRouter.Api.IntegrationTests/Acceptance/` (for example `ExperimentArmsHost`) that builds the host with all three experiments pinned to a given `(exp1, exp2, exp3)` combination through a temp `experiments.json` (enabled at 100% for treatment, disabled for control) and a fixed `IRandomSource`.
+- [x] Add a small test helper in `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/` (for example `ExperimentArmsHost`) that builds the host with all three experiments pinned to a given `(exp1, exp2, exp3)` combination through a temp `experiments.json` (enabled at 100% for treatment, disabled for control) and a fixed `IRandomSource`.
 - [x] Reuse `TempExperimentsFile` logic from `BoundedTradeOffHostTests` rather than copying it. If that needs a move to a shared internal helper, keep the existing tests unchanged in behavior.
 - [x] Add one test that proves the helper pins the arms: the stored decision/assignment (or `diagnostics`, if the response exposes the arms) shows the expected arm for each experiment, and `config_version` is present.
 - [x] Add one test that proves the fixed random source is used for a tie (for example `SUP-T003` / `SUP-T004` at `00003`).
@@ -93,7 +93,7 @@ This ticket adds tests and documentation only. It changes no production code. If
 
 ## Phase 3 — The eight combination tests (AC1) ✅ Done
 
-- [x] Add `ExperimentCombinationMatrixTests` in `tests/OrderRouter.Api.IntegrationTests/Acceptance/`, with the combination table from Phase 1 in the class XML docs.
+- [x] Add `ExperimentCombinationMatrixTests` in `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/`, with the combination table from Phase 1 in the class XML docs.
 - [x] One test per combination, as an xUnit `Theory` with 8 `MemberData` rows (or 8 named `Fact`s, so each failure names its combination). Each test routes the sentinel orders from Phase 1 with the pinned arms and asserts the documented result: shipments, supplier ids, `status`, `feasible`, and `unfulfilled_items`.
 - [x] Include the interaction scenario from Phase 1 in the combinations where it applies (at least one combination where EXP-1 and EXP-2 are both treatment).
 - [x] Unique `order_id` per request, because the database accumulates stored orders and tests run in parallel.
@@ -118,7 +118,7 @@ This ticket adds tests and documentation only. It changes no production code. If
 - [x] Add a short implementation note (OR-024) to [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md): the matrix exists, where it lives, and what interactions it found (or that none were found). Don't change the decision itself. If an interaction shows the decision needs to change, stop and ask.
 - [x] Add a note to the ticket's file (as OR-023 does under "Notes"): how the arms are pinned, the sentinel orders used, and the OR-020 gap (matrix built without dependency warnings; re-run once OR-020 lands).
 - [x] Run the `ddd-implementation` skill's post-implementation review and report honestly which checks apply (tests written and passing, naming conventions, no bypassed gate) and which don't (aggregates, domain events, money, transactions, PCI/SOX/LGPD).
-- [x] Run the full suite and coverage as in OR-023 AC10 (`dotnet test --coverage --coverage-output-format cobertura`), and confirm Domain and Application stay at or above 85% (NFR-08).
+- [x] Run the full suite and coverage as in OR-023 AC10 (`dotnet test --coverage --coverage-output-format cobertura`), and confirm Domain stay at or above 85% (NFR-08).
 
 **Verify:** `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` pass with 0 errors. Coverage is at least 85%. Summarize the final results for the engineer. Nothing is committed unless the engineer asks.
 
@@ -146,6 +146,6 @@ Interaction on D: the two-shipment plan wins only for EXP-1 treatment with EXP-2
 ## Results
 
 - Full suite: 1543 passed, 0 failed (the one earlier failure did not reproduce). In a later coverage run, `RouteStorageApiTests.Post_AnyOrder_StoresArmsConfigVersionSearchModeAndCreatedAt` failed once on its `created_at <= now()` check. It is existing code, not touched by OR-024.
-- Coverage (merged Cobertura): Domain 98.5%, Application 98.7% (at least 85%, NFR-08).
+- Coverage (merged Cobertura): Domain 98.5%, the former Domain project 98.7% (now part of Domain) (at least 85%, NFR-08).
 - `dotnet format --verify-no-changes` reports one existing error, `src/OrderRouter.Api/Program.cs` imports ordering. It fails the same way without the OR-024 changes, and OR-024 changes no production code, so it is left alone.
 - OR-020 gap: the matrix was built without dependency warnings. Re-run it when OR-020 lands.

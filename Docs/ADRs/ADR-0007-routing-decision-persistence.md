@@ -87,7 +87,7 @@ erDiagram
 - **No foreign key to `suppliers`.** Stored orders are historical records. The supplier name is copied at routing time, so a re-seed (or a future delete, OQ-24) never changes or blocks a stored order.
 - **`errors[]` is not stored.** For a valid request it is derived from the unfulfilled lines' messages, so `GET` rebuilds it the same way `POST` does.
 - **Indexes:** primary keys, plus `routing_orders (order_id)` for support look-ups.
-- Same EF Core context (`OrderRouterDbContext`) and migrations as reference data. Migrations still run only from the integration tests (SC-21, SC-22). The seeder never touches these tables.
+- Same EF Core context (`OrderRouterDataContext`) and migrations as reference data. Migrations still run only from the integration tests (SC-21, SC-22). The seeder never touches these tables.
 
 ### Request flow
 
@@ -190,21 +190,21 @@ sequenceDiagram
 
 ## Implementation notes (OR-027)
 
-- **One transaction.** `EfRoutingOrderStore` adds the order with its items and warnings and calls `SaveChangesAsync` once, so a rejected row rolls everything back. The use case saves **before** it answers: a failed save throws, the global handler returns a 500 ProblemDetails, and no `id` is returned. A test makes the real database reject the insert (check constraint) and finds no rows.
-- **Ports.** `IRoutingOrderStore` and `ICallerHasher` are Application ports; the EF store and `HmacCallerHasher` are Infrastructure. `StoredRoutingOrderFactory` builds the stored order from the command, the decision and the mapped response, so the stored status, messages and warnings are exactly what the caller received.
+- **One transaction.** `RoutingOrderStore` adds the order with its items and warnings and calls `SaveChangesAsync` once, so a rejected row rolls everything back. The service saves **before** it answers: a failed save throws, the global handler returns a 500 ProblemDetails, and no `id` is returned. A test makes the real database reject the insert (check constraint) and finds no rows.
+- **Ports.** `IRoutingOrderStore` and `ICallerHasher` are Domain ports; the EF store and `HmacCallerHasher` are Infrastructure. `StoredRoutingOrderFactory` builds the stored order from the command, the decision and the mapped response, so the stored status, messages and warnings are exactly what the caller received.
 - **Item rows.** One row per requested line. Routed and unfulfilled lines are both in request order, so one ordered walk matches them to the requested lines, duplicates included. A line in neither list was held back by all-or-nothing and gets no supplier and no reason.
 - **Caller hash.** `HMAC-SHA256(secret, caller ID)` as lowercase hex, key from `CallerHashing:Secret` (environment variable or user-secrets, never a committed file). A missing secret stops the host at startup. A token with no caller claim stores `NULL`: the order is stored and returned, but a `GET` can never match it.
-- **`id` and `created_at`.** `Guid.CreateVersion7()` and `TimeProvider` in the use case, so tests can fix the clock.
-- **Location.** `/api/v1/route/{id}` on both paths. The endpoint answers 500 if the use case returns no `id`, so it never sends a `Location` without a stored order.
+- **`id` and `created_at`.** `Guid.CreateVersion7()` and `TimeProvider` in the service, so tests can fix the clock.
+- **Location.** `/api/v1/route/{id}` on both paths. `RouteController` builds it from the stored order's `id` with `Url.RouteUrl`, so it never sends a `Location` without a stored order.
 - **Not verified here:** p95 latency with the extra insert (NFR-03, needs the load test). `GET` was added in OR-028 (below).
 
 ## Implementation notes (OR-028)
 
-- **Ownership is in the query.** `EfRoutingOrderReader` filters `id` and `caller_hash` in one `WHERE`. There is no existence check before the ownership check, so another caller's order and a missing one are the same `null` and the same 404 (SC-31). A stored `NULL` hash never equals a value, so an order stored without a caller is never found.
-- **No caller ID, no query.** `GetStoredOrderUseCase` returns `null` without calling the reader when the token has no caller ID.
+- **Ownership is in the query.** `RoutingOrderReader` filters `id` and `caller_hash` in one `WHERE`. There is no existence check before the ownership check, so another caller's order and a missing one are the same `null` and the same 404 (SC-31). A stored `NULL` hash never equals a value, so an order stored without a caller is never found.
+- **No caller ID, no query.** `GetStoredOrderService` returns `null` without calling the reader when the token has no caller ID.
 - **One 404.** Unknown id, an id that is not a UUID, another caller's order and an order with no caller all return the same Problem Details body (same title and detail; only the per-request `trace_id` differs).
-- **Parse after authentication.** The `id` is a `string` in the handler and is parsed with `Guid.TryParseExact(value, "D")`. A `{id:guid}` route constraint would answer a bodiless 404 before authentication, so an anonymous call to `/api/v1/route/abc` would not get 401.
-- **Rebuilt, not recomputed.** `StoredOrderResponseMapper` rebuilds `routing` (grouped by the supplier's first line), `unfulfilled_items` and `errors` from the stored item rows, the same way `RouteResponseMapper` built them on POST. Reading never routes, so the supplier of a tie-break is the one POST stored. Lines held back by all-or-nothing appear only in `items`.
+- **Parse after authentication.** The `id` is a `string` in the controller action and is parsed with `Guid.TryParseExact(value, "D")`. A `{id:guid}` route constraint would answer a bodiless 404 before authentication, so an anonymous call to `/api/v1/route/abc` would not get 401.
+- **Rebuilt, not recomputed.** `RoutingOrderMappingExtensions` rebuilds `routing` (grouped by the supplier's first line), `unfulfilled_items` and `errors` from the stored item rows, the same way `RoutingOrderMappingExtensions` built them on POST. Reading never routes, so the supplier of a tie-break is the one POST stored. Lines held back by all-or-nothing appear only in `items`.
 - **Snapshot.** The read queries only the order tables and never joins reference data, so a re-seed cannot change the supplier name (test: `FindAsync_SupplierRenamedAfterRouting_StillShowsTheRoutingTimeName`).
 - **`created_at`** is written as ISO 8601 UTC with a `Z` by `UtcTimestampJsonConverter`; the default writer would emit `+00:00` for a value read from PostgreSQL.
 - **No alias.** There is no `GET` under `/api/route`.

@@ -7,6 +7,15 @@
 
 For non-trivial features (new aggregates, services, or cross-layer changes), use the `ddd-implementation` skill (`/ddd-implementation`).
 
+## Solution structure
+
+Three source projects, one dependency direction (`Api` → `Infrastructure` → `Domain`; `Api` also references `Domain`). There is no Application project: orchestration lives in Domain services and request/response shaping lives in the Api. `LayerDependencyTests` enforces the references.
+
+- `src/OrderRouter.Domain` (references nothing): `Entities/` (`Eligibility`, `Experiments`, `ReferenceData`, `Routing`), `Models/` (commands, `PlanSearch` types, log entries), `Interfaces/` (every port, flat), `Services/` (routing, plan search, policies, eligibility, tie-breaking, `RouteOrderService`, `GetStoredOrderService`), `Helpers/` (stateless helpers, factories), `Sections/` (options classes and their validators).
+- `src/OrderRouter.Infrastructure` (references Domain): `Models/` (EF entities, `*Entity`), `EntityTypeConfiguration/`, `Migrations/`, `Providers/` (EF-backed readers, store, catalog), `Services/` (assigner, hasher, decision log, seeding, random source), `Mappers/`, `HostedServices/`, `Extensions/`, `Interfaces/`, and the `OrderRouterDataContext`.
+- `src/OrderRouter.Api` (references Domain and Infrastructure): `Controllers/V1/` (controller-based endpoints; the version is in the attribute route), `ViewModels/Request` and `ViewModels/Response` (the wire contract, `*ViewModel`), `Mappers/` (domain to view model), `Filters/`, `Security/`, `OpenApi/`, `Constants/`, `Extensions/` (service registration), `Startup.cs` (services and pipeline) and a thin `Program.cs` (builds and runs the host).
+- `tests/OrderRouter.Tests` (unit tests, mirrors the `src` folders) and `tests/OrderRouter.Api.IntegrationTests` (`Controllers/V1/`, `Scenarios/V1/`, `Persistence/`, `Infrastructure/` helpers). `tools/OrderRouter.DataNormalizer` is an offline tool that references only Domain.
+
 ## Domain Context
 
 This repo is the Order Orchestration Engine for a Durable Medical Equipment (DME) healthcare logistics platform (similar to Synapse Health). It is not e-commerce. It is an asynchronous, compliance-driven workflow orchestrator connecting Prescribers, Patients, Health Plans (Payors), and a network of subcontracted DME Suppliers. Every component should understand where an order sits in the wider lifecycle without coupling tightly to external systems.

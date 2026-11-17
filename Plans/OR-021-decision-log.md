@@ -7,7 +7,7 @@
 ## Context
 AB-04 wants one structured `RoutingDecisionMade` event per valid POST. It is the data source for later A/B analysis. It is written only after the order is committed, includes the stored `id`, and never contains the raw caller ID (only the HMAC `caller_hash`) or patient data beyond `customer_zip`. 400/401 requests and failed saves produce no event.
 
-`RoutingDecision` already carries most of the data: status, routed lines, unfulfilled lines, `Assignment` (arms, reasons, `ConfigVersion`), `TieBreak` (chosen plus tied candidates) and `SearchMode`. So this ticket is mainly a new event, a `[LoggerMessage]` emitter, and one call placed after the save in the use case.
+`RoutingDecision` already carries most of the data: status, routed lines, unfulfilled lines, `Assignment` (arms, reasons, `ConfigVersion`), `TieBreak` (chosen plus tied candidates) and `SearchMode`. So this ticket is mainly a new event, a `[LoggerMessage]` emitter, and one call placed after the save in the service.
 
 ### Decision made with the engineer
 - **Prerequisite plans:** `Plans/OR-026-routing-order-tables.md` and `Plans/OR-027-store-routing-decision.md` (do them first). In OR-027 a caller with no caller claim has `caller_hash = NULL`, so the event logs `caller_hash` as null in that case.
@@ -32,7 +32,7 @@ AB-04 wants one structured `RoutingDecisionMade` event per valid POST. It is the
 | Topic | Choice |
 |---|---|
 | Emission | `[LoggerMessage]` source-generated method, event name `RoutingDecisionMade`, Information level, one call per valid POST (NFR-06, ADR-0005). |
-| Placement | Application layer: a small `IRoutingDecisionLog` port plus an `ILogger`-based implementation, called by `RouteOrderUseCase` **after** the OR-027 commit, with the stored `id`. The use case stays free of business rules. |
+| Placement | Domain layer: a small `IRoutingDecisionLog` port plus an `ILogger`-based implementation, called by `RouteOrderService` **after** the OR-027 commit, with the stored `id`. The service stays free of business rules. |
 | Event data | An immutable record built from `RoutingDecision`, the stored `id`, `caller_hash` (from `ICallerHasher`) and `customer_zip`. It holds supplier IDs and modes only. |
 | Privacy | The event type has no raw caller field, so the raw ID cannot be logged by mistake (AC3). Only `customer_zip` from the order; no product, quantity or patient data. |
 | Failure | Not saved means no event: the call sits after the successful save, never in a `finally`. A logging fault must not turn a saved order into a 500. |
@@ -62,15 +62,15 @@ Not-routed orders have no plan: log zero/empty for plan fields and `search_mode`
 
 **Verify:** build, test, format; `LayerDependencyTests` green.
 
-**Result:** 1313 tests pass (11 new). Added `IRoutingDecisionLog`, `RoutingDecisionLogEntry` (flat scalar fields, no raw caller field), `RoutingDecisionLogEntryFactory` and `LoggerRoutingDecisionLog` (`[LoggerMessage]`, event `RoutingDecisionMade`, id 2100, Information) in `Application/Routing/Logging`; registered as a singleton. Field names are the AB-04 names (snake_case placeholders, so the parameters are snake_case with a scoped `IDE1006` pragma). Decisions: `shipment_count` and `plan_quality` describe the routed plan, so they are 0/null when all-or-nothing held every line back; the tie is logged whenever the random tie-break ran; the emitter swallows provider exceptions so a log fault cannot fail a stored order. No existing test changed. Format clean except the known `Program.cs` import issue.
+**Result:** 1313 tests pass (11 new). Added `IRoutingDecisionLog`, `RoutingDecisionLogEntry` (flat scalar fields, no raw caller field), `RoutingDecisionLogEntryFactory` and `LoggerRoutingDecisionLog` (`[LoggerMessage]`, event `RoutingDecisionMade`, id 2100, Information) in `Infrastructure/Services (LoggerRoutingDecisionLog) and Domain/Helpers, Domain/Models`; registered as a singleton. Field names are the AB-04 names (snake_case placeholders, so the parameters are snake_case with a scoped `IDE1006` pragma). Decisions: `shipment_count` and `plan_quality` describe the routed plan, so they are 0/null when all-or-nothing held every line back; the tie is logged whenever the random tie-break ran; the emitter swallows provider exceptions so a log fault cannot fail a stored order. No existing test changed. Format clean except the known `Program.cs` import issue.
 
 ## Phase 2: Wire after the save ✅ Done
-- [x] `RouteOrderUseCase`: call the log once, after the OR-027 commit, with the stored `id`.
-- [x] Update existing use-case unit tests for the new dependency.
+- [x] `RouteOrderService`: call the log once, after the OR-027 commit, with the stored `id`.
+- [x] Update existing service unit tests for the new dependency.
 
 **Verify:** build, test, format.
 
-**Result:** 1316 tests pass (3 new use-case tests). `RouteOrderUseCase` takes `IRoutingDecisionLog` and calls it once, after `SaveAsync`, with the stored `id`, the hash and `customer_zip`. Tests: one event after the save (call order `save`, `log`), none when the save fails, hash and never the caller ID. `RouteOrderUseCaseTests` got a fake log and shared call list. Format clean except the known `Program.cs` import issue.
+**Result:** 1316 tests pass (3 new service tests). `RouteOrderService` takes `IRoutingDecisionLog` and calls it once, after `SaveAsync`, with the stored `id`, the hash and `customer_zip`. Tests: one event after the save (call order `save`, `log`), none when the save fails, hash and never the caller ID. `RouteOrderServiceTests` got a fake log and shared call list. Format clean except the known `Program.cs` import issue.
 
 ## Phase 3: Integration tests through the real host ✅ Done
 - [x] AC1/AC3: valid POST → exactly one `RoutingDecisionMade` whose `id` equals the response `id`; caller `user-123` absent from all captured logs.
@@ -91,7 +91,7 @@ Not-routed orders have no plan: log zero/empty for plan fields and `search_mode`
 **Result:** 1325 tests pass; build 0 warnings and 0 errors; format clean except the known `Program.cs` import issue. ADR-0005 note added (fields, after-commit rule, privacy, value formats, not-routed behaviour, log-fault trade-off).
 
 **§5 review (`ddd-implementation`):**
-- **Met:** the use case only orchestrates (no rule added); the entry factory copies values from the domain decision; the port is in Application (DIP); after-commit placement proven by a call-order test and by host tests (400, 401 and a real database rejection write no event); no raw caller ID can reach the log (the entry has no such field and the factory takes only the hash); `caller_hash` is null for a token with no caller claim; only `customer_zip` is patient-adjacent; `[LoggerMessage]` source generation with AB-04 field names.
+- **Met:** the service only orchestrates (no rule added); the entry factory copies values from the domain decision; the port is in Domain (DIP); after-commit placement proven by a call-order test and by host tests (400, 401 and a real database rejection write no event); no raw caller ID can reach the log (the entry has no such field and the factory takes only the hash); `caller_hash` is null for a token with no caller claim; only `customer_zip` is patient-adjacent; `[LoggerMessage]` source generation with AB-04 field names.
 - **N/A, with reasons:** aggregates and domain events (the log is observability of an already-made decision, not a new domain concept); money; authorization (no endpoint).
 - **Not verified:** coverage % (not measured); the partially routed event through the real host (needs an EXP-3 treatment config; covered at unit level only); that a log shipper keeps the snake_case field names (depends on the logging provider the deployment chooses).
 - **Trade-off to know:** the emitter swallows log-provider exceptions so a log fault cannot fail a stored order; a broken provider can therefore lose events silently.
@@ -102,8 +102,8 @@ Not-routed orders have no plan: log zero/empty for plan fields and `search_mode`
 ## Critical files
 | Action | Path |
 |---|---|
-| New | `Plans/OR-021-decision-log.md`; event record, `IRoutingDecisionLog` and its `[LoggerMessage]` implementation (Application/Routing); unit and integration tests |
-| Modified | `RouteOrderUseCase.cs`; `RoutingServiceCollectionExtensions.cs`; use-case tests; ADR-0005 (note) |
+| New | `Plans/OR-021-decision-log.md`; event record, `IRoutingDecisionLog` and its `[LoggerMessage]` implementation (Domain/Services); unit and integration tests |
+| Modified | `RouteOrderService.cs`; `RoutingServiceCollectionExtensions.cs`; service tests; ADR-0005 (note) |
 | Reused | `RoutingDecision`, `TieBreakResult`, `ExperimentAssignment`/`ExposureReason`, OR-027 `ICallerHasher` and stored `id`, OR-016 `RouteApiFactory` |
 | Unchanged | Domain routing rules, endpoint contract, `Docs/Data/**` |
 

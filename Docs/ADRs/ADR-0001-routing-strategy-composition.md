@@ -140,7 +140,7 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 
 ### Positive Consequences
 
-- **Implementation note (OR-015):** `OrderRoutingService.Route(OrderToRoute, suppliers, RoutingPolicy) → RoutingDecision` is pure and synchronous; the Application use case does the I/O. `IPlanSearchService` is a Domain port, implemented in Application because the limits come from configuration.
+- **Implementation note (OR-015):** `OrderRoutingService.Route(OrderToRoute, suppliers, RoutingPolicy) → RoutingDecision` is pure and synchronous; the Domain service does the I/O. `IPlanSearchService` is a Domain port, implemented in Domain (`Services/PlanSearch`) because the limits come from configuration.
 - Adding an arm (e.g., a weighted-score EXP-1 variant, §8.1) = one new class + one factory mapping. `OrderRoutingService` is unchanged (AB-06).
 - 3 seams × 2 arms = 6 small classes instead of 8 combined ones; growth is additive, not multiplicative.
 - The default `ExperimentArms` (all control) reproduces the written spec and the sentinel expectations (AB-03, SC-10).
@@ -191,7 +191,7 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 
 ## Implementation note (OR-024)
 
-The combination matrix exists: `tests/OrderRouter.Api.IntegrationTests/Acceptance/ExperimentCombinationMatrixTests.cs` routes four orders through the real host for each of the 8 arm combinations, with the arms pinned through a temp `experiments.json` and a fixed `IRandomSource`. The table of expected results is in the class docs. One interaction was found, and it is expected behaviour, not a defect: the EXP-2 prior raises the one-shipment baseline that EXP-1 measures its uplift against, so a plan that is worth an extra shipment while an unrated generalist counts as 0 is not worth it once that generalist counts as 6.5 (uplift 1.5 below the 2.0 threshold). No other interaction showed (EXP-3 changes only the outcome status of an order with an unfulfillable line). The decision is unchanged. The sentinel data has no rated competitor for the unrated suppliers, so the EXP-2 and EXP-1 x EXP-2 scenarios use five test-only suppliers added to a throwaway database, not to the shared seed. OR-020 (dependency warnings) is not implemented yet, so re-run the matrix when it lands.
+The combination matrix exists: `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/ExperimentCombinationMatrixTests.cs` routes four orders through the real host for each of the 8 arm combinations, with the arms pinned through a temp `experiments.json` and a fixed `IRandomSource`. The table of expected results is in the class docs. One interaction was found, and it is expected behaviour, not a defect: the EXP-2 prior raises the one-shipment baseline that EXP-1 measures its uplift against, so a plan that is worth an extra shipment while an unrated generalist counts as 0 is not worth it once that generalist counts as 6.5 (uplift 1.5 below the 2.0 threshold). No other interaction showed (EXP-3 changes only the outcome status of an order with an unfulfillable line). The decision is unchanged. The sentinel data has no rated competitor for the unrated suppliers, so the EXP-2 and EXP-1 x EXP-2 scenarios use five test-only suppliers added to a throwaway database, not to the shared seed. OR-020 (dependency warnings) is not implemented yet, so re-run the matrix when it lands.
 
 ## Links
 

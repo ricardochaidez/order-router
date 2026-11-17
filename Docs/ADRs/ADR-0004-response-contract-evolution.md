@@ -46,14 +46,14 @@ Chosen option: **"1. URL-segment v1 from the start, with `/api/route` as a perma
 - **Canonical endpoint:** `POST /api/v1/route`, plus `GET /api/v1/route/{id}` to read a stored order ([ADR-0007](ADR-0007-routing-decision-persistence.md)). Documentation, examples, `.http` files, and new callers use it.
 - **Spec alias:** `POST /api/route` runs the same v1 handler with the same contract, auth, and validation. It is **pinned to v1**: it never moves to a later version, so its callers are never broken silently.
 - **Within v1, all approved changes are additive.** `feasible` keeps its meaning ("everything routed").
-- **Lightweight mechanism:** an ASP.NET Core route group per version (`app.MapGroup("/api/v1")`). The v1 handler is registered on the group and on the alias path. One OpenAPI document named `v1` describes it. A versioning library (e.g., `Asp.Versioning.Http`) is added only when v2 appears.
+- **Lightweight mechanism:** controllers under `Controllers/V1`, with the version in the attribute route (`[HttpPost("api/v1/route")]`). The v1 action also carries the alias route (`[HttpPost("api/route")]`), so both paths share one handler, auth policy, validation and response contract. One OpenAPI document named `v1` describes it. A versioning library (e.g., `Asp.Versioning.Http`) is added only when v2 appears.
 
 ```mermaid
 flowchart LR
     C1[New callers] -- "POST /api/v1/route" --> V1[v1 route handler]
     C2[Spec / grader callers] -- "POST /api/route<br/>(alias, pinned to v1)" --> V1
     V1 --> E[v1 response envelope]
-    FUT[Future breaking change] -. "POST /api/v2/route<br/>(new group, new OpenAPI doc)" .-> V2[v2 handler]
+    FUT[Future breaking change] -. "POST /api/v2/route<br/>(new `Controllers/V2`, new OpenAPI doc)" .-> V2[v2 handler]
 ```
 
 ### Envelope
@@ -61,14 +61,14 @@ flowchart LR
 ```mermaid
 classDiagram
     direction LR
-    class RouteResponse {
+    class RouteResponseViewModel {
         +uuid? id  "NEW - stored order id, ADR-0007; absent on 400"
         +string? order_id  "NEW - echo of the request; absent on 400"
         +bool feasible  "spec - true only when status = routed"
         +RoutingStatus status  "NEW"
-        +SupplierRouting[] routing  "spec - always present, may be empty"
-        +UnfulfilledItem[] unfulfilled_items  "NEW - always present"
-        +RoutingWarning[] warnings  "NEW - always present"
+        +SupplierRoutingResponseViewModel[] routing  "spec - always present, may be empty"
+        +UnfulfilledItemResponseViewModel[] unfulfilled_items  "NEW - always present"
+        +RoutingWarningResponseViewModel[] warnings  "NEW - always present"
         +string[] errors  "spec - always present"
         +Diagnostics? diagnostics  "NEW - optional, off by default"
     }
@@ -78,40 +78,40 @@ classDiagram
         partially_routed
         not_routed
     }
-    class SupplierRouting {
+    class SupplierRoutingResponseViewModel {
         +string supplier_id
         +string supplier_name
-        +RoutedItem[] items
+        +RoutedItemResponseViewModel[] items
     }
-    class RoutedItem {
+    class RoutedItemResponseViewModel {
         +string product_code
         +int quantity
         +string category
         +string fulfillment_mode  "local | mail"
     }
-    class UnfulfilledItem {
+    class UnfulfilledItemResponseViewModel {
         +string product_code
         +int quantity
         +string? category
         +string reason_code
         +string message
     }
-    class RoutingWarning {
+    class RoutingWarningResponseViewModel {
         +string code
         +string message
         +string[] unfulfilled_product_codes
         +string[] affected_product_codes
     }
-    class Diagnostics {
+    class DiagnosticsResponseViewModel {
         +map experiment_arms
         +string search_mode
     }
-    RouteResponse --> RoutingStatus
-    RouteResponse --> SupplierRouting
-    SupplierRouting --> RoutedItem
-    RouteResponse --> UnfulfilledItem
-    RouteResponse --> RoutingWarning
-    RouteResponse --> Diagnostics
+    RouteResponseViewModel --> RoutingStatus
+    RouteResponseViewModel --> SupplierRoutingResponseViewModel
+    SupplierRoutingResponseViewModel --> RoutedItemResponseViewModel
+    RouteResponseViewModel --> UnfulfilledItemResponseViewModel
+    RouteResponseViewModel --> RoutingWarningResponseViewModel
+    RouteResponseViewModel --> DiagnosticsResponseViewModel
 ```
 
 ### Contract rules
@@ -165,7 +165,7 @@ flowchart LR
 
 - Good, because callers bind to an explicit version before any exist outside the grader, so there is nothing to migrate later.
 - Good, because the BR-15 path keeps working and the grader exercises the real v1 behaviour.
-- Good, because route groups need no new packages.
+- Good, because attribute routes on versioned controller folders need no new packages.
 - Bad, because two paths serve one contract, and tests must cover both.
 
 ### 2. Additive fields, unversioned
@@ -200,5 +200,5 @@ flowchart LR
 - **Flag:** `Routing:ExposeDiagnostics` (`bool`, default `false`), read through `IOptions<RoutingOptions>`, so a change needs a restart. Off, the `diagnostics` property is absent from every body.
 - **Where:** the 201 of `POST /api/v1/route`, the same 201 on the `POST /api/route` alias, and the 200 of `GET /api/v1/route/{id}`. The 400 body and the 404 never have it (no order exists).
 - **Shape:** `experiment_arms` maps each experiment's snake_case name to `{ "arm", "reason" }`, exactly as stored; `search_mode` is `exact` or `greedy` and is **omitted** (never `null`) when no search ran. Nothing else is exposed: no caller ID or hash, no config version, no targeting rules.
-- **One source:** `DiagnosticsMapper` builds it from the `StoredRoutingOrder`. POST maps the record it just stored and GET maps the record it read, so the two cannot differ for the same order. Stored arms that cannot be read throw (a 500 with no internals) instead of guessing an arm.
+- **One source:** `DiagnosticsMappingExtensions` builds it from the `StoredRoutingOrder`. POST maps the record it just stored and GET maps the record it read, so the two cannot differ for the same order. Stored arms that cannot be read throw (a 500 with no internals) instead of guessing an arm.
 - **Contract:** additive within v1. Clients must not depend on the field (AB-05, OQ-08).

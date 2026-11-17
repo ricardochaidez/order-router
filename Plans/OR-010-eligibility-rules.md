@@ -27,7 +27,7 @@ Out of scope: `UNKNOWN_PRODUCT` and the response mapping (OR-015); plan search (
 
 | Topic | Choice and reason |
 |---|---|
-| Location | `src/OrderRouter.Domain/Eligibility/`. Stateless domain service, no I/O, no EF. The caller (OR-015) loads suppliers with `IReferenceDataReader.GetSuppliersHandlingAsync` and passes them in. This keeps rules apart from persistence and state (CLAUDE.md "Decouple rules from state"). |
+| Location | `src/OrderRouter.Domain/Entities/Eligibility/`. Stateless domain service, no I/O, no EF. The caller (OR-015) loads suppliers with `IReferenceDataReader.GetSuppliersHandlingAsync` and passes them in. This keeps rules apart from persistence and state (CLAUDE.md "Decouple rules from state"). |
 | Service | `SupplierEligibility(ZipRange nationwideRange)` with `EligibilityResult Evaluate(Category category, ZipCode customerZip, bool mailOrder, IEnumerable<Supplier> suppliers)`. It re-checks `Handles(category)` itself, so a wider supplier list is safe (the reader returns suppliers for any requested category). Reuses `Supplier.Handles`, `Serves`, `IsMailOnly`. |
 | Mode | `FulfillmentMode { Local, Mail }`. One private rule: `IsMailOnly → Mail; Serves(zip) → Local; else Mail` (AC5). Exposed through `EligibleSupplier(Supplier, FulfillmentMode)`. Under `mail_order = false` every eligible supplier is `Local` by construction; under `mail_order = true` it is `Mail` for mail-only or non-serving suppliers, `Local` for serving ones. |
 | Result | `EligibilityResult`: immutable, `IReadOnlyList<EligibleSupplier> Suppliers` (never null, ordered by supplier ID ordinal for determinism), `bool IsEligible`, `UnfulfillableReason? Reason`. Factories keep it consistent: eligible has no reason; empty always has one. |
@@ -39,17 +39,17 @@ Out of scope: `UNKNOWN_PRODUCT` and the response mapping (OR-015); plan search (
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Eligibility/
+src/OrderRouter.Domain/Entities/Eligibility/
   FulfillmentMode.cs            Local | Mail
   UnfulfillableReason.cs        enum + Code() extension (§9.4 strings)
   EligibleSupplier.cs           Supplier + FulfillmentMode
   EligibilityResult.cs          eligible list | reason, never null
   SupplierEligibility.cs        the §7.1 + FR-09 rules (stateless domain service)
-tests/OrderRouter.Tests/Domain/Eligibility/
+tests/OrderRouter.Tests/Domain/Entities/Eligibility/
   SupplierEligibilityTests.cs   AC1–AC7 with hand-built suppliers
   EligibilityResultTests.cs     invariants, immutability, ordering
   UnfulfillableReasonTests.cs   exact reason code strings
-tests/OrderRouter.Api.IntegrationTests/Eligibility/
+tests/OrderRouter.Api.IntegrationTests/Controllers/V1/
   SeededEligibilityTests.cs     AC1, AC2, AC4, AC6, AC7 on the seeded DB via IReferenceDataReader
 ```
 
@@ -58,7 +58,7 @@ tests/OrderRouter.Api.IntegrationTests/Eligibility/
 1. **Follow the AI instructions and skills.** Before writing code, read `CLAUDE.md`, `.claude/rules/csharp.md` and `.claude/rules/dotnet-ddd-architecture.md` and follow them. This adds domain behavior, so use the `ddd-implementation` skill (`/ddd-implementation`): §1 analysis and §2 architecture review in Phase 1, §3 is this plan, §4 implementation in Phases 1–3, §5 review in Phase 4. Key points:
    - **C#:** C# 14 / .NET 10. File-scoped namespaces, newline before every opening brace, `is null` / `is not null`, pattern matching and switch expressions, `nameof`, final `return` on its own line, private constants camelCase (`.editorconfig`).
    - **Docs and comments:** XML docs on every public type and member, with `<example>` on the service. Comments say *why* and cite the rule (`// SC-12`, `// FR-09`).
-   - **Layers:** Domain gets no EF, Npgsql, config or logging reference; `LayerDependencyTests` stay green. No Api, Application or Infrastructure change.
+   - **Layers:** Domain gets no EF, Npgsql, config or logging reference; `LayerDependencyTests` stay green. No Api or Infrastructure change.
    - **Fail safe:** never auto-advance an ambiguous case; no supplier means a reason, not a guess.
    - **Tests:** nearby style, `MethodName_Condition_ExpectedResult`, no Arrange/Act/Assert comments, `TestContext.Current.CancellationToken`. Integration tests use `ReferenceDataFixture` and containment assertions. Cover edge and error paths; ≥ 85% coverage of new code.
    - **Data:** never edit `Docs/Data/**`; tests only read reference data (NFR-08).
@@ -99,7 +99,7 @@ tests/OrderRouter.Api.IntegrationTests/Eligibility/
 - **Terms:** *eligible supplier* handles the category and passes the §7.1 filter; *local* fulfillment is delivery by a supplier that serves the ZIP; *mail* fulfillment is shipping (mail-only, or not serving the ZIP); *mail-only* is `can_mail_order = y` with a service area exactly equal to the nationwide range (SC-09); *unfulfillable* is a category with no eligible supplier, reported with a §9.4 reason.
 - **Aggregates:** no new aggregate. A stateless domain service over the read-only `Supplier` aggregate. No state changes, so no consistency boundary to protect.
 - **Invariants:** §7.1 eligibility, FR-09 mode, SC-12 (local excludes mail-only), SC-06/SC-07 (mail ignores ZIP, needs `can_mail_order`). An empty result always carries a reason.
-- **Layers:** Domain only. No Api, Application or Infrastructure change.
+- **Layers:** Domain only. No Api or Infrastructure change.
 - **Single responsibility:** the service decides eligibility; the result types carry the outcome; the reader (Infrastructure) loads suppliers. Rules depend on no abstraction because they have no I/O.
 - **Events, money, authorization:** none. Pure query rules, no state change, no money, no API surface.
 
@@ -184,10 +184,10 @@ tests/OrderRouter.Api.IntegrationTests/Eligibility/
 | Action | Path |
 |---|---|
 | New | `Plans/OR-010-eligibility-rules.md` |
-| New (Domain) | `src/OrderRouter.Domain/Eligibility/{FulfillmentMode,UnfulfillableReason,EligibleSupplier,EligibilityResult,SupplierEligibility}.cs` |
+| New (Domain) | `src/OrderRouter.Domain/Entities/Eligibility/{FulfillmentMode,UnfulfillableReason,EligibleSupplier,EligibilityResult,SupplierEligibility}.cs` |
 | New (tests) | see *Target structure* |
 | Reused | `Supplier.Handles/Serves/IsMailOnly` (`ReferenceData/Supplier.cs`), `ZipRange`, `ZipCode`, `Category`, `IReferenceDataReader`, `ReferenceDataFixture`, `SeedFiles.Real` |
-| Unchanged | Api, Application, Infrastructure, migrations, `Docs/Data/**` |
+| Unchanged | Api, Infrastructure, migrations, `Docs/Data/**` |
 
 ## Verification summary
 

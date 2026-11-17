@@ -1,7 +1,7 @@
 # Plan: OR-026: Create the tables for stored routing orders
 
 **Ticket:** [Docs/Tickets/OR-026-routing-order-tables.md](../Docs/Tickets/OR-026-routing-order-tables.md)
-**Depends on:** OR-004 (done: `OrderRouterDbContext`, initial migration, `ThrowawayDatabase`, `SchemaMigrationTests`).
+**Depends on:** OR-004 (done: `OrderRouterDataContext`, initial migration, `ThrowawayDatabase`, `SchemaMigrationTests`).
 **References:** [ADR-0007](../Docs/ADRs/ADR-0007-routing-decision-persistence.md) (Schema); [ADR-0002](../Docs/ADRs/ADR-0002-reference-data-database.md); Technical Requirements FR-20, SC-28, SC-21, SC-22; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
 **Feeds:** OR-027 (inserts into these tables), OR-028 (reads them), OR-021 (log needs the stored `id`).
 
@@ -11,7 +11,7 @@
 
 ADR-0007 stores every routing decision in three new tables next to the reference data. This ticket adds only the schema: EF Core row types, their mappings and one migration. No routing, endpoint or response change. OR-027 writes to the tables.
 
-The current context has reference-data rows only (`SupplierRow` and friends in `Infrastructure/Persistence/ReferenceData`, mapped with `IEntityTypeConfiguration<T>`, explicit snake_case names, picked up by `ApplyConfigurationsFromAssembly`). The new rows follow the same pattern in a new `Persistence/RoutingOrders` folder.
+The current context has reference-data rows only (`SupplierEntity` and friends in `Infrastructure/Models` and `Infrastructure/EntityTypeConfiguration`, mapped with `IEntityTypeConfiguration<T>`, explicit snake_case names, picked up by `ApplyConfigurationsFromAssembly`). The new rows follow the same pattern in a new `Persistence/RoutingOrders` folder.
 
 Out of scope: writing or reading orders (OR-027, OR-028), `ICallerHasher` (OR-027), any API change, the decision log (OR-021).
 
@@ -22,7 +22,7 @@ Out of scope: writing or reading orders (OR-027, OR-028), `ICallerHasher` (OR-02
 
 | Topic | Choice and reason |
 |---|---|
-| Row types | `RoutingOrderRow`, `RoutingOrderItemRow`, `RoutingOrderWarningRow`: plain classes like `SupplierRow` (persistence shapes, not domain types). They stay `internal` or `public` to match the existing rows. |
+| Row types | `RoutingOrderEntity`, `RoutingOrderItemEntity`, `RoutingOrderWarningEntity`: plain classes like `SupplierEntity` (persistence shapes, not domain types). They stay `internal` or `public` to match the existing rows. |
 | Columns | Exactly the ADR-0007 ER diagram: `routing_orders` (`id` uuid PK, `order_id` text, `caller_hash` text null, `customer_zip` char(5), `mail_order` bool, `status` text, `feasible` bool, `experiment_arms` jsonb, `config_version` text, `search_mode` text null, `created_at` timestamptz); `routing_order_items` (composite PK `routing_order_id` + `line_number`; `product_code`, `quantity`, `category` null, `supplier_id` null, `supplier_name` null, `fulfillment_mode` null, `reason_code` null, `message` null); `routing_order_warnings` (composite PK `routing_order_id` + `ordinal`; `code`, `message`, `unfulfilled_product_codes` text[], `affected_product_codes` text[]). |
 | `search_mode` nullable | A not-routed order with no known product runs no search (`RoutingDecision.SearchMode` is null). ADR-0007 lists it as `text`; make it nullable and note it. |
 | Ids | No `ValueGeneratedOnAdd` on `id`: the server sets a UUIDv7 in OR-027 (`Guid.CreateVersion7()`). |
@@ -58,7 +58,7 @@ Out of scope: writing or reading orders (OR-027, OR-028), `ICallerHasher` (OR-02
 ## Phase 1: Row types, mappings and migration ✅ Done
 
 - [x] `ddd-implementation` §1 and §2 (concepts: stored routing order and its items and warnings; persistence only, no domain type).
-- [x] Add the three row types and their `IEntityTypeConfiguration<T>` classes in `Persistence/RoutingOrders/`, plus `DbSet`s on `OrderRouterDbContext`.
+- [x] Add the three row types and their `IEntityTypeConfiguration<T>` classes in `Persistence/RoutingOrders/`, plus `DbSet`s on `OrderRouterDataContext`.
 - [x] Generate the migration `AddRoutingOrderTables`; review it: it only creates the three tables, constraints and the `order_id` index.
 - [x] Integration tests (extend `SchemaMigrationTests` style, using `ThrowawayDatabase`):
   - AC1: after migrating an empty database, the three tables exist with the ADR-0007 columns and types, and the `order_id` index exists;
@@ -88,7 +88,7 @@ Out of scope: writing or reading orders (OR-027, OR-028), `ICallerHasher` (OR-02
 **§5 review (`ddd-implementation`):**
 - **Met:** no foreign key to suppliers (historical record, supplier name is a snapshot column); cascade only inside the stored order; no raw caller identity column (hash only, nullable); database refuses invalid status, mode, quantity and line numbers; migration only adds; seeder untouched.
 - **N/A, with reasons:** aggregates and domain events (schema only, no domain type); money; authorization (no endpoint); API surface.
-- **Not verified:** coverage % (not measured; no Domain or Application code changed); insert latency (NFR-03, OR-027 and the load test).
+- **Not verified:** coverage % (not measured; no Domain code changed); insert latency (NFR-03, OR-027 and the load test).
 - **Follow-ups (not done here):** OR-027 writes the rows; OR-028 reads them; retention (OQ-27).
 
 Format clean except the known `Program.cs` import issue.
@@ -99,10 +99,10 @@ Format clean except the known `Program.cs` import issue.
 
 | Action | Path |
 |---|---|
-| New | `src/OrderRouter.Infrastructure/Persistence/RoutingOrders/*` (3 rows, 3 configurations); migration `AddRoutingOrderTables`; schema and seeder-isolation tests |
-| Modified | `OrderRouterDbContext.cs`; `OrderRouterDbContextModelSnapshot.cs` (generated); ADR-0007 (note) |
+| New | `src/OrderRouter.Infrastructure/Models/ and OrderRouter.Infrastructure/Providers/ *` (3 rows, 3 configurations); migration `AddRoutingOrderTables`; schema and seeder-isolation tests |
+| Modified | `OrderRouterDataContext.cs`; `OrderRouterDataContextModelSnapshot.cs` (generated); ADR-0007 (note) |
 | Reused | `SupplierRowConfiguration` (pattern), `ThrowawayDatabase`, `SchemaMigrationTests` |
-| Unchanged | Reference-data tables, seeder, Domain, Application, Api, `Docs/Data/**` |
+| Unchanged | Reference-data tables, seeder, Domain, Api, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

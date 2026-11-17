@@ -9,11 +9,11 @@
 
 ## Context
 
-This ticket adds **tests only**. No production behavior changes. It gathers the acceptance criteria into one suite of endpoint-level integration tests that run the real host, the real routing use case and the seeded PostgreSQL database (sample orders, sentinel suppliers, validation, auth, read-back), and then measures coverage.
+This ticket adds **tests only**. No production behavior changes. It gathers the acceptance criteria into one suite of endpoint-level integration tests that run the real host, the real routing service and the seeded PostgreSQL database (sample orders, sentinel suppliers, validation, auth, read-back), and then measures coverage.
 
 What already exists (read before writing, do not duplicate blindly):
-- `RouteApiFactory` (`Create(connectionString, useCase: null)` keeps the real use case; `Post`, `Get`, `Paths` = `/api/v1/route` and `/api/route`), `AuthApiFactory`, `TestJwt`, `ReferenceDataFixture` (migrates and seeds from `Docs/Data/Seed`), `ThrowawayDatabase`.
-- `RouteOrderEndToEndTests` already covers ORD-001/002/003 on both paths (OR-015); `RouteValidationTests` and `RouteAuthTests` cover validation and 401 with a **fake** use case; `GetStoredOrderApiTests` covers read-back (OR-028) and already uses the T003/T004 tie.
+- `RouteApiFactory` (`Create(connectionString, useCase: null)` keeps the real service; `Post`, `Get`, `Paths` = `/api/v1/route` and `/api/route`), `AuthApiFactory`, `TestJwt`, `ReferenceDataFixture` (migrates and seeds from `Docs/Data/Seed`), `ThrowawayDatabase`.
+- `RouteOrderEndToEndTests` already covers ORD-001/002/003 on both paths (OR-015); `RouteValidationTests` and `RouteAuthTests` cover validation and 401 with a **fake** service; `GetStoredOrderApiTests` covers read-back (OR-028) and already uses the T003/T004 tie.
 - `experiments.json` ships with all three experiments disabled, so every request is in control (strict priority). Acceptance tests rely on that default and must not depend on a treatment arm.
 - `Microsoft.Testing.Extensions.CodeCoverage` is referenced by both test projects and `global.json` selects the Microsoft Testing Platform runner. Coverage has **never been measured** in this repo (OR-021 notes "coverage % not measured").
 
@@ -23,14 +23,14 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 | Topic | Choice and reason |
 |---|---|
-| Where | New folder `tests/OrderRouter.Api.IntegrationTests/Acceptance/`, one class per theme (`SampleOrderAcceptanceTests`, `SentinelSupplierAcceptanceTests`, `RequestRejectionAcceptanceTests`, `StoredOrderAcceptanceTests`). Test names and a `// ACn` comment tie each test to the ticket. |
+| Where | New folder `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/`, one class per theme (`SampleOrderAcceptanceTests`, `SentinelSupplierAcceptanceTests`, `RequestRejectionAcceptanceTests`, `StoredOrderAcceptanceTests`). Test names and a `// ACn` comment tie each test to the ticket. |
 | Existing tests | Left unchanged. The suite is the end-to-end, real-host view of each AC; where an existing test already proves the same thing against the real host, the new test is still added only if it adds a path, an assertion or the AC wording that is missing. Record any overlap in the phase result. |
-| Real host | Every acceptance test uses the real use case (`useCase: null`) and the shared seeded database. The fake use case is not used (it is what makes the existing auth and validation tests not end-to-end). |
+| Real host | Every acceptance test uses the real service (`useCase: null`) and the shared seeded database. The fake service is not used (it is what makes the existing auth and validation tests not end-to-end). |
 | Both paths | Core cases (AC1, AC8, AC9, and the sentinel cases through `RouteApiFactory.Paths`) run against `/api/v1/route` **and** `/api/route`. The alias is POST-only; its `Location` points at the v1 GET (ADR-0004, ADR-0007), so AC9 reads both with `GET /api/v1/route/{id}`. |
 | Random ties | Never assert a fixed supplier for ORD-003, T003/T004 or T011/T012. Assert the winner is a member of the tied set (NFR-08(b)). Use a few repeated calls only to show no non-member ever appears; the distribution test (NFR-08(c)) belongs to OR-014 and is not repeated here. |
 | Product codes | Sentinel orders use product codes picked from `Docs/Data/Seed/products.normalized.csv` whose category matches the sentinel (wheelchair, walker, cane, rollator, and a non-wheelchair category for `00098`). Chosen in Phase 2 and recorded in the test class. `Docs/Data/*` is never edited. |
 | Isolation | Each test uses its own `order_id`, because the shared database accumulates stored orders and tests run in parallel. Tests assert on their own order only. Reference data is read-only. |
-| Coverage | Measured with the code coverage extension over **both** test projects together, limited to `OrderRouter.Domain` and `OrderRouter.Application` (AC10, NFR-08). If the result is under 85%, the gap is closed with targeted unit tests (Phase 4), not by excluding code. |
+| Coverage | Measured with the code coverage extension over **both** test projects together, limited to `OrderRouter.Domain` (AC10, NFR-08). If the result is under 85%, the gap is closed with targeted unit tests (Phase 4), not by excluding code. |
 
 ## Working rules (apply to every phase)
 
@@ -59,12 +59,12 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 - [x] Confirm OR-015, OR-019 and OR-028 are done (their plans are marked done, `RouteApiFactory`, `GetStoredOrderApiTests` and `RouteOrderEndToEndTests` exist). If not, stop and ask.
 - [x] Baseline: PostgreSQL up, `dotnet build`, `dotnet test` and format green before any change.
-- [x] Baseline coverage: run the full suite with the code coverage extension (Microsoft Testing Platform, e.g. `dotnet test --coverage --coverage-output-format cobertura`) and record the line coverage for `OrderRouter.Domain` and `OrderRouter.Application`. Keep reports out of the repo (scratch directory or an ignored `TestResults/`). If coverage cannot be produced or merged across the two test projects, stop and ask.
+- [x] Baseline coverage: run the full suite with the code coverage extension (Microsoft Testing Platform, e.g. `dotnet test --coverage --coverage-output-format cobertura`) and record the line coverage for `OrderRouter.Domain`. Keep reports out of the repo (scratch directory or an ignored `TestResults/`). If coverage cannot be produced or merged across the two test projects, stop and ask.
 - [x] Read the existing end-to-end, validation, auth and read-back tests; list which ACs they already cover on the real host.
 
 **Verify:** all green. No code changes.
 
-**Result:** 1422 tests green. Baseline line coverage (both projects merged): Domain 98.5% (1150/1168), Application 98.7% (535/542). Command: `dotnet test --coverage --coverage-output-format cobertura --results-directory <scratch>` (both test projects write one Cobertura file each; lines merged per file and line number across the two files). Already-covered ACs on the real host before this work: ORD-001/002/003 on both paths (`RouteOrderEndToEndTests`), read-back, 404 for another caller, 401 on GET (`GetStoredOrderApiTests`). Validation and auth tests (`RouteValidationTests`, `RouteAuthTests`) use a fake use case, so they were not end-to-end.
+**Result:** 1422 tests green. Baseline line coverage (both projects merged): Domain 98.5% (1150/1168), the former Domain project 98.7% (535/542; now part of Domain). Command: `dotnet test --coverage --coverage-output-format cobertura --results-directory <scratch>` (both test projects write one Cobertura file each; lines merged per file and line number across the two files). Already-covered ACs on the real host before this work: ORD-001/002/003 on both paths (`RouteOrderEndToEndTests`), read-back, 404 for another caller, 401 on GET (`GetStoredOrderApiTests`). Validation and auth tests (`RouteValidationTests`, `RouteAuthTests`) use a fake service, so they were not end-to-end.
 
 ---
 
@@ -102,7 +102,7 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 ## Phase 3: Auth and validation through the real host, AC8 ✅ Done
 
-- [x] **AC8** (`RequestRejectionAcceptanceTests`), both paths, real use case, against the seeded database:
+- [x] **AC8** (`RequestRejectionAcceptanceTests`), both paths, real service, against the seeded database:
   - no token → 401 with `WWW-Authenticate`, and routing does not run (no stored order for that `order_id`);
   - bad token (malformed, wrong signature, expired, as the existing `TestJwt` helpers allow) → 401;
   - each invalid field → 400 in the documented envelope (`feasible:false`, `status:"not_routed"`, empty `routing`, `unfulfilled_items`, `warnings`, `errors` listing the problem): missing/blank `order_id`, missing or bad `customer_zip` (bad length, non-digits, not a string), missing/empty/null `items`, `quantity` of zero, negative or missing, blank `product_code`, malformed JSON;
@@ -118,13 +118,13 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 ## Phase 4: Coverage, AC10 ✅ Done
 
-- [x] Measure coverage over the full run (unit and integration) for `OrderRouter.Domain` and `OrderRouter.Application`, with the same command as Phase 0. Compare against the baseline.
+- [x] Measure coverage over the full run (unit and integration) for `OrderRouter.Domain`, with the same command as Phase 0. Compare against the baseline.
 - [x] If either project (or the combined figure, state which one is used) is under 85%: list the uncovered types and branches, then add targeted unit tests for real behavior. Do not exclude code, lower the bar or add assertions-free tests. If the gap needs production changes or is large, stop and ask.
 - [x] Record the exact command and the numbers in this plan and in the ticket's notes. Decide with the engineer whether to document the command in the README (OR-025) or add a script; not done here unless asked.
 
-**Verify:** build, test, format; coverage for Domain and Application is at least 85% (NFR-08).
+**Verify:** build, test, format; coverage for Domain is at least 85% (NFR-08).
 
-**Result:** after the new tests, 1492 tests; Domain 98.5% (1150/1168), Application 98.7% (535/542), both at or above 85% (NFR-08). Command: `dotnet test --coverage --coverage-output-format cobertura --results-directory <scratch>` (both test projects write one Cobertura file each; lines merged per file and line number across the two files). No unit tests were needed. README or script for the command is left to OR-025.
+**Result:** after the new tests, 1492 tests; Domain 98.5% (1150/1168), the former Domain project 98.7% (535/542; now part of Domain), both at or above 85% (NFR-08). Command: `dotnet test --coverage --coverage-output-format cobertura --results-directory <scratch>` (both test projects write one Cobertura file each; lines merged per file and line number across the two files). No unit tests were needed. README or script for the command is left to OR-025.
 
 ---
 
@@ -145,7 +145,7 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-023-acceptance-tests.md`; `tests/OrderRouter.Api.IntegrationTests/Acceptance/*` (acceptance test classes and a small helper); extra unit tests only if Phase 4 needs them |
+| New | `Plans/OR-023-acceptance-tests.md`; `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/*` (acceptance test classes and a small helper); extra unit tests only if Phase 4 needs them |
 | Reused | `RouteApiFactory`, `AuthApiFactory`, `TestJwt`, `ReferenceDataFixture`, `ThrowawayDatabase`; `Docs/Data/sample_orders.json` (read only) |
 | Unchanged | All production code, `Docs/Data/**`, migrations, existing tests |
 
@@ -162,4 +162,4 @@ No ambiguity or conflict blocks the plan. These are the defaults it uses; change
 | AC7: no coverage (`NO_SUPPLIER_FOR_CATEGORY_IN_AREA`) | `SentinelSupplierAcceptanceTests`: `Post_NoSupplierForTheCategoryInTheArea_IsABusinessOutcomeNotAnError` | 2 |
 | AC8: auth and validation | `RequestRejectionAcceptanceTests`: `Post_NoToken_…`, `Post_BadToken_…`, `Post_InvalidField_…`, `Post_MalformedJson_…`, `Post_SeveralInvalidFields_…` | 3 |
 | AC9: stored and readable, both paths | `StoredOrderAcceptanceTests`: `Get_LocationOfASampleOrder_ReturnsTheDecisionFromPost` | 1 |
-| AC10: coverage at least 85% (Domain, Application) | coverage run: Domain 98.5%, Application 98.7%; no extra unit tests | 0, 4 |
+| AC10: coverage at least 85% (Domain) | coverage run: Domain 98.5%, the former Domain project 98.7% (now part of Domain); no extra unit tests | 0, 4 |

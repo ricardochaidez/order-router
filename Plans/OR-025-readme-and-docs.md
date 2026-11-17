@@ -1,7 +1,7 @@
 # Plan: OR-025: Write the README and update AI_PROMPTS.md
 
 **Ticket:** [Docs/Tickets/OR-025-readme-and-docs.md](../Docs/Tickets/OR-025-readme-and-docs.md)
-**Depends on:** OR-023 (done: `tests/OrderRouter.Api.IntegrationTests/Acceptance/*`), OR-028 (done: `GET /api/v1/route/{id}`).
+**Depends on:** OR-023 (done: `tests/OrderRouter.Api.IntegrationTests/Controllers/V1/*`), OR-028 (done: `GET /api/v1/route/{id}`).
 **References:** Technical Requirements BR-20, BR-21, FR-04, FR-13, FR-19, FR-21, SC-18, SC-29, SC-31, SC-32, SC-33, DEV-07, DEV-14, NFR-01; [ADR-0002](../Docs/ADRs/ADR-0002-reference-data-database.md) (Getting started); [ADR-0004](../Docs/ADRs/ADR-0004-response-contract-evolution.md); [ADR-0005](../Docs/ADRs/ADR-0005-experiment-assignment.md); [ADR-0007](../Docs/ADRs/ADR-0007-routing-decision-persistence.md); `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`.
 
 > **Save location:** Phase 0 copies this plan to `Plans/OR-025-readme-and-docs.md`. Update that file as each phase is done.
@@ -18,12 +18,12 @@ BR-20 asks for a README that explains how to build, run and test the service; BR
 
 | Topic | Where | Fact |
 |---|---|---|
-| Endpoints | `src/OrderRouter.Api/Controllers/RouteController.cs` | `POST /api/v1/route` and `POST /api/route` are attribute routes on the same action; alias is POST-only; `Location` always points at `GET /api/v1/route/{id}` (relative). |
+| Endpoints | `src/OrderRouter.Api/Controllers/V1/RouteController.cs` | `POST /api/v1/route` and `POST /api/route` are attribute routes on the same action; alias is POST-only; `Location` always points at `GET /api/v1/route/{id}` (relative). |
 | GET | same | 200 for the caller's own order; one identical 404 ProblemDetails for unknown id, non-UUID id, another caller's order. |
 | POST codes | same + `RouteEnvelopeAttribute` | 201 + `Location`; 400 in the route envelope (all validation errors); 500 ProblemDetails. 401 + `WWW-Authenticate` from auth. |
 | Health / docs | `Controllers/HealthController.cs`, `Program.cs` | `/health` anonymous; OpenAPI `/openapi/v1.json` and Scalar `/scalar` Development-only. |
 | Dev key | `.env.example`, `docker-compose.yml` | `DEV_API_KEY` → `X-Api-Key`; Development only; `CALLER_HASHING_SECRET` required. |
-| DB for tests | `tests/OrderRouter.Api.IntegrationTests/ReferenceDataFixture.cs` | Env var `OrderRouterDbContextFactory.ConnectionStringVariable`, else `DefaultConnectionString` (same DB as compose). |
+| DB for tests | `tests/OrderRouter.Api.IntegrationTests/Infrastructure/ReferenceDataFixture.cs` | Env var `OrderRouterDataContextFactory.ConnectionStringVariable`, else `DefaultConnectionString` (same DB as compose). |
 | Generator | `tools/OrderRouter.DataNormalizer/Program.cs`, `ToolPaths.cs` | Defaults `Docs/Data` → `Docs/Data/Seed`; `--input`/`--output` overrides; exit 0/1; writes nothing on failure. |
 | Experiments | `src/OrderRouter.Api/experiments.json`, compose bind mount | `Enabled`, `TreatmentPercentage`, `Salt`, `Targeting` (Callers, ZipPrefixes, ZipRanges), `Parameters`; `Routing.SimilarityBand`; polling file watcher; edit the file in place. |
 
@@ -63,7 +63,7 @@ BR-20 asks for a README that explains how to build, run and test the service; BR
 Read-only. Builds the list of facts the README will state, so Phases 2–3 only write verified text.
 
 - [ ] Re-check every row of *Facts already confirmed* against the code.
-- [ ] Read and note, from the code: `Program.cs` (auth, ProblemDetails, OpenAPI, startup checks), `Authentication/*` (dev key header/name, 401 challenge), `Routing/RouteRequest.cs` + `ValidationErrorFormatter.cs` (400 envelope shape), the response contracts in `src/OrderRouter.Application/Routing/Contracts/` (`feasible`, per-item status, optional diagnostics from OR-022), the tie-breaker (`IRandomSource` usage), experiment options/mapper and reload behaviour (including invalid config), stored-order persistence (new UUIDv7 per POST, caller HMAC), `OrderRouter.Api.http` examples.
+- [ ] Read and note, from the code: `Startup.cs` (auth, ProblemDetails, OpenAPI, startup checks), `Authentication/*` (dev key header/name, 401 challenge), `Routing/RouteOrderRequestViewModel.cs` + `ValidationErrorFormatter.cs` (400 envelope shape), the response contracts in `src/OrderRouter.Api/ViewModels/Response/` (`feasible`, per-item status, optional diagnostics from OR-022), the tie-breaker (`IRandomSource` usage), experiment options/mapper and reload behaviour (including invalid config), stored-order persistence (new UUIDv7 per POST, caller HMAC), `OrderRouter.Api.http` examples.
 - [ ] Note the actual `dotnet test` filters available (unit vs integration project) and the connection-string env var name.
 - [ ] List any code ↔ ticket/ADR/existing-README differences and present them to the engineer.
 - [ ] Draft the new README outline (section headings only) and add it to the plan's Result.

@@ -1,7 +1,7 @@
 # Plan: OR-022: Add the optional diagnostics field
 
 **Ticket:** [Docs/Tickets/OR-022-diagnostics-field.md](../Docs/Tickets/OR-022-diagnostics-field.md)
-**Depends on:** OR-016 (done: `IExperimentAssigner`, arms and reasons in the decision) and OR-028 (done: `GET /api/v1/route/{id}`, `StoredOrderResponse`, `StoredOrderResponseMapper`; plan in `Plans/OR-028-get-stored-order.md`). OR-027 already stores `experiment_arms` (jsonb), `search_mode` and `config_version`.
+**Depends on:** OR-016 (done: `IExperimentAssigner`, arms and reasons in the decision) and OR-028 (done: `GET /api/v1/route/{id}`, `StoredOrderResponseViewModel`, `RoutingOrderMappingExtensions`; plan in `Plans/OR-028-get-stored-order.md`). OR-027 already stores `experiment_arms` (jsonb), `search_mode` and `config_version`.
 **References:** [ADR-0004](../Docs/ADRs/ADR-0004-response-contract-evolution.md) (envelope, `diagnostics` rule); [ADR-0005](../Docs/ADRs/ADR-0005-experiment-assignment.md); [ADR-0007](../Docs/ADRs/ADR-0007-routing-decision-persistence.md); Technical Requirements AB-05, OQ-08, §9.5; `CLAUDE.md` (REST API conventions); `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
 **Feeds:** OR-023 (acceptance tests), OR-025 (README and docs).
 
@@ -14,8 +14,8 @@ The v1 response has no way to see which experiment arm an order got or whether t
 Existing seams to build on:
 - `RoutingOptions` (section `Routing`, today only `NationwideZipRange`) and `RoutingOptionsValidator`; the section is already bound in `RoutingServiceCollectionExtensions`.
 - `StoredRoutingOrderFactory` writes `ExperimentArmsJson` (one entry per experiment, `{ "arm": ..., "reason": ... }`, snake_case keys) and `SearchMode` (`exact`, `greedy` or `null`). `StoredRoutingOrder` is what `GET` reads back.
-- `RouteOrderUseCase` builds the `StoredRoutingOrder` before it answers; `GetStoredOrderUseCase` and `StoredOrderResponseMapper` rebuild the GET body from the same record.
-- `RouteResponse` and `StoredOrderResponse` are the envelopes (optional fields use `JsonIgnore(WhenWritingNull)`). JSON is snake_case.
+- `RouteOrderService` builds the `StoredRoutingOrder` before it answers; `GetStoredOrderService` and `RoutingOrderMappingExtensions` rebuild the GET body from the same record.
+- `RouteResponseViewModel` and `StoredOrderResponseViewModel` are the envelopes (optional fields use `JsonIgnore(WhenWritingNull)`). JSON is snake_case.
 - `RouteApiFactory` boots the API for host tests and can override configuration.
 
 Out of scope: changing what is stored, the decision log, any use of `diagnostics` for routing decisions, the 400 body (no order exists, so no arms), reload of the flag without a restart.
@@ -34,9 +34,9 @@ Change one before Phase 1 if you disagree.
 | Topic | Choice and reason |
 |---|---|
 | Flag | `RoutingOptions.ExposeDiagnostics` (`bool`, default `false`), read from `Routing:ExposeDiagnostics`. Read through `IOptions<RoutingOptions>`, so a change needs a restart (same as `NationwideZipRange`). No validator rule is needed for a `bool`. |
-| One source for POST and GET | A static `DiagnosticsMapper` (Application) builds `Diagnostics` from a `StoredRoutingOrder` (`ExperimentArmsJson`, `SearchMode`). POST maps the record it just stored; GET maps the record it read. They can't drift, and AC3 ("stored arms and `search_mode`") holds by construction. |
-| Contract | New `Diagnostics` record in `Application/Routing/Contracts` (`ExperimentArms`: ordered map name → `ExperimentDiagnostic(Arm, Reason)`; `SearchMode`: `string?`, omitted when null). Added as `Diagnostics? Diagnostics` (omitted when null) on `RouteResponse` and `StoredOrderResponse`. Names follow the existing snake_case policy. |
-| Where the flag is applied | In the two use cases, not in the mappers: the mappers stay pure. When the flag is off, `Diagnostics` stays `null`, so the field is absent and no stored JSON is parsed. |
+| One source for POST and GET | A static `DiagnosticsMappingExtensions` (Api) builds `Diagnostics` from a `StoredRoutingOrder` (`ExperimentArmsJson`, `SearchMode`). POST maps the record it just stored; GET maps the record it read. They can't drift, and AC3 ("stored arms and `search_mode`") holds by construction. |
+| Contract | New `Diagnostics` record in `Api/ViewModels/Response` (`ExperimentArms`: ordered map name → `ExperimentDiagnostic(Arm, Reason)`; `SearchMode`: `string?`, omitted when null). Added as `Diagnostics? Diagnostics` (omitted when null) on `RouteResponseViewModel` and `StoredOrderResponseViewModel`. Names follow the existing snake_case policy. |
+| Where the flag is applied | In the two services, not in the mappers: the mappers stay pure. When the flag is off, `Diagnostics` stays `null`, so the field is absent and no stored JSON is parsed. |
 | Bad stored JSON | If the stored arms cannot be parsed, throw (500 with no internals, fail safe). Never guess an arm. Only reachable when the flag is on. |
 | Alias | `POST /api/route` shares the v1 handler, so it gets the same field. No new path. |
 | OpenAPI | Document `diagnostics` as optional on both 201 and 200 schemas, with a note that it is off by default and clients must not depend on it. |
@@ -76,18 +76,18 @@ Change one before Phase 1 if you disagree.
 
 ---
 
-## Phase 1: Flag, contract and mapper (Application) ✅ Done
+## Phase 1: Flag, view model and mapper (Api) ✅ Done
 
-- [x] `ddd-implementation` §1 and §2 (concepts: diagnostics as a read-only view of stored evidence; no new aggregate; layers affected: Application and Api; compliance: off by default, no identity data).
+- [x] `ddd-implementation` §1 and §2 (concepts: diagnostics as a read-only view of stored evidence; no new aggregate; layers affected: Domain and Api; compliance: off by default, no identity data).
 - [x] Add `RoutingOptions.ExposeDiagnostics` (default `false`) with XML docs; add `"ExposeDiagnostics": false` to `appsettings.json` under `Routing`.
-- [x] Add `Diagnostics` and `ExperimentDiagnostic` records (Application/Routing/Contracts); add the optional `Diagnostics` property to `RouteResponse` and `StoredOrderResponse` (omitted when null).
-- [x] Add `DiagnosticsMapper` (static, no business rule): `StoredRoutingOrder` → `Diagnostics`; `SearchMode` omitted when null; unparseable or incomplete arms JSON throws.
+- [x] Add `Diagnostics` and `ExperimentDiagnosticResponseViewModel` records (Api/ViewModels/Response); add the optional `Diagnostics` property to `RouteResponseViewModel` and `StoredOrderResponseViewModel` (omitted when null).
+- [x] Add `DiagnosticsMappingExtensions` (static, no business rule): `StoredRoutingOrder` → `Diagnostics`; `SearchMode` omitted when null; unparseable or incomplete arms JSON throws.
 - [x] Unit tests:
   - mapper: stored arms with all three experiments map to the arm and reason of each, under the snake_case names;
   - `search_mode` `exact` and `greedy` are carried over; `null` stays `null` and serializes with no `search_mode` field;
   - invalid arms JSON and a missing experiment throw;
   - serialization: `diagnostics` is absent when null on both envelopes, and snake_case when present;
-  - `RouteResponse` and `StoredOrderResponse` still never have `null` collections.
+  - `RouteResponseViewModel` and `StoredOrderResponseViewModel` still never have `null` collections.
 
 **Verify:** build, test, format.
 
@@ -95,27 +95,27 @@ Change one before Phase 1 if you disagree.
 
 ---
 
-## Phase 2: Apply the flag in the use cases ✅ Done
+## Phase 2: Apply the flag in the services ✅ Done
 
-- [x] `RouteOrderUseCase`: inject `IOptions<RoutingOptions>`; when `ExposeDiagnostics` is true, set `Diagnostics` from the `StoredRoutingOrder` it just built (`response with { Id = id, Diagnostics = ... }`). When false, leave it `null`. The stored record and the decision log are unchanged.
-- [x] `GetStoredOrderUseCase`: inject the same options; when true, set `Diagnostics` from the stored order it read. `StoredOrderResponseMapper` is unchanged.
+- [x] `RouteOrderService`: inject `IOptions<RoutingOptions>`; when `ExposeDiagnostics` is true, set `Diagnostics` from the `StoredRoutingOrder` it just built (`response with { Id = id, Diagnostics = ... }`). When false, leave it `null`. The stored record and the decision log are unchanged.
+- [x] `GetStoredOrderService`: inject the same options; when true, set `Diagnostics` from the stored order it read. `RoutingOrderMappingExtensions` is unchanged.
 - [x] Unit tests (fake store and reader, `Options.Create`):
-  - flag off (default): both use cases return `Diagnostics == null`;
+  - flag off (default): both services return `Diagnostics == null`;
   - flag on: POST shows the arms and reasons of the assignment and the `search_mode` of the decision;
   - flag on: GET shows the stored arms and `search_mode`;
   - flag on: the diagnostics from POST equal the diagnostics from GET for the same stored order;
   - flag on, no product known (`search_mode` null): `experiment_arms` present, `search_mode` absent;
-  - a use case that returns null (404 path) never builds diagnostics.
+  - a service that returns null (404 path) never builds diagnostics.
 
-**Verify:** build, test, format. Existing use case tests pass unchanged.
+**Verify:** build, test, format. Existing service tests pass unchanged.
 
-**Result:** Use case tests added. Deviation: the two existing use case test helpers (`RouteOrderUseCaseTests.UseCase()`, `GetStoredOrderUseCaseTests.UseCase()`) changed for the new `IOptions<RoutingOptions>` constructor parameter, and the fake policy factory now keeps the assignment it is given. No assertion changed.
+**Result:** Service tests added. Deviation: the two existing service test helpers (`RouteOrderServiceTests.Service()`, `GetStoredOrderServiceTests.Service()`) changed for the new `IOptions<RoutingOptions>` constructor parameter, and the fake policy factory now keeps the assignment it is given. No assertion changed.
 
 ---
 
 ## Phase 3: API host tests ✅ Done
 
-No new endpoint is needed: the existing handlers return the records the use cases fill. This phase proves it end to end.
+No new endpoint is needed: the existing handlers return the records the services fill. This phase proves it end to end.
 
 - [x] Extend `RouteApiFactory` (or use `WithWebHostBuilder`) to set `Routing:ExposeDiagnostics` per test class.
 - [x] Host tests (seeded database), each with its own `order_id`:
@@ -151,8 +151,8 @@ No new endpoint is needed: the existing handlers return the records the use case
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-022-diagnostics-field.md`; `Diagnostics`, `ExperimentDiagnostic` (Application/Routing/Contracts); `DiagnosticsMapper` (Application/Routing); unit and host tests |
-| Modified | `RoutingOptions.cs`; `RouteResponse.cs`; `StoredOrderResponse.cs`; `RouteOrderUseCase.cs`; `GetStoredOrderUseCase.cs`; `appsettings.json`; `RouteApiFactory.cs`; `RouteOpenApiTests.cs`; OpenAPI transformer for examples; ADR-0004 (note) |
+| New | `Plans/OR-022-diagnostics-field.md`; `Diagnostics`, `ExperimentDiagnosticResponseViewModel` (Api/ViewModels/Response); `DiagnosticsMappingExtensions` (Domain/Services); unit and host tests |
+| Modified | `RoutingOptions.cs`; `RouteResponseViewModel.cs`; `StoredOrderResponseViewModel.cs`; `RouteOrderService.cs`; `GetStoredOrderService.cs`; `appsettings.json`; `RouteApiFactory.cs`; `RouteOpenApiTests.cs`; OpenAPI transformer for examples; ADR-0004 (note) |
 | Reused | `StoredRoutingOrder` (arms JSON and `SearchMode`); `StoredRoutingOrderFactory`; `RouteApiFactory`; existing experiment host-test setup |
 | Unchanged | Domain routing rules, what is stored (no schema change, no migration), the decision log, the 400 envelope, status codes, `Docs/Data/**` |
 
@@ -160,6 +160,6 @@ No new endpoint is needed: the existing handlers return the records the use case
 
 | AC | Verified by | Phase |
 |---|---|---|
-| AC1: off by default | use case unit tests, host test (no `diagnostics` property) | 2, 3 |
-| AC2: on when enabled | mapper and use case unit tests, host tests (arms, reasons, `search_mode`) | 1, 2, 3 |
-| AC3: same on GET | use case unit test (POST equals GET), host test (flag off, then on) | 2, 3 |
+| AC1: off by default | service unit tests, host test (no `diagnostics` property) | 2, 3 |
+| AC2: on when enabled | mapper and service unit tests, host tests (arms, reasons, `search_mode`) | 1, 2, 3 |
+| AC3: same on GET | service unit test (POST equals GET), host test (flag off, then on) | 2, 3 |

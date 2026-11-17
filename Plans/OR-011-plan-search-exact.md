@@ -24,7 +24,7 @@ Out of scope: eligibility rules (OR-010), the work budget, the 8-category limit 
 
 | Topic | Choice and reason |
 |---|---|
-| Layer | **Domain only** (`src/OrderRouter.Domain/Routing/PlanSearch/`): a stateless domain service plus immutable value objects (rules: business logic in Domain, records, no I/O). No Application, Api or Infrastructure change. `LayerDependencyTests` stays green. |
+| Layer | **Domain only** (`src/OrderRouter.Domain/Models/PlanSearch/`): a stateless domain service plus immutable value objects (rules: business logic in Domain, records, no I/O). No Api or Infrastructure change. `LayerDependencyTests` stays green. |
 | Inputs | `PlanSearchRequest(IReadOnlyList<CategoryDemand> Demand, IReadOnlyList<SupplierCandidate> Candidates, decimal SimilarityBand, int MaxExtraShipments)`. `CategoryDemand(Category, int LineCount)`. `SupplierCandidate(string SupplierId, IReadOnlySet<Category> EligibleCategories, FulfillmentMode Mode, decimal EffectiveRating)`. The caller (OR-015) precomputes the effective rating through the EXP-2 policy (OR-013), so this ticket never decides what an unrated supplier is worth. `SimilarityBand` and `MaxExtraShipments` come from the policy later; OR-011 takes plain values (defaults 0.5 and 0). |
 | Fulfillment mode | FR-09 defines mode **per supplier** for an order. ADR-0003 says "mode per category". Both agree for one order, so a candidate carries one mode. Dominance compares (mask, mode). Noted for the §5 review, not a conflict. |
 | Output | `PlanSearchResult(IReadOnlyList<RoutingPlan> Plans, int MinimumShipments)`. `RoutingPlan(IReadOnlyDictionary<Category, string> Assignments, int ShipmentCount, decimal Quality, int LocalLineCount)`. Plans are in a stable order (shipment count, then supplier ids ordinal) so tests and the later tie-break are deterministic. No cover → empty plan list (fail safe: never invent a plan). |
@@ -32,18 +32,18 @@ Out of scope: eligibility rules (OR-010), the work budget, the 8-category limit 
 | Assignment inside a cover | When several chosen suppliers can take a category, give it to the higher effective rating, then to local. Remaining exact ties become separate plans (ADR-0003). A plan counts only if every chosen supplier receives at least one category; otherwise it is a smaller cover already found. |
 | Bitmask | One `uint` bit per distinct demanded category (≤ 32; the 8-category limit is OR-012). Over 32 categories throws an `ArgumentException` here as a safety net until OR-012 adds the greedy path. |
 | Bound | Branch-and-bound is an optimisation only: it must never change the result. It is verified against a brute-force oracle in tests. It is applied **within one shipment count only** (AC8, AC9). |
-| Tests | xUnit v3 in `tests/OrderRouter.Tests/Domain/Routing/PlanSearch/`, naming `MethodName_Condition_ExpectedResult` (follow nearby style, no Arrange/Act/Assert comments). Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3 in `tests/OrderRouter.Tests/Domain/Services/PlanSearch/`, naming `MethodName_Condition_ExpectedResult` (follow nearby style, no Arrange/Act/Assert comments). Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Routing/PlanSearch/
+src/OrderRouter.Domain/Models/PlanSearch/
   FulfillmentMode.cs             Local | Mail
   CategoryDemand.cs, SupplierCandidate.cs, PlanSearchRequest.cs   inputs, validated on creation
   RoutingPlan.cs, PlanSearchResult.cs                             outputs
   CandidatePreparer.cs           bit assignment + dominance pruning (keeps equal-rating twins)
   PlanSearcher.cs                exact cover by increasing size, +1 when requested, quality band per size
-tests/OrderRouter.Tests/Domain/Routing/PlanSearch/
+tests/OrderRouter.Tests/Domain/Services/PlanSearch/
   PlanSearchRequestTests.cs, CandidatePreparerTests.cs, PlanSearcherTests.cs, PlanSearcherOracleTests.cs
 ```
 
@@ -149,9 +149,9 @@ Covers AC8, AC9.
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-011-plan-search-exact.md`, `src/OrderRouter.Domain/Routing/PlanSearch/*`, `tests/OrderRouter.Tests/Domain/Routing/PlanSearch/*` |
-| Reused | `Category` (`src/OrderRouter.Domain/ReferenceData/Category.cs`, ordinal equality and hashing); `Rating` for ratings; `DomainValidationException` (`src/OrderRouter.Domain/Common/`) and the `Supplier` constructor's all-errors-at-once pattern |
-| Unchanged | Application, Api, Infrastructure, migrations, `Docs/Data/**` |
+| New | `Plans/OR-011-plan-search-exact.md`, `src/OrderRouter.Domain/Models/PlanSearch/*`, `tests/OrderRouter.Tests/Domain/Services/PlanSearch/*` |
+| Reused | `Category` (`src/OrderRouter.Domain/Entities/ReferenceData/Category.cs`, ordinal equality and hashing); `Rating` for ratings; `DomainValidationException` (`src/OrderRouter.Domain/Models/`) and the `Supplier` constructor's all-errors-at-once pattern |
+| Unchanged | Api, Infrastructure, migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

@@ -1,7 +1,7 @@
 # Plan: OR-012: Add plan-search limits and the greedy fallback
 
 **Ticket:** [Docs/Tickets/OR-012-plan-search-guard-rails.md](../Docs/Tickets/OR-012-plan-search-guard-rails.md)
-**Depends on:** OR-011 (done: `PlanSearcher`, `CandidatePreparer` in `src/OrderRouter.Domain/Routing/PlanSearch/`).
+**Depends on:** OR-011 (done: `PlanSearcher`, `CandidatePreparer` in `src/OrderRouter.Domain/Models/PlanSearch/`).
 **References:** [ADR-0003](../Docs/ADRs/ADR-0003-plan-search-algorithm.md) (Guard rails); Technical Requirements NFR-03, NFR-05, AB-04, FR-20; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
 **Feeds:** OR-015 (orchestration calls the plan-search service), OR-021 / OR-027 (record `search_mode` in the decision log and stored order), OR-022 (`diagnostics.search_mode`).
 
@@ -23,7 +23,7 @@ Out of scope: orchestration and the HTTP response (OR-015), decision log (OR-021
 | Topic | Decision |
 |---|---|
 | How ACs are verified (the route endpoint is still the OR-015 placeholder) | AC1–AC3 are verified on the plan-search service (domain and application level), as in OR-011. AC4 is verified by starting the real API host with overridden `PlanSearch:*` settings and checking that the resolved service uses them. End-to-end via `POST` waits for OR-015. |
-| Layering | **Domain:** limits value object, node budget inside `PlanSearcher`, `GreedyPlanSearcher`, `SearchMode` and fallback reason on the result (pure, no logging). **Application:** `IPlanSearchService` reads `IOptions<PlanSearchOptions>` and logs the warning (adds `Microsoft.Extensions.Options` and `Microsoft.Extensions.Logging.Abstractions` to Application). **Api:** binds the `PlanSearch` section with `ValidateOnStart`. |
+| Layering | **Domain:** limits value object, node budget inside `PlanSearcher`, `GreedyPlanSearcher`, `SearchMode` and fallback reason on the result (pure, no logging). Also in Domain (`Services/PlanSearch`, port in `Interfaces`): `IPlanSearchService` reads `IOptions<PlanSearchOptions>` and logs the warning (adds `Microsoft.Extensions.Options` and `Microsoft.Extensions.Logging.Abstractions` to Domain). **Api:** binds the `PlanSearch` section with `ValidateOnStart`. |
 | Greedy output | **One deterministic plan.** Repeatedly pick the candidate that covers the most uncovered categories; ties go to the higher effective rating, then local, then supplier id (ordinal). Categories inside the cover are assigned with the same rule as exact (higher rating, then local; a remaining exact tie goes to the lower supplier id so there is one plan). `SimilarityBand` and `MaxExtraShipments` are ignored in greedy mode. |
 | 32-category cap | **Keep it.** The catalog has 24 categories, so it can't be reached; greedy reuses the bitmask preparer. Config validation requires `1 ≤ MaxExactCategories ≤ 32` and `NodeBudget ≥ 1`. Update the XML comment on `PlanSearchRequest.MaxCategories` that says OR-012 removes it. |
 
@@ -36,31 +36,31 @@ Out of scope: orchestration and the HTTP response (OR-015), decision log (OR-021
 | Category limit check | Distinct demanded categories `k > MaxExactCategories` → greedy, without starting the exact search. `k == MaxExactCategories` stays exact (boundary test). |
 | Result shape | `PlanSearchResult` gains `SearchMode Mode` (`Exact` / `Greedy`) and `SearchFallbackReason? FallbackReason` (`TooManyCategories` / `NodeBudgetExceeded`; `null` when exact). This is an additive change; existing callers and tests keep working. `MinimumShipments` in greedy mode = the greedy plan's shipment count (documented as "not guaranteed minimum"). |
 | No cover | Greedy also returns an empty plan list when the candidates can't cover every category (fail safe). Mode is still reported. |
-| Warning log | Application `PlanSearchService` logs one `Warning` via `[LoggerMessage]` (same pattern as `DependencyStartupCheck`, `DevApiKeyIgnoredNotice`), with reason, category count, `MaxExactCategories` and `NodeBudget`. No PII: no ZIP, order id or caller. Exact runs log nothing at warning level. |
-| Config validation | `PlanSearchOptions` (Application, `SectionName = "PlanSearch"`) with defaults 8 / 200,000. An `IValidateOptions<PlanSearchOptions>` reuses the domain `PlanSearchLimits` rules, so bad values stop the API at startup (fail fast, like `JwtAuthenticationOptions`). |
+| Warning log | Domain `PlanSearchService` logs one `Warning` via `[LoggerMessage]` (same pattern as `DependencyStartupCheck`, `DevApiKeyIgnoredNotice`), with reason, category count, `MaxExactCategories` and `NodeBudget`. No PII: no ZIP, order id or caller. Exact runs log nothing at warning level. |
+| Config validation | `PlanSearchOptions` (Domain, `SectionName = "PlanSearch"`) with defaults 8 / 200,000. An `IValidateOptions<PlanSearchOptions>` reuses the domain `PlanSearchLimits` rules, so bad values stop the API at startup (fail fast, like `JwtAuthenticationOptions`). |
 | Defaults in `appsettings.json` | Add the `PlanSearch` section with the defaults so it is visible and overridable by environment (`PlanSearch__NodeBudget`). |
-| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.Tests/Domain/Routing/PlanSearch/PlanSearchTestData.cs`). Integration tests reuse `AuthApiFactory` / `RouteApiFactory`. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
+| Tests | xUnit v3; `MethodName_Condition_ExpectedResult`; follow nearby style; no Arrange/Act/Assert comments. Reuse `PlanSearchTestData` (`tests/OrderRouter.Tests/TestData/PlanSearchTestData.cs`). Integration tests reuse `AuthApiFactory` / `RouteApiFactory`. Target ≥ 85% coverage of new code (measure it, or say it was not measured). |
 
 ### Target structure
 
 ```
-src/OrderRouter.Domain/Routing/PlanSearch/
+src/OrderRouter.Domain/Models/PlanSearch/
   SearchMode.cs                 Exact | Greedy
   SearchFallbackReason.cs       TooManyCategories | NodeBudgetExceeded
   PlanSearchLimits.cs           MaxExactCategories, NodeBudget; validated; Default (8, 200,000)
   GreedyPlanSearcher.cs         greedy set cover, one deterministic plan
   PlanSearcher.cs               (modified) Search(request, limits): category check, node budget, greedy fallback
   PlanSearchResult.cs           (modified) + Mode, FallbackReason
-src/OrderRouter.Application/Routing/PlanSearch/
+src/OrderRouter.Domain/Services/PlanSearch/
   PlanSearchOptions.cs, PlanSearchOptionsValidator.cs
   IPlanSearchService.cs, PlanSearchService.cs   reads options, calls PlanSearcher, logs the warning
-src/OrderRouter.Api/Program.cs  bind PlanSearch section, ValidateOnStart, register IPlanSearchService
+src/OrderRouter.Api/Startup.cs  bind PlanSearch section, ValidateOnStart, register IPlanSearchService
 src/OrderRouter.Api/appsettings.json   PlanSearch defaults
-tests/OrderRouter.Tests/Domain/Routing/PlanSearch/
+tests/OrderRouter.Tests/Domain/Services/PlanSearch/
   PlanSearchLimitsTests.cs, GreedyPlanSearcherTests.cs, PlanSearcherGuardRailTests.cs
-tests/OrderRouter.Tests/Application/Routing/PlanSearch/
+tests/OrderRouter.Tests/Domain/Services/PlanSearch/
   PlanSearchOptionsValidatorTests.cs, PlanSearchServiceTests.cs
-tests/OrderRouter.Api.IntegrationTests/Routing/PlanSearchConfigurationTests.cs
+tests/OrderRouter.Api.IntegrationTests/Controllers/V1/PlanSearchConfigurationTests.cs
 ```
 
 ## Working rules (apply to every phase)
@@ -79,7 +79,7 @@ tests/OrderRouter.Api.IntegrationTests/Routing/PlanSearchConfigurationTests.cs
 5. **Stop and ask if something is ambiguous or conflicts.** If an instruction, rule, ticket text, ADR or behaviour is unclear or contradicts another, stop and ask. Known risks:
    - the node budget changes an exact result for any existing OR-011 test (it must not at the default budget);
    - greedy produces more shipments than exact on a case where both run (expected and allowed by ADR-0003, but note it in the test, don't "fix" it);
-   - adding packages to Application trips `LayerDependencyTests` or another architecture test.
+   - adding packages to Domain trips `LayerDependencyTests` or another architecture test.
 6. **No commits unless the engineer asks.** If asked, branch off `main` first (for example `feature/OR-012-plan-search-guard-rails`).
 
 ---
@@ -97,7 +97,7 @@ tests/OrderRouter.Api.IntegrationTests/Routing/PlanSearchConfigurationTests.cs
 
 ## Phase 1: Domain types for limits and search mode ✅ Done
 
-- [x] `ddd-implementation` §1 and §2: state concepts (search mode, guard rail, node budget, greedy fallback), invariants, affected layers (Domain, Application, Api), and that there are no aggregates or domain events (pure computation).
+- [x] `ddd-implementation` §1 and §2: state concepts (search mode, guard rail, node budget, greedy fallback), invariants, affected layers (Domain, Api), and that there are no aggregates or domain events (pure computation).
 - [x] `SearchMode` and `SearchFallbackReason` enums.
 - [x] `PlanSearchLimits` record: `MaxExactCategories` (1–32, i.e. ≤ `PlanSearchRequest.MaxCategories`), `NodeBudget` (≥ 1); all errors in one `DomainValidationException` (same pattern as `PlanSearchRequest`); `static Default` = (8, 200,000).
 - [x] `PlanSearchResult` gains `Mode` and `FallbackReason`; the current exact path returns `Exact` / `null`.
@@ -146,17 +146,17 @@ Covers AC1, AC2, AC3 at domain level.
 
 Covers the "warning is logged" part of AC1/AC2, and AC4.
 
-- [x] Application: add `Microsoft.Extensions.Options` and `Microsoft.Extensions.Logging.Abstractions` (10.0.x, matching the other Microsoft.Extensions packages), each with a purpose comment.
+- [x] Domain: add `Microsoft.Extensions.Options` and `Microsoft.Extensions.Logging.Abstractions` (10.0.x, matching the other Microsoft.Extensions packages), each with a purpose comment.
 - [x] `PlanSearchOptions` (`SectionName = "PlanSearch"`, defaults 8 / 200,000, `ToLimits()`), `PlanSearchOptionsValidator : IValidateOptions<PlanSearchOptions>` (reuses `PlanSearchLimits` rules, reports every failure).
 - [x] `IPlanSearchService` / `PlanSearchService(IOptions<PlanSearchOptions>, ILogger<PlanSearchService>)`: calls `PlanSearcher`, logs one `[LoggerMessage]` warning when mode is `Greedy` (reason, category count, limits; no PII).
-- [x] Api `Program.cs`: `AddOptions<PlanSearchOptions>().Bind(...).ValidateOnStart()`, register the validator and `IPlanSearchService` as singletons. `appsettings.json`: `"PlanSearch": { "MaxExactCategories": 8, "NodeBudget": 200000 }`.
-- [x] Unit tests: validator (valid, each invalid field, all errors at once); service logs a warning for AC1 and AC2 cases and nothing at warning level for AC3 (use a capturing logger like `tests/OrderRouter.Api.IntegrationTests/Persistence/CapturingLogger.cs`, or `FakeLogger` if already referenced; otherwise a small test fake); service uses the options it was given.
+- [x] Api `Startup.cs`: `AddOptions<PlanSearchOptions>().Bind(...).ValidateOnStart()`, register the validator and `IPlanSearchService` as singletons. `appsettings.json`: `"PlanSearch": { "MaxExactCategories": 8, "NodeBudget": 200000 }`.
+- [x] Unit tests: validator (valid, each invalid field, all errors at once); service logs a warning for AC1 and AC2 cases and nothing at warning level for AC3 (use a capturing logger like `tests/OrderRouter.Api.IntegrationTests/Infrastructure/CapturingLogger.cs`, or `FakeLogger` if already referenced; otherwise a small test fake); service uses the options it was given.
 - [x] Integration test `PlanSearchConfigurationTests` (AC4): host with `PlanSearch:MaxExactCategories = 2` and `PlanSearch:NodeBudget = 5` overrides → resolved `IOptions<PlanSearchOptions>` has those values and the resolved `IPlanSearchService` falls back on a 3-category order; host with no override → defaults; invalid value (`NodeBudget = 0`) → host fails to start.
 - [x] `LayerDependencyTests` and other architecture tests still green.
 
 **Verify:** build, test (integration included, PostgreSQL up), format.
 
-**Result: Application options, validator, service; Api wiring and `appsettings.json`; Application packages at 10.0.15. Full suite 937 tests green (integration included). Architecture tests unaffected.**
+**Result: Domain options, validator, service; Api wiring and `appsettings.json`; Domain packages at 10.0.15. Full suite 937 tests green (integration included). Architecture tests unaffected.**
 
 ---
 
@@ -174,10 +174,10 @@ Covers the "warning is logged" part of AC1/AC2, and AC4.
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-012-plan-search-guard-rails.md`; Domain and Application files listed in *Target structure*; their tests |
-| Modified | `src/OrderRouter.Domain/Routing/PlanSearch/PlanSearcher.cs`, `PlanSearchResult.cs`, `PlanSearchRequest.cs` (comment only); `src/OrderRouter.Application/OrderRouter.Application.csproj`; `src/OrderRouter.Api/Program.cs`; `src/OrderRouter.Api/appsettings.json` |
-| Reused | `CandidatePreparer`, `PreparedSearch` (bitmasks, dominance pruning); `DomainValidationException` and the all-errors-at-once pattern from `PlanSearchRequest`; `[LoggerMessage]` pattern from `src/OrderRouter.Api/Health/DependencyStartupCheck.cs`; `PlanSearchTestData`; `AuthApiFactory` / `RouteApiFactory` for host tests |
-| Unchanged | Infrastructure, migrations, route endpoint and `RoutingNotAvailableUseCase` (OR-015), `Docs/Data/**` |
+| New | `Plans/OR-012-plan-search-guard-rails.md`; Domain files listed in *Target structure*; their tests |
+| Modified | `src/OrderRouter.Domain/Services/PlanSearch/PlanSearcher.cs`, `PlanSearchResult.cs`, `PlanSearchRequest.cs` (comment only); `src/OrderRouter.Domain/Sections/PlanSearchOptions.cs`; `src/OrderRouter.Api/Startup.cs`; `src/OrderRouter.Api/appsettings.json` |
+| Reused | `CandidatePreparer`, `PreparedSearch` (bitmasks, dominance pruning); `DomainValidationException` and the all-errors-at-once pattern from `PlanSearchRequest`; `[LoggerMessage]` pattern from `src/OrderRouter.Infrastructure/HostedServices/DependencyStartupCheck.cs`; `PlanSearchTestData`; `AuthApiFactory` / `RouteApiFactory` for host tests |
+| Unchanged | Infrastructure, migrations, route endpoint and the routing placeholder (OR-015), `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 
@@ -192,7 +192,7 @@ Covers the "warning is logged" part of AC1/AC2, and AC4.
 
 ## Phase 5 review notes
 
-**Applies and is met:** stateless domain services (`PlanSearcher`, `GreedyPlanSearcher`); immutable, validated value object (`PlanSearchLimits`); rules kept apart from configuration (options/validator in Application read the domain rules); fail safe in both modes (no cover gives no plans; invalid limits stop startup); one place for limit validation.
+**Applies and is met:** stateless domain services (`PlanSearcher`, `GreedyPlanSearcher`); immutable, validated value object (`PlanSearchLimits`); rules kept apart from configuration (options/validator in Domain read the domain rules); fail safe in both modes (no cover gives no plans; invalid limits stop startup); one place for limit validation.
 
 **N/A:** aggregates, domain events, money, persistence (pure computation).
 

@@ -1,7 +1,7 @@
 # Plan: OR-027: Store each routing decision and return its id
 
 **Ticket:** [Docs/Tickets/OR-027-store-routing-decision.md](../Docs/Tickets/OR-027-store-routing-decision.md)
-**Depends on:** OR-015 (done: `RouteOrderUseCase`, `RouteResponseMapper`, `RoutingDecision`), OR-026 (tables; plan in `Plans/OR-026-routing-order-tables.md`, **must be done first**).
+**Depends on:** OR-015 (done: `RouteOrderService`, `RoutingOrderMappingExtensions`, `RoutingDecision`), OR-026 (tables; plan in `Plans/OR-026-routing-order-tables.md`, **must be done first**).
 **References:** [ADR-0007](../Docs/ADRs/ADR-0007-routing-decision-persistence.md); [ADR-0004](../Docs/ADRs/ADR-0004-response-contract-evolution.md); [ADR-0005](../Docs/ADRs/ADR-0005-experiment-assignment.md) (caller hash); Technical Requirements FR-02, FR-20, §9.2, §9.4, SC-28, SC-29, SC-30, NFR-11; `CLAUDE.md` (REST API conventions); `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`
 **Feeds:** OR-021 (logs after the save, with `id` and `caller_hash`), OR-028 (reads by `id` and `caller_hash`), OR-022, OR-023, OR-025.
 
@@ -12,9 +12,9 @@
 Today `POST /api/v1/route` routes and returns 200 with nothing stored. This ticket stores every valid outcome (routed, partially routed, not routed) in one transaction with a new UUIDv7 `id`, then returns **201 Created** with `id`, `order_id` and `Location: /api/v1/route/{id}`. A retry creates a new record. The caller is stored only as an HMAC-SHA256 hash from a new `ICallerHasher`. If saving fails the response is 500 with no `id`.
 
 Existing seams to build on:
-- `RouteOrderUseCase.RouteAsync` already holds the command, the `RoutingDecision` and the mapper call. The save goes between routing and the response.
-- `RouteResponse.Id` already exists and is omitted when null (comment: "Omitted until OR-027").
-- `RouteEndpoints.HandleAsync` returns `Ok` with a comment "200 until OR-027 switches this to 201".
+- `RouteOrderService.RouteAsync` already holds the command, the `RoutingDecision` and the mapper call. The save goes between routing and the response.
+- `RouteResponseViewModel.Id` already exists and is omitted when null (comment: "Omitted until OR-027").
+- `RouteController.RouteOrder` returns `Ok` with a comment "200 until OR-027 switches this to 201".
 - `CallerIdentity.Resolve(user)` gives the raw caller ID (nullable); it is never logged (NFR-11).
 - OR-026 provides the row types and tables.
 
@@ -27,17 +27,17 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
 
 | Topic | Choice and reason |
 |---|---|
-| Port | `IRoutingOrderStore` (Application, async): `Task SaveAsync(StoredRoutingOrder order, CancellationToken)`. The Infrastructure EF implementation inserts order, items and warnings with one `SaveChangesAsync` (a single transaction), so a failure leaves no partial rows (AC7). |
-| What is stored | `StoredRoutingOrder` (Application record): `Id`, `OrderId`, `CallerHash?`, `CustomerZip`, `MailOrder`, the decision (status, routed lines, unfulfilled lines), the response `warnings`, experiment arms and reasons, `ConfigVersion`, `SearchMode?`, `CreatedAt`, and the **requested lines in request order**. Built from the command, `RoutingDecision` and the mapped response so the stored data equals what is returned. |
+| Port | `IRoutingOrderStore` (Domain, async): `Task SaveAsync(StoredRoutingOrder order, CancellationToken)`. The Infrastructure EF implementation inserts order, items and warnings with one `SaveChangesAsync` (a single transaction), so a failure leaves no partial rows (AC7). |
+| What is stored | `StoredRoutingOrder` (Domain record): `Id`, `OrderId`, `CallerHash?`, `CustomerZip`, `MailOrder`, the decision (status, routed lines, unfulfilled lines), the response `warnings`, experiment arms and reasons, `ConfigVersion`, `SearchMode?`, `CreatedAt`, and the **requested lines in request order**. Built from the command, `RoutingDecision` and the mapped response so the stored data equals what is returned. |
 | Item rows | One per requested line, 1-based `line_number`. Routed line: `supplier_id`, snapshot `supplier_name`, `fulfillment_mode`, `category`. Unfulfilled line: `reason_code`, `message` (same text the mapper uses). A line held back by all-or-nothing has neither, and `status` explains it. Routed and unfulfilled lines are both in request order, so matching them to requested lines is a single ordered walk, which also handles duplicate product codes (DEV-10). |
-| `id` and `created_at` | `Guid.CreateVersion7()` and `TimeProvider.GetUtcNow()` in the use case (`TimeProvider` is injected so tests can fix the time). |
-| `ICallerHasher` | Application port `string Hash(string callerId)`; Infrastructure `HmacCallerHasher` (HMAC-SHA256, secret from `CallerHashing:Secret`, lowercase hex). Deterministic, so OR-021 and OR-028 reuse it. Library use (`System.Security.Cryptography.HMACSHA256`) commented. |
+| `id` and `created_at` | `Guid.CreateVersion7()` and `TimeProvider.GetUtcNow()` in the service (`TimeProvider` is injected so tests can fix the time). |
+| `ICallerHasher` | Domain port `string Hash(string callerId)`; Infrastructure `HmacCallerHasher` (HMAC-SHA256, secret from `CallerHashing:Secret`, lowercase hex). Deterministic, so OR-021 and OR-028 reuse it. Library use (`System.Security.Cryptography.HMACSHA256`) commented. |
 | Secret handling | `CallerHashingOptions` bound from `CallerHashing`, validated with `ValidateOnStart`: missing or blank secret stops the host (AC10). `.env.example` gets a dev-only placeholder (`CALLER_HASHING_SECRET`) beside `DEV_API_KEY`; `docker-compose.yml` passes it as `CallerHashing__Secret`; README/docs note user-secrets for local runs. No real secret is committed. Test hosts (`ApiFactory`, `AuthApiFactory`, `RouteApiFactory`) supply a test secret. |
-| Response | `RouteResponse.Id` filled from the stored `id`. Endpoint returns `TypedResults.Created($"/api/v1/route/{id}", response)` for both v1 and the alias (AC5): `Location` always points to the v1 path. |
-| Failure | A store exception is not caught in the use case. The existing global handler returns a 500 ProblemDetails without internals; no `id` is in the body (AC7). A 400 or 401 never reaches the use case, so nothing is stored (AC6). |
+| Response | `RouteResponseViewModel.Id` filled from the stored `id`. The action returns `Created(location, response)` (location built with `Url.RouteUrl` for the v1 GET route) for both v1 and the alias (AC5): `Location` always points to the v1 path. |
+| Failure | A store exception is not caught in the service. The existing global handler returns a 500 ProblemDetails without internals; no `id` is in the body (AC7). A 400 or 401 never reaches the service, so nothing is stored (AC6). |
 | OpenAPI (AC9) | Document 201 with `Location`, 400, 401 and 500 on both paths; examples for routed, partially routed and not routed in `RouteOpenApiTransformer`. |
 | Existing tests | OR-015 and OR-019 assertions of 200 become 201 (ticket says so). Find them with a search for `HttpStatusCode.OK` in `tests/OrderRouter.Api.IntegrationTests/Routing`. |
-| Layering | Ports in Application; EF store and hasher in Infrastructure; endpoint change in Api. `LayerDependencyTests` stay green. Scoped store (same lifetime as the DbContext); hasher is a singleton. |
+| Layering | Ports in Domain; EF store and hasher in Infrastructure; endpoint change in Api. `LayerDependencyTests` stay green. Scoped store (same lifetime as the DbContext); hasher is a singleton. |
 
 ## Working rules (apply to every phase)
 
@@ -89,7 +89,7 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
 
 **Verify:** build, test, format.
 
-**Result:** 1270 tests pass. Added `ICallerHasher` (Application), `HmacCallerHasher`, `CallerHashingOptions` and its validator (Infrastructure, `CallerHashing/`), registered with `ValidateOnStart`. `.env.example` has the dev-only `CALLER_HASHING_SECRET`; `docker-compose.yml` passes it as `CallerHashing__Secret` with no default. Existing tests changed: `ApiFactory`, `AuthApiFactory`, `AuthenticationTests` and `ApiHostTests` now set a test secret (`TestCallerHashing.Secret`) because the host refuses to start without one. New: `CallerHashingTests` (unit, known-answer HMAC from Python) and `CallerHashingHostTests` (blank secret fails startup, no secret in appsettings, placeholder only in `.env.example`). Note: local `dotnet run` now needs user-secrets or the env var; the running docker api container needs `.env` to include `CALLER_HASHING_SECRET`.
+**Result:** 1270 tests pass. Added `ICallerHasher` (Domain), `HmacCallerHasher`, `CallerHashingOptions` and its validator (Infrastructure, `CallerHashing/`), registered with `ValidateOnStart`. `.env.example` has the dev-only `CALLER_HASHING_SECRET`; `docker-compose.yml` passes it as `CallerHashing__Secret` with no default. Existing tests changed: `ApiFactory`, `AuthApiFactory`, `AuthenticationTests` and `ApiHostTests` now set a test secret (`TestCallerHashing.Secret`) because the host refuses to start without one. New: `CallerHashingTests` (unit, known-answer HMAC from Python) and `CallerHashingHostTests` (blank secret fails startup, no secret in appsettings, placeholder only in `.env.example`). Note: local `dotnet run` now needs user-secrets or the env var; the running docker api container needs `.env` to include `CALLER_HASHING_SECRET`.
 
 ---
 
@@ -108,14 +108,14 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
 
 **Verify:** build, test, format.
 
-**Result:** 1285 tests pass. Added `IRoutingOrderStore`, `StoredRoutingOrder`/`StoredOrderItem` and `StoredRoutingOrderFactory` (Application, `Routing/Storage`) and `EfRoutingOrderStore` (Infrastructure, one `SaveChangesAsync` = one transaction; registered scoped). Items are matched to requested lines with one ordered walk (duplicates and held-back lines covered); the unfulfilled message comes from the mapped response so stored text equals returned text. Tests: `StoredRoutingOrderFactoryTests` (unit) and `RoutingOrderStoreTests` (migrated throwaway database, including rollback of a bad second row). No existing test changed.
+**Result:** 1285 tests pass. Added `IRoutingOrderStore`, `StoredRoutingOrder`/`StoredOrderItem` and `StoredRoutingOrderFactory` (Domain, `Routing/Storage`) and `RoutingOrderStore` (Infrastructure, one `SaveChangesAsync` = one transaction; registered scoped). Items are matched to requested lines with one ordered walk (duplicates and held-back lines covered); the unfulfilled message comes from the mapped response so stored text equals returned text. Tests: `StoredRoutingOrderFactoryTests` (unit) and `RoutingOrderStoreTests` (migrated throwaway database, including rollback of a bad second row). No existing test changed.
 
 ---
 
-## Phase 3: Use case, 201 and Location ✅ Done
+## Phase 3: Service, 201 and Location ✅ Done
 
-- [x] `RouteOrderUseCase`: generate `id` and `created_at`, hash the caller, save, then return the response with `Id`. Inject `TimeProvider`.
-- [x] `RouteEndpoints`: return 201 with `Location`; same handler for v1 and the alias.
+- [x] `RouteOrderService`: generate `id` and `created_at`, hash the caller, save, then return the response with `Id`. Inject `TimeProvider`.
+- [x] `RouteController`: return 201 with `Location`; same handler for v1 and the alias.
 - [x] Change the OR-015 and OR-019 200 assertions to 201 (list each in the Result).
 - [x] Integration tests through the real host:
   - AC1/AC2/AC3: 201, UUID `id`, `order_id`, `Location: /api/v1/route/{id}`, rows in the database;
@@ -124,18 +124,18 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
   - AC6: 400 and 401 store nothing;
   - AC7: a simulated insert failure → 500 ProblemDetails, no `id`, no rows;
   - AC8: caller `user-123` appears nowhere in the order tables.
-- [x] Use-case unit tests with a fake store and fixed `TimeProvider`: store is called once, after routing, with the response's `id`.
+- [x] Service unit tests with a fake store and fixed `TimeProvider`: store is called once, after routing, with the response's `id`.
 
 **Verify:** build, test, format.
 
-**Result:** 1300 tests pass (two runs). `RouteOrderUseCase` now takes `ICallerHasher`, `IRoutingOrderStore` and `TimeProvider` (registered with `TryAddSingleton`), saves before answering and returns the response with the stored `Id`. `RouteEndpoints` returns `Created` with `Location: /api/v1/route/{id}` on both paths and throws (500) if the use case returned no id. Existing tests changed: 200 → 201 in `PartialRoutingApiTests`, `RouteOrderEndToEndTests` (and its `id` assertion), `RouteValidationTests` (one test renamed Returns201), `ExperimentAssignmentHostTests`, `RouteAliasTests` (produced codes 201/400/500), `RouteOpenApiTests` (key 201); `RecordingRouteUseCase` now returns a fixed stored id; `RouteOrderUseCaseTests` got the three new dependencies. New: use-case unit tests (stores once with the returned id, save failure throws, retry gives new id, hash only, null caller) and `RouteStorageApiTests` (AC1–AC8 through the real host and the seeded database, including a real database rejection for AC7).
+**Result:** 1300 tests pass (two runs). `RouteOrderService` now takes `ICallerHasher`, `IRoutingOrderStore` and `TimeProvider` (registered with `TryAddSingleton`), saves before answering and returns the response with the stored `Id`. `RouteController` returns `Created` with `Location: /api/v1/route/{id}` on both paths and throws (500) if the service returned no id. Existing tests changed: 200 → 201 in `PartialRoutingApiTests`, `RouteOrderEndToEndTests` (and its `id` assertion), `RouteValidationTests` (one test renamed Returns201), `ExperimentAssignmentHostTests`, `RouteAliasTests` (produced codes 201/400/500), `RouteOpenApiTests` (key 201); `RecordingRouteUseCase` now returns a fixed stored id; `RouteOrderServiceTests` got the three new dependencies. New: service unit tests (stores once with the returned id, save failure throws, retry gives new id, hash only, null caller) and `RouteStorageApiTests` (AC1–AC8 through the real host and the seeded database, including a real database rejection for AC7).
 
 ---
 
 ## Phase 4: OpenAPI, docs and post-implementation review ✅ Done
 
 - [x] AC9: `v1` OpenAPI documents 201 with `Location`, 400, 401 and 500 for `POST /api/v1/route` and its alias, with routed, partially routed and not-routed examples; test in `RouteOpenApiTests`.
-- [x] Update `RouteResponse.Id` and endpoint comments; the `.http` file shows the 201.
+- [x] Update `RouteResponseViewModel.Id` and endpoint comments; the `.http` file shows the 201.
 - [x] ADR-0007 short note (OR-027): nullable `caller_hash`, one transaction, secret handling. ADR-0004 if the 201 detail fits.
 - [x] Run the `ddd-implementation` §5 review and report honestly. Expected met: transaction boundary, no raw caller, save before respond, fail safe on no caller. N/A with reasons: aggregates, money, domain events. Not verified: `GET` (OR-028), decision log (OR-021), p95 latency with the insert (NFR-03, load test), coverage % if not measured.
 - [x] Record follow-ups (don't do them here): OR-028, OR-021, OQ-27 retention, OQ-28 duplicates.
@@ -146,7 +146,7 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
 **Result:** 1302 tests pass; build clean; format clean except the known `Program.cs` import issue. OpenAPI: both paths document 201 (with a `Location` header and routed, partially routed and not routed examples, all with an `id`), 400, 401 and 500; new `RouteOpenApiTests` theory covers both paths. `.http` comment updated. README has the secret setup note. ADR-0007 note added (ADR-0004 already described 201, so no change).
 
 **§5 review (`ddd-implementation`):**
-- **Met:** ports in Application and adapters in Infrastructure (DIP); the use case holds no routing rule; one transaction and save-before-respond; no raw caller ID stored (hash only, null for no caller, fail safe); POST stays non-idempotent (new id every time, no de-duplication); the endpoint cannot send a `Location` without an id; secret required at startup and never committed.
+- **Met:** ports in Domain and adapters in Infrastructure (DIP); the service holds no routing rule; one transaction and save-before-respond; no raw caller ID stored (hash only, null for no caller, fail safe); POST stays non-idempotent (new id every time, no de-duplication); the endpoint cannot send a `Location` without an id; secret required at startup and never committed.
 - **N/A, with reasons:** aggregates and domain events (the stored order is a persistence record of an already-made decision, not a new domain concept); money; authorization of reads (OR-028).
 - **Not verified:** p95 < 50 ms with the extra insert (NFR-03, needs the load test); `GET` read-back (OR-028); coverage % (not measured); the running Docker stack was not restarted, so its `.env` needs `CALLER_HASHING_SECRET` before `docker compose up`.
 - **Follow-ups (not done here):** OR-028 (GET), OR-021 (decision log after the save), OQ-27 retention, OQ-28 duplicates.
@@ -157,9 +157,9 @@ Out of scope: `GET` (OR-028), the decision log (OR-021), `diagnostics` (OR-022),
 
 | Action | Path |
 |---|---|
-| New | `Plans/OR-027-store-routing-decision.md`; `ICallerHasher`, `IRoutingOrderStore`, `StoredRoutingOrder` (Application); `HmacCallerHasher`, `CallerHashingOptions`, `RoutingOrderStore` (Infrastructure); unit and integration tests |
-| Modified | `RouteOrderUseCase.cs`; `RouteEndpoints.cs`; `RouteOpenApiTransformer.cs`; `Program.cs` (DI, options); `.env.example`; `docker-compose.yml`; test host factories; OR-015/OR-019 tests (200 → 201); ADR-0007 (note) |
-| Reused | OR-026 rows and `DbSet`s; `RoutingDecision`; `RouteResponseMapper`; `CallerIdentity.Resolve`; `ThrowawayDatabase`; `RouteApiFactory` |
+| New | `Plans/OR-027-store-routing-decision.md`; `ICallerHasher`, `IRoutingOrderStore`, `StoredRoutingOrder` (Domain); `HmacCallerHasher`, `CallerHashingOptions`, `RoutingOrderStore` (Infrastructure); unit and integration tests |
+| Modified | `RouteOrderService.cs`; `Controllers/V1/RouteController.cs`; `RouteOpenApiTransformer.cs`; `Startup.cs` (DI, options); `.env.example`; `docker-compose.yml`; test host factories; OR-015/OR-019 tests (200 → 201); ADR-0007 (note) |
+| Reused | OR-026 rows and `DbSet`s; `RoutingDecision`; `RoutingOrderMappingExtensions`; `CallerIdentity.Resolve`; `ThrowawayDatabase`; `RouteApiFactory` |
 | Unchanged | Domain routing rules, reference-data tables, seeder, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)

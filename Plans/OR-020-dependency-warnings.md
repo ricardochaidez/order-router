@@ -47,9 +47,9 @@ File: `Docs/BusinessRequirements/Order-Router-Technical-Requirements.md`
 
 ## Phase 2 — ADRs and code comments ⬜ Not started
 - [x] ADR-0001 and ADR-0004 mentions removed (done early at the engineer's request); the remaining ADR-0004 note that `warnings` is reserved and always empty is still open.
-- [ ] Comment-only edits: `src/OrderRouter.Application/Routing/Contracts/RouteResponse.cs:52` and `RoutingWarning.cs:3` (stop citing FR-18; say reserved, always empty). No signature or behaviour change.
+- [ ] Comment-only edits: `src/OrderRouter.Api/ViewModels/Response/RouteResponseViewModel.cs:52` and `RoutingWarningResponseViewModel.cs:3` (stop citing FR-18; say reserved, always empty). No signature or behaviour change.
 
-**Verify:** build, tests (incl. `RouteResponseTests`, `RouteResponseMapperTests`, OpenAPI tests) and format pass.
+**Verify:** build, tests (incl. `RouteResponseTests`, `RoutingOrderMappingExtensionsRouteTests`, OpenAPI tests) and format pass.
 
 ## Phase 3 — Remove the ticket and links ⬜ Not started
 - [ ] Delete `Docs/Tickets/OR-020-dependency-warnings.md` (`git rm`).

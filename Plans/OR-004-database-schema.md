@@ -10,7 +10,7 @@
 OR-002 added the strict, read-only reference-data domain (`Supplier`, `Product`, `Category`, `ZipCode`, `ZipRange`, `ServiceArea`, `Rating`). OR-003 produced the committed normalized seed files. OR-004 creates the place the data will live:
 
 - a PostgreSQL service in `docker-compose`;
-- one EF Core 10 (Npgsql) `OrderRouterDbContext` in Infrastructure, for reference data now and stored orders later (ADR-0007);
+- one EF Core 10 (Npgsql) `OrderRouterDataContext` in Infrastructure, for reference data now and stored orders later (ADR-0007);
 - four tables, `suppliers`, `supplier_categories`, `supplier_service_areas`, `products`, plus the ADR-0002 indexes;
 - the initial migration.
 
@@ -22,13 +22,13 @@ Out of scope (other tickets): seeding and applying migrations from the test fixt
 |---|---|
 | `suppliers.rating` type | **`numeric(4,2)`**, not the ADR's `numeric(3,1)`. OR-002's `Rating` rounds to 2 decimal places and states "the database never rounds again"; `numeric(3,1)` would silently round `6.75` to `6.8`. `numeric(4,2)` holds `1.00`–`10.00` exactly. ADR-0002's diagram is corrected as a doc follow-up (Phase 5). |
 | How AC1/AC2 are tested | **Throwaway database on the compose PostgreSQL.** Each schema test creates a uniquely named database (e.g. `or_schema_test_<guid-n>`) on the compose server, applies the migrations, inspects the PostgreSQL catalog, then drops it. No new test dependencies. `dotnet test` therefore needs `docker compose up -d` first, which ADR-0002 already accepts. The shared `orderrouter` database is never touched by these tests. |
-| API wiring | **Extension only, no wiring.** Infrastructure gets an `AddOrderRouterDatabase(...)` DI extension and a design-time factory for `dotnet ef`. `Program.cs` is **not** changed; OR-006/OR-007 call the extension when they need it. |
+| API wiring | **Extension only, no wiring.** Infrastructure gets an `AddOrderRouterDatabase(...)` DI extension and a design-time factory for `dotnet ef`. `Startup.cs` is **not** changed; OR-006/OR-007 call the extension when they need it. |
 
 ### Other design choices (from the ADR, rules and data; no question needed)
 
 | Topic | Choice and reason |
 |---|---|
-| Persistence model | **Separate persistence row types** in Infrastructure (`SupplierRow`, `SupplierCategoryRow`, `SupplierServiceAreaRow`, `ProductRow`), not EF mappings of the domain classes. The domain types validate in their constructors and hold value objects/`HashSet`s; ADR-0002 says repositories project into domain objects with `AsNoTracking`. This keeps the Domain free of EF and its invariants untouched. |
+| Persistence model | **Separate persistence row types** in Infrastructure (`SupplierEntity`, `SupplierCategoryEntity`, `SupplierServiceAreaEntity`, `ProductEntity`), not EF mappings of the domain classes. The domain types validate in their constructors and hold value objects/`HashSet`s; ADR-0002 says repositories project into domain objects with `AsNoTracking`. This keeps the Domain free of EF and its invariants untouched. |
 | Physical schema | Exactly ADR-0002, with the rating change above. **suppliers:** `supplier_id text PK`, `name text NOT NULL`, `rating numeric(4,2) NULL` (NULL = unrated, DQ-06), `can_mail_order boolean NOT NULL`, `seeded_at timestamptz NOT NULL` (set by the OR-005 seeder). **supplier_categories:** PK `(supplier_id, category)`, FK → suppliers. **supplier_service_areas:** PK `(supplier_id, start_zip)`, `start_zip int NOT NULL`, `end_zip int NOT NULL`, FK → suppliers. **products:** `product_code text PK`, `name text NOT NULL`, `category text NOT NULL` (joins `supplier_categories.category` by value; no FK, per ADR). |
 | No mail-only column (AC3, SC-09) | Not stored. `Supplier.IsMailOnly(nationwideRange)` derives it at read time from the configurable `NationwideZipRange` (FR-09). Guarded by a model test and a catalog test. |
 | Indexes | `ix_supplier_categories_category_supplier_id` on `(category, supplier_id)`; `ix_supplier_service_areas_start_zip_end_zip` on `(start_zip, end_zip)`. B-tree (ADR: ~5,500 segments; `int4range` + GiST is the upgrade path, not done now). The FK lookups by `supplier_id` are served by the leading column of each PK, so no extra FK index. |
@@ -37,7 +37,7 @@ Out of scope (other tickets): seeding and applying migrations from the test fixt
 | Delete behaviour | FKs from both child tables use `ON DELETE CASCADE`: categories and service areas are part of the supplier aggregate. Suppliers are never deleted today (OQ-24), so this only matters later. |
 | PK risk to note (not a blocker) | The domain allows overlapping ranges, so one supplier could in theory have two ranges with the same `start_zip`, which would collide on PK `(supplier_id, start_zip)`. The committed seed data has **0** such collisions (checked). The ADR's PK stays; this is recorded for OR-005, which would fail fast on it. |
 | Product code case | PK on `product_code` is case-sensitive. OR-003 already de-duplicates case-insensitively, and case-insensitive lookup is OR-006's job (FR-05). No functional index now. |
-| Migrations | EF Core migrations in `src/OrderRouter.Infrastructure/Persistence/Migrations`. One initial migration, `InitialReferenceDataSchema`. AC2 (repeatable) relies on EF's `__EFMigrationsHistory`. `dotnet-ef` is added as a **local tool** (`.config/dotnet-tools.json`) so every machine uses the same version. |
+| Migrations | EF Core migrations in `src/OrderRouter.Infrastructure/Migrations`. One initial migration, `InitialReferenceDataSchema`. AC2 (repeatable) relies on EF's `__EFMigrationsHistory`. `dotnet-ef` is added as a **local tool** (`.config/dotnet-tools.json`) so every machine uses the same version. |
 | Connection string | Name `OrderRouter`, read as `ConnectionStrings:OrderRouter` / env `ConnectionStrings__OrderRouter` (ADR-0002). The design-time factory and the test fixture default to the compose PostgreSQL when it's not set. |
 | docker-compose | New `docker-compose.yml` at the repo root with one `postgres` service: image pinned to a specific current stable tag (multi-arch, runs on Apple Silicon), `POSTGRES_DB=orderrouter`, `POSTGRES_USER=orderrouter`, password from `${POSTGRES_PASSWORD:-<dev-only default>}`, port `${POSTGRES_PORT:-5432}:5432`, a named volume, and a `pg_isready` healthcheck. **No migration or seed step** (SC-22). OR-007 adds the API service and `.env.example`. The default password is dev-only and the file is never used in production (same stance as OR-007). |
 | Packages | Infrastructure: `Npgsql.EntityFrameworkCore.PostgreSQL` (10.x, latest stable) and `Microsoft.EntityFrameworkCore.Design` (10.x, `PrivateAssets=all`). Integration tests use Npgsql transitively via Api → Infrastructure. Comment each package's purpose where it's used. If the latest stable version brings a surprise (as CsvHelper 34 did in OR-003), stop and ask. |
@@ -52,16 +52,16 @@ docker-compose.yml                                   postgres service only (OR-0
 src/OrderRouter.Infrastructure/
   OrderRouter.Infrastructure.csproj                  + Npgsql EF Core provider, EF Core Design
   Persistence/
-    OrderRouterDbContext.cs                          DbSets for the four row types; ApplyConfigurationsFromAssembly
-    OrderRouterDbContextFactory.cs                   IDesignTimeDbContextFactory for `dotnet ef` only
+    OrderRouterDataContext.cs                          DbSets for the four row types; ApplyConfigurationsFromAssembly
+    OrderRouterDataContextFactory.cs                   IDesignTimeDbContextFactory for `dotnet ef` only
     PersistenceServiceCollectionExtensions.cs        AddOrderRouterDatabase(IServiceCollection, string connectionString)
     ReferenceData/
-      SupplierRow.cs, SupplierCategoryRow.cs, SupplierServiceAreaRow.cs, ProductRow.cs
+      SupplierEntity.cs, SupplierCategoryEntity.cs, SupplierServiceAreaEntity.cs, ProductEntity.cs
       SupplierRowConfiguration.cs, SupplierCategoryRowConfiguration.cs,
       SupplierServiceAreaRowConfiguration.cs, ProductRowConfiguration.cs
     Migrations/
-      <timestamp>_InitialReferenceDataSchema.cs (+ Designer), OrderRouterDbContextModelSnapshot.cs
-tests/OrderRouter.Tests/Infrastructure/Persistence/
+      <timestamp>_InitialReferenceDataSchema.cs (+ Designer), OrderRouterDataContextModelSnapshot.cs
+tests/OrderRouter.Tests/Infrastructure/
   OrderRouterDbContextModelTests.cs                  model metadata, no DB needed
 tests/OrderRouter.Api.IntegrationTests/Persistence/
   ThrowawayDatabase.cs                               create / migrate / drop a uniquely named DB
@@ -157,9 +157,9 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 - [x] Add the packages to `OrderRouter.Infrastructure.csproj` (see the design table) with comments on their purpose.
 - [x] Add the four row types under `Persistence/ReferenceData/`. Plain persistence shapes with XML docs saying they are **not** domain objects and are projected into the domain by OR-006.
 - [x] Add one `IEntityTypeConfiguration<T>` per table, implementing the physical schema, names, indexes, check constraints and cascade FKs from the design table. `rating` is `numeric(4,2)`.
-- [x] Add `OrderRouterDbContext` (`ApplyConfigurationsFromAssembly`), and `AddOrderRouterDatabase(IServiceCollection, string connectionString)` that registers it with `UseNpgsql`. It throws `ArgumentException` for an empty connection string. It **never** calls `Migrate` or opens a connection.
-- [x] Add `OrderRouterDbContextFactory : IDesignTimeDbContextFactory<OrderRouterDbContext>`, used only by `dotnet ef`. It reads `ConnectionStrings__OrderRouter` and falls back to the compose default.
-- [x] Tests in `tests/OrderRouter.Tests/Infrastructure/Persistence/OrderRouterDbContextModelTests.cs`. Build the context with `UseNpgsql` on a dummy connection string; no database is opened. Inspect `context.Model` / `GetRelationalModel()`:
+- [x] Add `OrderRouterDataContext` (`ApplyConfigurationsFromAssembly`), and `AddOrderRouterDatabase(IServiceCollection, string connectionString)` that registers it with `UseNpgsql`. It throws `ArgumentException` for an empty connection string. It **never** calls `Migrate` or opens a connection.
+- [x] Add `OrderRouterDataContextFactory : IDesignTimeDbContextFactory<OrderRouterDataContext>`, used only by `dotnet ef`. It reads `ConnectionStrings__OrderRouter` and falls back to the compose default.
+- [x] Tests in `tests/OrderRouter.Tests/Infrastructure/OrderRouterDataContextModelTests.cs`. Build the context with `UseNpgsql` on a dummy connection string; no database is opened. Inspect `context.Model` / `GetRelationalModel()`:
   - exactly the four tables with the expected names;
   - each table's columns, types (`rating` is `numeric(4,2)`, ZIPs are `integer`), nullability and PKs;
   - **AC3:** `suppliers` has no column whose name contains `mail_only` / `mailonly` (case-insensitive), and its column set is exactly `supplier_id, name, rating, can_mail_order, seeded_at`;
@@ -169,7 +169,7 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 
 **Verify:** working rule 2.
 
-**Result:** Packages added, four row types, configurations, `OrderRouterDbContext`, `AddOrderRouterDatabase` and the design-time factory in place; 32 new model tests, 248 total passing, build 0 warnings, format clean. **Deviation:** `Microsoft.EntityFrameworkCore.Design` latest (11.0.0) targets net11 and won't install, so it is pinned to 10.0.4, the EF Core version Npgsql 10.0.3 brings in (10.0.15 caused MSB3277 assembly-unification warnings). Npgsql provider is 10.0.3.
+**Result:** Packages added, four row types, configurations, `OrderRouterDataContext`, `AddOrderRouterDatabase` and the design-time factory in place; 32 new model tests, 248 total passing, build 0 warnings, format clean. **Deviation:** `Microsoft.EntityFrameworkCore.Design` latest (11.0.0) targets net11 and won't install, so it is pinned to 10.0.4, the EF Core version Npgsql 10.0.3 brings in (10.0.15 caused MSB3277 assembly-unification warnings). Npgsql provider is 10.0.3.
 
 ---
 
@@ -191,10 +191,10 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 
 ## Phase 4: Schema integration tests against PostgreSQL (AC1, AC2, AC3) ✅ Done
 
-- [x] `tests/OrderRouter.Api.IntegrationTests/Persistence/ThrowawayDatabase.cs` (`IAsyncDisposable`):
+- [x] `tests/OrderRouter.Api.IntegrationTests/Infrastructure/ThrowawayDatabase.cs` (`IAsyncDisposable`):
   - reads `ConnectionStrings__OrderRouter` (defaults to the compose server);
   - creates `or_schema_test_<guid-n>` through a connection to the server's maintenance database;
-  - exposes a connection string and an `OrderRouterDbContext` for it;
+  - exposes a connection string and an `OrderRouterDataContext` for it;
   - on dispose, drops it `WITH (FORCE)`, so a failed test leaves nothing behind.
   - If PostgreSQL is unreachable, the test **fails** with a clear message ("start it with `docker compose up -d`"). It is never silently skipped.
 - [x] `SchemaMigrationTests.cs`, each test on its own throwaway database:
@@ -203,11 +203,11 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
   - **AC3:** `information_schema.columns` for `suppliers` is exactly `supplier_id, name, rating, can_mail_order, seeded_at`, with no mail-only column.
   - `rating` is `numeric(4,2)`: inserting `6.75` reads back `6.75` (proves no silent rounding); inserting `11` violates `ck_suppliers_rating`.
   - `start_zip > end_zip` violates the check constraint. Deleting a supplier cascades to its categories and service areas.
-- [x] Confirm the existing `ApiHostTests` still pass. `Program.cs` is unchanged.
+- [x] Confirm the existing `ApiHostTests` still pass. `Startup.cs` is unchanged.
 
 **Verify:** working rule 2 with `docker compose up -d` running. Also run `dotnet test` with PostgreSQL stopped once, to confirm the schema tests fail with the clear message, then start it again.
 
-**Result:** `ThrowawayDatabase` and 11 `SchemaMigrationTests` cases (AC1, AC2, AC3, rating precision and bounds, ZIP checks, FK, cascade). 260 tests passing, no leftover `or_schema_test_*` databases. With PostgreSQL stopped, exactly those 11 tests fail with the "start it with `docker compose up -d`" message (not skipped). `ApiHostTests` still pass; `Program.cs` unchanged.
+**Result:** `ThrowawayDatabase` and 11 `SchemaMigrationTests` cases (AC1, AC2, AC3, rating precision and bounds, ZIP checks, FK, cascade). 260 tests passing, no leftover `or_schema_test_*` databases. With PostgreSQL stopped, exactly those 11 tests fail with the "start it with `docker compose up -d`" message (not skipped). `ApiHostTests` still pass; `Startup.cs` unchanged.
 
 ---
 
@@ -220,7 +220,7 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 - [x] Record follow-ups for other tickets (don't do them here):
   - **ADR-0002:** change `rating numeric_3_1` to `numeric_4_2` in the schema diagram and give the reason. Mention the additive check constraints and the `(supplier_id, start_zip)` PK collision risk.
   - **OR-005:** the seeder applies these migrations with `MigrateAsync()`, sets `seeded_at`, and must fail fast on a `(supplier_id, start_zip)` PK collision. Note that re-seeding updates `seeded_at`, so "nothing changes" in OR-005 AC2 must mean row counts and business columns, not that timestamp.
-  - **OR-006 / OR-007:** call `AddOrderRouterDatabase` from `Program.cs` with `ConnectionStrings:OrderRouter`. Never call `Migrate` at startup (SC-33).
+  - **OR-006 / OR-007:** call `AddOrderRouterDatabase` from `Startup.cs` with `ConnectionStrings:OrderRouter`. Never call `Migrate` at startup (SC-33).
   - **OR-007:** add `POSTGRES_PASSWORD` (and the API's `ConnectionStrings__OrderRouter`) to `.env.example`, and add the API service to this `docker-compose.yml`.
   - **README (OR-025):** `docker compose up -d` is needed before `dotnet test`.
 - [x] Final `docker compose down -v && docker compose up -d`, then `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` from the repo root: all green.
@@ -248,7 +248,7 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 **Follow-ups for other tickets (not done here):**
 - **ADR-0002:** change `rating numeric_3_1` to `numeric_4_2` in the diagram with the reason; mention the additive check constraints and the `(supplier_id, start_zip)` PK collision risk.
 - **OR-005:** apply migrations with `MigrateAsync()`, set `seeded_at`, fail fast on a `(supplier_id, start_zip)` PK collision. Re-seeding updates `seeded_at`, so "nothing changes" in OR-005 AC2 must mean row counts and business columns.
-- **OR-006 / OR-007:** call `AddOrderRouterDatabase` from `Program.cs` with `ConnectionStrings:OrderRouter`; never migrate at startup (SC-33).
+- **OR-006 / OR-007:** call `AddOrderRouterDatabase` from `Startup.cs` with `ConnectionStrings:OrderRouter`; never migrate at startup (SC-33).
 - **OR-007:** add `POSTGRES_PASSWORD` and the API's `ConnectionStrings__OrderRouter` to `.env.example`, and the API service to `docker-compose.yml`.
 - **README (OR-025):** `docker compose up -d` is needed before `dotnet test`.
 
@@ -262,10 +262,10 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 |---|---|
 | New | `Plans/OR-004-database-schema.md` |
 | New | `docker-compose.yml`, `.config/dotnet-tools.json` |
-| New (Infrastructure) | `src/OrderRouter.Infrastructure/Persistence/**` (see Target structure), including generated `Migrations/**` |
-| New (tests) | `tests/OrderRouter.Tests/Infrastructure/Persistence/OrderRouterDbContextModelTests.cs`, `tests/OrderRouter.Api.IntegrationTests/Persistence/{ThrowawayDatabase,SchemaMigrationTests}.cs` |
+| New (Infrastructure) | `src/OrderRouter.Infrastructure/**` (see Target structure), including generated `Migrations/**` |
+| New (tests) | `tests/OrderRouter.Tests/Infrastructure/OrderRouterDataContextModelTests.cs`, `tests/OrderRouter.Api.IntegrationTests/Persistence/{ThrowawayDatabase,SchemaMigrationTests}.cs` |
 | Modified | `src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj` (packages), `tests/OrderRouter.Tests/Architecture/LayerDependencyTests.cs`, possibly `.editorconfig` (generated migrations only) |
-| Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Api/Program.cs`, `Docs/Data/**` |
+| Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Api/Startup.cs`, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
 

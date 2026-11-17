@@ -13,7 +13,7 @@ State explicitly:
 - Aggregate boundaries and consistency requirements
 - Ubiquitous-language terms used
 - Business rules and invariants to enforce
-- Which layers are affected (Domain / Application / Infrastructure)
+- Which layers are affected (Domain / Infrastructure / Api)
 - Security and compliance considerations
 
 ## 2. Architecture Review
@@ -37,7 +37,7 @@ Present the plan to the user and get confirmation before large changes.
 ## 4. Implement
 1. Domain model and ubiquitous language
 2. Aggregate boundaries and invariants
-3. Application services with input validation
+3. Domain services that orchestrate through ports, with input validated at the Api edge (view models) and invariants guarded in the Domain
 4. Async + DI throughout
 5. Tests, including edge cases and error scenarios
 6. Domain events where they aid decoupling

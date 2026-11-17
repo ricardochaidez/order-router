@@ -84,14 +84,14 @@ OrderRouter.Domain/
   - Concepts and relationships (Supplier → Categories, Supplier → ServiceArea → ZipRanges, Product → Category) and the ubiquitous-language terms from §3 (*Service area*, *Mail-only supplier*, *Local fulfillment*).
   - Aggregate boundary: `Supplier` is the root; `ServiceArea`, `Rating` and the category set are owned values. `Product` is a separate small root. No cross-aggregate references beyond `Category` values.
   - Invariants (from the tables above), affected layers (Domain only), no domain events (and why), and security/compliance (no PHI or payment data; fail-safe rejection per NFR-10).
-- [x] Add `src/OrderRouter.Domain/Common/DomainValidationException.cs`: a sealed exception for broken domain invariants, with a message that names the field and value.
-- [x] Add `src/OrderRouter.Domain/ReferenceData/Category.cs`:
+- [x] Add `src/OrderRouter.Domain/Models/DomainValidationException.cs`: a sealed exception for broken domain invariants, with a message that names the field and value.
+- [x] Add `src/OrderRouter.Domain/Entities/ReferenceData/Category.cs`:
   - `readonly record struct Category` with a validating constructor; `Value` holds the trimmed, `ToLowerInvariant` key.
   - Rejects `null`, empty and whitespace with `DomainValidationException` (AC2).
   - `TryCreate(string?, out Category)` for callers that don't want exceptions.
   - `ToString()` returns `Value`.
   - Document the `default(Category)` caveat (a struct can't stop `default`), and make `Value` of a default instance fail clearly rather than return `null`.
-- [x] Add `tests/OrderRouter.Tests/Domain/ReferenceData/CategoryTests.cs`:
+- [x] Add `tests/OrderRouter.Tests/Domain/Entities/ReferenceData/CategoryTests.cs`:
   - AC1: `" CPAP "` and `"cpap"` are equal and have the same hash code; they collapse to one entry in a `HashSet<Category>`.
   - AC2: `""`, `"   "`, `null` → `DomainValidationException` with a clear message (`[Theory]`).
   - Mixed case/inner text kept (`"Hospital Bed"` → `"hospital bed"`); `TryCreate` returns `false` for bad input.
@@ -129,7 +129,7 @@ OrderRouter.Domain/
   - Built from a non-empty collection of `ZipRange`; copies it into an immutable list (callers can't change it later). Empty → `DomainValidationException`.
   - `Contains(ZipCode)`: true if any segment contains the ZIP. Overlaps allowed.
   - `IsExactly(ZipRange)`: true only when there is exactly one segment and it equals the given range (confirmed "single segment" rule).
-- [x] Add tests under `tests/OrderRouter.Tests/Domain/ReferenceData/`:
+- [x] Add tests under `tests/OrderRouter.Tests/Domain/Entities/ReferenceData/`:
   - `ZipCodeTests`: AC3 (`"02130"` accepted; `"2130"`, `"0213A"` rejected), plus the edge cases above, `00000`, `99999`, `FromNumber` bounds (`-1`, `100000` rejected; `2130` → `"02130"`), equality.
   - `ZipRangeTests`: AC4 at range level (`02114-02212` contains `02114` and `02212`, not `02213` or `02113`); start > end rejected; single ZIP; `Parse` valid and invalid (`"2114-2212"`, `"02114 - 02212"`, `"02114-"`).
   - `ServiceAreaTests`: empty rejected; overlapping segments; `IsExactly` true for `{00100-99999}`, false for `{00100-99999, 00050}` and `{00100-50000, 50001-99999}`; list is immutable from outside.
@@ -211,8 +211,8 @@ OrderRouter.Domain/
 | Action | Path |
 |---|---|
 | New | `Plans/OR-002-domain-reference-model.md` |
-| New (domain) | `src/OrderRouter.Domain/Common/DomainValidationException.cs`; `src/OrderRouter.Domain/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Supplier,Product}.cs` |
-| New (tests) | `tests/OrderRouter.Tests/Domain/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Product,Supplier}Tests.cs` |
+| New (domain) | `src/OrderRouter.Domain/Models/DomainValidationException.cs`; `src/OrderRouter.Domain/Entities/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Supplier,Product}.cs` |
+| New (tests) | `tests/OrderRouter.Tests/Domain/Entities/ReferenceData/{Category,ZipCode,ZipRange,ServiceArea,Rating,Product,Supplier}Tests.cs` |
 | Deleted | `tests/OrderRouter.Tests/PlaceholderTests.cs` |
 | Unchanged | `src/OrderRouter.Domain/DomainAssemblyMarker.cs` (still used by the architecture tests) |
 

@@ -3,7 +3,7 @@
 **Ticket:** [Docs/Tickets/OR-006-reference-data-read-path.md](../Docs/Tickets/OR-006-reference-data-read-path.md)
 **Depends on:** OR-004 (done, see [OR-004-database-schema.md](OR-004-database-schema.md)); uses the data seeded by OR-005 (done, see [OR-005-reference-data-seeder.md](OR-005-reference-data-seeder.md))
 **References:** [ADR-0002](../Docs/ADRs/ADR-0002-reference-data-database.md) (Read path); [ADR-0006](../Docs/ADRs/ADR-0006-reference-data-caching.md) (option A, no cache); Technical Requirements §5.1, FR-05, FR-06, FR-16, NFR-03, NFR-10, DQ-09; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`; `CLAUDE.md`
-**Feeds:** OR-007 (calls the DI extension from `Program.cs`), OR-010 (eligibility uses `IReferenceDataReader`), OR-015 (orchestration uses both ports; `UNKNOWN_PRODUCT`), OR-027 (end-to-end AC4)
+**Feeds:** OR-007 (calls the DI extension from `Startup.cs`), OR-010 (eligibility uses `IReferenceDataReader`), OR-015 (orchestration uses both ports; `UNKNOWN_PRODUCT`), OR-027 (end-to-end AC4)
 
 > **Save location:** Phase 0 copies this plan to `Plans/OR-006-reference-data-read-path.md`. That file is the one to update as each phase is done.
 
@@ -16,14 +16,14 @@ The database exists (OR-004) and the integration-test fixture seeds it (OR-005),
 
 OR-006 adds the two **domain ports**, `ICapabilityResolver` and `IReferenceDataReader`, and their **EF Core read-only implementations** in Infrastructure (`AsNoTracking`). They read straight from PostgreSQL. **There is no cache** (ADR-0006 option A, NFR-03).
 
-Out of scope: wiring into `Program.cs`, the connection-string config and `/health` (OR-007); ZIP and mail eligibility rules (OR-010); routing orchestration and the `UNKNOWN_PRODUCT` mapping (OR-015); order tables (OR-026/OR-027); any cache (ADR-0006); new migrations or indexes.
+Out of scope: wiring into `Startup.cs`, the connection-string config and `/health` (OR-007); ZIP and mail eligibility rules (OR-010); routing orchestration and the `UNKNOWN_PRODUCT` mapping (OR-015); order tables (OR-026/OR-027); any cache (ADR-0006); new migrations or indexes.
 
 ### Decisions confirmed with the engineer
 
 | Topic | Decision |
 |---|---|
 | AC4 (read only) | **Read-path level now.** An integration test records every SQL command the two implementations send, using an EF Core `DbCommandInterceptor`, and asserts that each one is a `SELECT` and that the change tracker is empty afterwards. A source guard test fails if the read-path files ever call `SaveChanges`, `ExecuteUpdate`, `ExecuteDelete`, `ExecuteSql` or `Add`/`Update`/`Remove`. The end-to-end check ("the API handling a routing request") is a **follow-up for OR-015/OR-027**. |
-| DI wiring | **Extension only, no `Program.cs` change.** `AddOrderRouterDatabase` also registers `ICapabilityResolver` and `IReferenceDataReader` as **scoped**, which matches the `DbContext` lifetime. OR-007 calls it from `Program.cs`. |
+| DI wiring | **Extension only, no `Startup.cs` change.** `AddOrderRouterDatabase` also registers `ICapabilityResolver` and `IReferenceDataReader` as **scoped**, which matches the `DbContext` lifetime. OR-007 calls it from `Startup.cs`. |
 | Resolver shape | **Batch + single.** `ResolveAsync(IEnumerable<string?> productCodes, CancellationToken)` sends **one** query and returns one result per input code, keyed by the input string (ordinal). This follows ADR-0006 option A: one round trip per lookup kind. `ResolveAsync(string? productCode, CancellationToken)` is a thin convenience over the batch method. |
 | Whitespace | **Remove all whitespace, then compare without case.** `" ox-port-024 "`, `"OX- PORT-024"` and `"ox-port-024\t"` all resolve to `OX-PORT-024`. Whitespace means `char.IsWhiteSpace`. **Assumption, checked now and guarded by a test:** no stored product code contains whitespace (0 of 1,195 in `Docs/Data/Seed/products.normalized.csv`). The database side therefore only needs `lower(product_code)`, and two different stored codes can't collapse into one key. |
 
@@ -31,34 +31,34 @@ Out of scope: wiring into `Program.cs`, the connection-string config and `/healt
 
 | Topic | Choice and reason |
 |---|---|
-| Port location | `src/OrderRouter.Domain/ReferenceData/`. ADR-0002 and the DDD rules say repository interfaces are defined in Domain, and Domain gets **no** EF or Npgsql reference. Both ports are `async` and take a `CancellationToken`. |
+| Port location | `src/OrderRouter.Domain/Entities/ReferenceData/`. ADR-0002 and the DDD rules say repository interfaces are defined in Domain, and Domain gets **no** EF or Npgsql reference. Both ports are `async` and take a `CancellationToken`. |
 | Lookup key (FR-05 rule in Domain) | A new `ProductCodeKey` `readonly record struct` in Domain. `TryCreate(string?)` removes all whitespace and lower-cases with the invariant culture. It returns `false` for null, empty or whitespace-only input, so those inputs are *unknown* without a database call. The matching rule lives in one place and can be unit tested. `Product.Code` stays case-preserving (DQ-09). |
 | Result type | `CapabilityResolution`, an immutable `readonly record struct` with `static Unknown`, `static Resolved(Category)`, `bool IsKnown` and `bool TryGetCategory(out Category)`. `default(CapabilityResolution)` is *unknown*, so a missing value is safe. It is never `null` (§5.1). Reading the category of an unknown result through a property throws `InvalidOperationException`, the same pattern as `Category.Value`. |
 | Resolver query | `context.Products.AsNoTracking().Where(p => keys.Contains(p.ProductCode.ToLower())).Select(p => new { p.ProductCode, p.Category })`. Npgsql translates this to `lower(product_code) = ANY(@keys)`, which is parameterized and avoids `ILIKE` wildcard problems with `%` and `_`. With no valid keys, it returns all-unknown **without** a query. If two rows match one key (a case-only duplicate, which OR-005 already rejects), it **throws** `InvalidOperationException` naming the codes, because ambiguous data must not route (CLAUDE.md fail safe). That is a data-integrity fault, not an *unknown* product. There is no functional index: about 1,200 rows, and ADR-0006 load testing decides on tuning. |
 | Reader API | `Task<IReadOnlyList<Supplier>> GetSuppliersHandlingAsync(IEnumerable<Category> categories, CancellationToken)`. It returns suppliers that handle **any** of the categories, with **full** category and service-area sets (AC3). The result is ordered by `SupplierId` (ordinal) so it is deterministic for the plan search and tests. An empty category set returns an empty list without a query. Unknown categories just return no suppliers. |
 | Reader query | `context.Suppliers.AsNoTracking().Where(s => s.Categories.Any(c => keys.Contains(c.Category))).Include(Categories).Include(ServiceAreas).AsSplitQuery()`. Split query avoids the categories × service-areas cartesian blow-up; that's 3 round trips but one lookup. The keys are `Category.Value`, which is already normalized, so this is plain equality on the indexed `(category, supplier_id)`. |
-| Row → domain mapping | An `internal static SupplierRowMapper` in Infrastructure: `new Category(row.Category)`, `new ZipRange(ZipCode.FromNumber(start), ZipCode.FromNumber(end))`, `new ServiceArea(...)`, rating `decimal?` → `Supplier` ctor. The OR-002 constructors stay the only place invariants are checked. A row they reject (e.g., a supplier with no service areas) throws `InvalidOperationException` that names the supplier ID, with the `DomainValidationException` as the inner exception. It never skips or repairs a row (NFR-10). Products map the same way: `new Category(row.Category)`. |
+| Row → domain mapping | An `internal static SupplierMappingExtensions` in Infrastructure: `new Category(row.Category)`, `new ZipRange(ZipCode.FromNumber(start), ZipCode.FromNumber(end))`, `new ServiceArea(...)`, rating `decimal?` → `Supplier` ctor. The OR-002 constructors stay the only place invariants are checked. A row they reject (e.g., a supplier with no service areas) throws `InvalidOperationException` that names the supplier ID, with the `DomainValidationException` as the inner exception. It never skips or repairs a row (NFR-10). Products map the same way: `new Category(row.Category)`. |
 | Mail-only | Not read or stored; OR-010 derives it from config (SC-09). Out of scope here. |
 | Domain events / money / authorization | None. These are read-only queries over reference data: no state change, no money, no API surface yet. Say so in the review and don't claim them as met. |
 
 ### Target structure
 
 ```
-src/OrderRouter.Domain/ReferenceData/
+src/OrderRouter.Domain/Entities/ReferenceData/
   ProductCodeKey.cs                       FR-05 lookup key (remove whitespace, lower-case)
   CapabilityResolution.cs                 Resolved(Category) | Unknown, never null
   ICapabilityResolver.cs                  port: product code(s) → resolution
   IReferenceDataReader.cs                 port: categories → suppliers (full aggregates)
-src/OrderRouter.Infrastructure/Persistence/
+src/OrderRouter.Infrastructure/
   PersistenceServiceCollectionExtensions.cs   + scoped registration of both ports
   ReferenceData/EfCapabilityResolver.cs       AsNoTracking, one query per batch
-  ReferenceData/EfReferenceDataReader.cs      AsNoTracking + split query
-  ReferenceData/SupplierRowMapper.cs          rows → Supplier via OR-002 ctors
+  ReferenceData/ReferenceDataReader.cs      AsNoTracking + split query
+  ReferenceData/SupplierMappingExtensions.cs          rows → Supplier via OR-002 ctors
 tests/OrderRouter.Tests/
   Domain/ReferenceData/ProductCodeKeyTests.cs
   Domain/ReferenceData/CapabilityResolutionTests.cs
-  Infrastructure/Persistence/ReferenceData/SupplierRowMapperTests.cs
-  Infrastructure/Persistence/PersistenceRegistrationTests.cs
+  Infrastructure/Mappers/SupplierMappingExtensionsTests.cs
+  Api/Extensions/ServiceCollectionExtensionsTests.cs
   Architecture/ReadPathBoundaryTests.cs       AC4 source guard
 tests/OrderRouter.Api.IntegrationTests/Persistence/
   CapabilityResolverTests.cs                  AC1, AC2 on the seeded shared DB
@@ -112,9 +112,9 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
   - concepts and terms: product code, lookup key, capability (category), resolution (resolved or unknown), supplier aggregate, service area;
   - aggregate boundary: `Supplier` is always loaded **whole**, with its categories and service areas (AC3). `Product` is read only through the resolver;
   - invariants stay in the OR-002 constructors; the new FR-05 matching rule lives in `ProductCodeKey`;
-  - layers: ports in Domain, adapters in Infrastructure, no Application or Api change;
+  - layers: ports in Domain, adapters in Infrastructure, no Api change;
   - no domain events, money, authorization or PHI, and why.
-- [x] Add `ProductCodeKey`, `CapabilityResolution`, `ICapabilityResolver` and `IReferenceDataReader` to `src/OrderRouter.Domain/ReferenceData/`, following the design rows above.
+- [x] Add `ProductCodeKey`, `CapabilityResolution`, `ICapabilityResolver` and `IReferenceDataReader` to `src/OrderRouter.Domain/Entities/ReferenceData/`, following the design rows above.
 - [x] `ProductCodeKeyTests`:
   - `" ox-port-024 "`, `"OX- PORT-024"`, tabs and newlines all give `ox-port-024`;
   - null, empty and whitespace-only input give `TryCreate == false`;
@@ -139,14 +139,14 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 - *Fail safe:* unknown is a value (`default` is unknown), never `null` or an exception. Ambiguous or corrupt stored data throws with context.
 
 **§2 Architecture review**
-- Ports in Domain (no EF or Npgsql reference); adapters in Infrastructure; no Application or Api change; DI extension only.
+- Ports in Domain (no EF or Npgsql reference); adapters in Infrastructure; no Api change; DI extension only.
 - No domain events, money, authorization or PHI: these are read-only queries over non-patient reference data with no API surface yet.
 
 ---
 
 ## Phase 2: Capability resolver (AC1, AC2) ✅ Done
 
-- [x] Add `EfCapabilityResolver(OrderRouterDbContext context) : ICapabilityResolver` in `Persistence/ReferenceData/`, following the *Resolver query* row:
+- [x] Add `EfCapabilityResolver(OrderRouterDataContext context) : ICapabilityResolver` in `Persistence/ReferenceData/`, following the *Resolver query* row:
   - map distinct `ProductCodeKey`s → one `AsNoTracking` query → `Dictionary<string, CapabilityResolution>` keyed by every original input string (ordinal);
   - inputs with no key, and keys with no match, are `Unknown`;
   - two rows for one key throw `InvalidOperationException`;
@@ -168,7 +168,7 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 
 ## Phase 3: Reference data reader (AC3) ✅ Done
 
-- [x] Add `SupplierRowMapper` (internal) and `EfReferenceDataReader(OrderRouterDbContext context) : IReferenceDataReader`, following the *Reader query* and *Row → domain mapping* rows.
+- [x] Add `SupplierMappingExtensions` (internal) and `ReferenceDataReader(OrderRouterDataContext context) : IReferenceDataReader`, following the *Reader query* and *Row → domain mapping* rows.
 - [x] `SupplierRowMapperTests` (unit, no DB):
   - a full row maps to an equal `Supplier`, with the same categories, segments, rating and mail flag;
   - start ZIP `2130` maps to `"02130"`;
@@ -183,20 +183,20 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 
 **Verify:** working rule 2.
 
-**Result:** 367 tests, 0 failed. Deviation: `InternalsVisibleTo OrderRouter.Tests` added to the Infrastructure csproj so the internal `SupplierRowMapper` is unit-testable. Supplier ordering is done in memory (ordinal), not in SQL, because PostgreSQL orders by collation.
+**Result:** 367 tests, 0 failed. Deviation: `InternalsVisibleTo OrderRouter.Tests` added to the Infrastructure csproj so the internal `SupplierMappingExtensions` is unit-testable. Supplier ordering is done in memory (ordinal), not in SQL, because PostgreSQL orders by collation.
 
 ---
 
 ## Phase 4: DI registration and read-only proof (AC4) ✅ Done
 
-- [x] Extend `AddOrderRouterDatabase` to register `ICapabilityResolver` → `EfCapabilityResolver` and `IReferenceDataReader` → `EfReferenceDataReader` as scoped. Update its XML doc. Do **not** register the seeder, and do **not** call `Migrate` (SC-22, SC-33).
+- [x] Extend `AddOrderRouterDatabase` to register `ICapabilityResolver` → `EfCapabilityResolver` and `IReferenceDataReader` → `ReferenceDataReader` as scoped. Update its XML doc. Do **not** register the seeder, and do **not** call `Migrate` (SC-22, SC-33).
 - [x] `PersistenceRegistrationTests` (unit):
   - both ports resolve from a scope to the EF implementations, and building the provider and resolving them opens no connection;
   - `ReferenceDataSeeder` is still not resolvable.
 - [x] Add `CapturingCommandInterceptor` (test helper) and `ReadOnlyReferenceDataTests` (integration). Resolve a batch and read suppliers for several categories through a context that has the interceptor, then assert:
   - every recorded command starts with `SELECT`, ignoring leading whitespace and case;
   - `context.ChangeTracker.Entries()` is empty.
-- [x] `ReadPathBoundaryTests` (unit, source guard, same pattern as `SeedingBoundaryTests`): `EfCapabilityResolver.cs`, `EfReferenceDataReader.cs` and `SupplierRowMapper.cs` contain no `SaveChanges`, `ExecuteUpdate`, `ExecuteDelete`, `ExecuteSql`, `.Add(`, `.Update(`, `.Remove(` or `.Attach(`, and every `DbSet` query in them uses `AsNoTracking`.
+- [x] `ReadPathBoundaryTests` (unit, source guard, same pattern as `SeedingBoundaryTests`): `EfCapabilityResolver.cs`, `ReferenceDataReader.cs` and `SupplierMappingExtensions.cs` contain no `SaveChanges`, `ExecuteUpdate`, `ExecuteDelete`, `ExecuteSql`, `.Add(`, `.Update(`, `.Remove(` or `.Attach(`, and every `DbSet` query in them uses `AsNoTracking`.
 
 **Verify:** working rule 2. The existing `SeedingBoundaryTests` still pass.
 
@@ -212,7 +212,7 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
   - **N/A (say why):** domain events and audit trail, money, authorization, PCI-DSS/SOX/LGPD;
   - **Not verified (be honest):** e.g. the coverage %, and NFR-03 latency (load test, ADR-0006).
 - [x] Record follow-ups for other tickets (don't do them here):
-  - **OR-007:** call `AddOrderRouterDatabase(builder.Configuration.GetConnectionString("OrderRouter")!)` from `Program.cs`. This now also wires both ports. Never migrate at startup.
+  - **OR-007:** call `AddOrderRouterDatabase(builder.Configuration.GetConnectionString("OrderRouter")!)` from `Startup.cs`. This now also wires both ports. Never migrate at startup.
   - **OR-010:** use `IReferenceDataReader.GetSuppliersHandlingAsync` and apply ZIP and mail rules in the domain.
   - **OR-015:** map `CapabilityResolution.Unknown` → `UNKNOWN_PRODUCT`; call the **batch** resolver once per request.
   - **OR-015/OR-027:** the end-to-end AC4 test (POST a routing request, then reference-table row counts and `xmin` are unchanged).
@@ -241,7 +241,7 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 - *Whitespace assumption:* guarded only against the committed seed file; the shared DB may hold older rows (OR-005 AC4).
 
 ### Follow-ups (other tickets, not done here)
-- **OR-007:** call `AddOrderRouterDatabase(builder.Configuration.GetConnectionString("OrderRouter")!)` from `Program.cs`. It now also wires both ports. Never migrate at startup.
+- **OR-007:** call `AddOrderRouterDatabase(builder.Configuration.GetConnectionString("OrderRouter")!)` from `Startup.cs`. It now also wires both ports. Never migrate at startup.
 - **OR-010:** use `IReferenceDataReader.GetSuppliersHandlingAsync` and apply ZIP and mail rules in the domain.
 - **OR-015:** map `CapabilityResolution.Unknown` (and codes missing from the batch result, such as null) → `UNKNOWN_PRODUCT`; call the batch resolver once per request.
 - **OR-015/OR-027:** end-to-end AC4 test (POST a routing request, then reference-table row counts and `xmin` unchanged).
@@ -257,12 +257,12 @@ tests/OrderRouter.Api.IntegrationTests/Persistence/
 | Action | Path |
 |---|---|
 | New | `Plans/OR-006-reference-data-read-path.md` |
-| New (Domain) | `src/OrderRouter.Domain/ReferenceData/{ProductCodeKey,CapabilityResolution,ICapabilityResolver,IReferenceDataReader}.cs` |
-| New (Infrastructure) | `src/OrderRouter.Infrastructure/Persistence/ReferenceData/{EfCapabilityResolver,EfReferenceDataReader,SupplierRowMapper}.cs` |
-| Modified | `src/OrderRouter.Infrastructure/Persistence/PersistenceServiceCollectionExtensions.cs` (register the ports) |
+| New (Domain) | `src/OrderRouter.Domain/Entities/ReferenceData/{ProductCodeKey,CapabilityResolution,ICapabilityResolver,IReferenceDataReader}.cs` |
+| New (Infrastructure) | `src/OrderRouter.Infrastructure/Providers/ (ProductCatalog, ReferenceDataReader) and OrderRouter.Infrastructure/Mappers/SupplierMappingExtensions.cs` |
+| Modified | `src/OrderRouter.Api/Extensions/ServiceCollectionExtensions.cs` (register the ports) |
 | New (tests) | see *Target structure* |
-| Reused | `OrderRouterDbContext` and the row types (`Persistence/ReferenceData/*Row.cs`); OR-002 ctors (`Supplier`, `Category`, `ZipCode.FromNumber`, `ZipRange`, `ServiceArea`); `ReferenceDataFixture` (shared seeded DB, `QueryAsync`); `ThrowawayDatabase`; `SeedFiles.Real` + `NormalizedSeedFileReader` (expected values); the `SeedingBoundaryTests` source-guard pattern |
-| Unchanged | `src/OrderRouter.Api/**`, `src/OrderRouter.Application/**`, migrations, `docker-compose.yml`, `Docs/Data/**`, the seeder |
+| Reused | `OrderRouterDataContext` and the row types (`Persistence/ReferenceData/*Row.cs`); OR-002 ctors (`Supplier`, `Category`, `ZipCode.FromNumber`, `ZipRange`, `ServiceArea`); `ReferenceDataFixture` (shared seeded DB, `QueryAsync`); `ThrowawayDatabase`; `SeedFiles.Real` + `NormalizedSeedFileReader` (expected values); the `SeedingBoundaryTests` source-guard pattern |
+| Unchanged | `src/OrderRouter.Api/**`, `src/OrderRouter.Domain/**`, migrations, `docker-compose.yml`, `Docs/Data/**`, the seeder |
 
 ## Verification summary (ticket acceptance criteria)
 

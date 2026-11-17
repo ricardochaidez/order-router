@@ -5,7 +5,7 @@
 
 ## Description
 
-Create the .NET 10 solution with one project per layer: **Domain**, **Application**, **Infrastructure** and **Api** (the existing `order-router.csproj` becomes the Api project). Add a unit test project and an integration test project. No business logic yet. This gives everyone the same structure to build on.
+Create the .NET 10 solution with one project per layer: **Domain**, **Infrastructure** and **Api** (the existing `order-router.csproj` becomes the Api project). Add a unit test project and an integration test project. No business logic yet. This gives everyone the same structure to build on.
 
 ## Acceptance criteria
 
@@ -19,7 +19,7 @@ Create the .NET 10 solution with one project per layer: **Domain**, **Applicatio
 
 - **Given** the solution is built
 - **When** the architecture test checks project references
-- **Then** Domain references no other project, Application references only Domain, Infrastructure references Domain and Application, and Api references Application and Infrastructure
+- **Then** Domain references no other project, Infrastructure references only Domain, and Api references Domain and Infrastructure
 
 ### AC3: Tests run
 

@@ -13,20 +13,20 @@ OR-003 committed the clean seed files `Docs/Data/Seed/suppliers.normalized.csv` 
 - A summary log: rows loaded, unrated suppliers, and rows in the database that are no longer in the CSVs.
 - An xUnit **assembly fixture** that runs the seeder once before the integration tests, against the same database the API uses (`ConnectionStrings__OrderRouter`, defaulting to the compose PostgreSQL).
 
-Out of scope: any normalization (OR-003 owns it), repositories and read queries (OR-006), wiring the database into `Program.cs` (OR-006/OR-007), order tables (OR-026). **Neither API startup nor `docker compose up` ever migrates or seeds** (SC-22, SC-33).
+Out of scope: any normalization (OR-003 owns it), repositories and read queries (OR-006), wiring the database into `Startup.cs` (OR-006/OR-007), order tables (OR-026). **Neither API startup nor `docker compose up` ever migrates or seeds** (SC-22, SC-33).
 
 ### Decisions confirmed with the engineer
 
 | Topic | Decision |
 |---|---|
-| How AC3/AC4/AC5/AC8 are tested | **Throwaway-database tests.** In production code, only the assembly fixture calls the seeder, and it seeds the shared `orderrouter` database from the real files. Separate integration tests call the seeder directly on a throwaway database (reuse `tests/OrderRouter.Api.IntegrationTests/Persistence/ThrowawayDatabase.cs`), with temp CSV files written to a temp folder. The real `Docs/Data/Seed/*` files are never edited. For AC5/AC8, "the test run fails" is shown by the seeder throwing: the fixture passes that exception on, which fails the run. |
+| How AC3/AC4/AC5/AC8 are tested | **Throwaway-database tests.** In production code, only the assembly fixture calls the seeder, and it seeds the shared `orderrouter` database from the real files. Separate integration tests call the seeder directly on a throwaway database (reuse `tests/OrderRouter.Api.IntegrationTests/Infrastructure/ThrowawayDatabase.cs`), with temp CSV files written to a temp folder. The real `Docs/Data/Seed/*` files are never edited. For AC5/AC8, "the test run fails" is shown by the seeder throwing: the fixture passes that exception on, which fails the run. |
 | AC8 error reporting | **First bad row.** Fail fast: stop at the first row that is rejected and report the file, row number and reason. |
 
 ### Other design choices (from the ticket, ADR, rules and existing code; no question needed)
 
 | Topic | Choice and reason |
 |---|---|
-| Location | `src/OrderRouter.Infrastructure/Persistence/Seeding/`. Infrastructure only; Domain and Api stay unchanged. |
+| Location | `src/OrderRouter.Infrastructure/Services/Seeding/`. Infrastructure only; Domain and Api stay unchanged. |
 | CSV library | **CsvHelper 33.1.0** added to Infrastructure. ADR-0002 names CsvHelper, and this is the version the OR-003 tool pins (34.x is a different, stream-based API). Comment the package's purpose in the csproj. Ask before using another version. |
 | Reading = validation, no normalization | `NormalizedSeedFileReader` reads exactly the OR-003 format: `service_zips` is split on `", "` and each token goes through `ZipRange.Parse`; `product_categories` is split on `", "` and each token goes through `new Category(...)`; an empty `rating` means unrated, otherwise it is `decimal.Parse` with the invariant culture and then goes through the `Supplier` constructor (1–10); `can_mail_order` must be exactly `y` or `n`. Values are passed as they are: no padding, no case fixes, no trimming beyond what the domain constructors already do, and no de-duplication. Any `DomainValidationException` or parse failure becomes a `ReferenceDataSeedException` that names the file, the physical row number (header = row 1, same as OR-003) and the reason, with the original exception as the inner exception. |
 | Header check | The required columns must be present by exact name. Infrastructure keeps its own header constants, because Infrastructure must not reference the `tools/` project. A unit test asserts that they equal `NormalizedCsvWriter.SupplierHeader` / `ProductHeader` (`tools/OrderRouter.DataNormalizer/Output/NormalizedCsvWriter.cs`), so the writer and the reader can't drift apart. |
@@ -34,9 +34,9 @@ Out of scope: any normalization (OR-003 owns it), repositories and read queries 
 | Order of work | Exactly as ADR-0002: (1) `MigrateAsync`; (2) read and validate **both** files completely into domain objects; (3) open **one** transaction and upsert; (4) count the rows that are no longer in the CSVs; (5) commit; (6) log the summary. Because validation finishes before the transaction opens, a bad file never writes any data. Any failure inside the transaction rolls everything back. (The schema can still be created by step 1, which is expected: migrations are not data.) |
 | Upsert SQL (FR-04, ADR-0002) | `INSERT … ON CONFLICT (pk) DO UPDATE SET <every business column> = EXCLUDED.…` for `suppliers` and `products`. For the child sets: `DELETE … WHERE supplier_id = ANY(@ids)`, then insert, so each CSV supplier's categories and service areas are **replaced** (AC3). Each table is one set-based statement using `unnest(@array, …)` parameters (≈ 6 statements for about 9,000 rows), run with `Database.ExecuteSqlAsync` interpolated SQL, so every value is a parameter (no SQL injection, no string concatenation). There are **no deletes** of suppliers or products that are missing from the CSVs (OQ-24, AC4). The SQL touches only the four reference tables, so stored orders (OR-026 AC4) are safe. |
 | `seeded_at` | One timestamp per run from an injected `TimeProvider` (testable), written on insert and on update. AC2's "the same" therefore means row counts and business columns, not `seeded_at` (an OR-004 follow-up). |
-| Seeder API | `public sealed class ReferenceDataSeeder(OrderRouterDbContext context, TimeProvider timeProvider, ILogger<ReferenceDataSeeder> logger)` with `Task<ReferenceDataSeedSummary> SeedAsync(ReferenceDataSeedFiles files, CancellationToken cancellationToken)`. `ReferenceDataSeedFiles(string SuppliersPath, string ProductsPath)` has a `FromDirectory(string seedDirectory)` helper. **It is not registered in DI**, so the API can't resolve it (AC7, SC-22). Only the fixture creates it. |
+| Seeder API | `public sealed class ReferenceDataSeeder(OrderRouterDataContext context, TimeProvider timeProvider, ILogger<ReferenceDataSeeder> logger)` with `Task<ReferenceDataSeedSummary> SeedAsync(ReferenceDataSeedFiles files, CancellationToken cancellationToken)`. `ReferenceDataSeedFiles(string SuppliersPath, string ProductsPath)` has a `FromDirectory(string seedDirectory)` helper. **It is not registered in DI**, so the API can't resolve it (AC7, SC-22). Only the fixture creates it. |
 | Summary (AC6, NFR-04) | `ReferenceDataSeedSummary` record: suppliers, products, categories and service areas loaded; unrated suppliers; suppliers and products in the database but not in the CSVs. It is logged **once** at `Information` with a structured template, and also returned so tests can assert on it. No per-row logs (skipped rows and duplicates are OR-003's job). |
-| Fixture | `ReferenceDataFixture : IAsyncLifetime`, registered with `[assembly: AssemblyFixture(typeof(ReferenceDataFixture))]` (xUnit v3), so it runs once before any integration test. Connection string: `ConnectionStrings__OrderRouter`, or `OrderRouterDbContextFactory.DefaultConnectionString` (reuse its constants, the same rule as `ThrowawayDatabase`). Seed folder: walk up to `OrderRouter.slnx` (same pattern as `tests/OrderRouter.Tests/DataNormalizer/TestRepository.cs`), then `Docs/Data/Seed`. If PostgreSQL is unreachable, it **fails** with the "start it with `docker compose up -d`" message and is never skipped. The fixture exposes the `Summary` and the connection string to the tests. |
+| Fixture | `ReferenceDataFixture : IAsyncLifetime`, registered with `[assembly: AssemblyFixture(typeof(ReferenceDataFixture))]` (xUnit v3), so it runs once before any integration test. Connection string: `ConnectionStrings__OrderRouter`, or `OrderRouterDataContextFactory.DefaultConnectionString` (reuse its constants, the same rule as `ThrowawayDatabase`). Seed folder: walk up to `OrderRouter.slnx` (same pattern as `tests/OrderRouter.Tests/DataNormalizer/TestRepository.cs`), then `Docs/Data/Seed`. If PostgreSQL is unreachable, it **fails** with the "start it with `docker compose up -d`" message and is never skipped. The fixture exposes the `Summary` and the connection string to the tests. |
 | Visible summary log | The fixture's logger writes through `TestContext.Current.SendDiagnosticMessage`, and `xunit.runner.json` (`"diagnosticMessages": true`) is added to the integration test project, so the summary shows up in `dotnet test` output. If it doesn't show up, stop and ask rather than add another logging package. |
 | Async | All file and database I/O is `async` with a `CancellationToken` (`TestContext.Current.CancellationToken` in tests). |
 | Domain events / money / authorization | None. The seeder is test-only infrastructure: it changes no business state, handles no money and has no API surface. Say so in the review; don't claim them as met. |
@@ -52,7 +52,7 @@ src/OrderRouter.Infrastructure/
     NormalizedSeedFileReader.cs                        CSV → Supplier / Product (validation only)
     ReferenceDataSeedSummary.cs                        counts returned and logged
     ReferenceDataSeeder.cs                             migrate → read → upsert in one transaction → summary
-tests/OrderRouter.Tests/Infrastructure/Persistence/Seeding/
+tests/OrderRouter.Tests/Infrastructure/Services/Seeding/
   NormalizedSeedFileReaderTests.cs                     no database
 tests/OrderRouter.Tests/Architecture/
   SeedingBoundaryTests.cs (or extend LayerDependencyTests)   AC7 source guard
@@ -142,7 +142,7 @@ tests/OrderRouter.Api.IntegrationTests/
 ## Phase 2: `ReferenceDataSeeder`: migrate, upsert in one transaction, summary (AC2–AC6, AC8) ✅ Done
 
 - [x] Add `ReferenceDataSeedSummary` and `ReferenceDataSeeder`, following the *Order of work*, *Upsert SQL*, *`seeded_at`* and *Summary* rows above. Use `await using var transaction = await context.Database.BeginTransactionAsync(...)`. Commit only after every statement succeeds.
-- [x] `tests/OrderRouter.Api.IntegrationTests/Persistence/SeedFiles.cs`: writes small supplier and product CSVs (in the normalized format) to a temp folder and deletes it on dispose.
+- [x] `tests/OrderRouter.Api.IntegrationTests/Infrastructure/SeedFiles.cs`: writes small supplier and product CSVs (in the normalized format) to a temp folder and deletes it on dispose.
 - [x] `ReferenceDataSeederTests`. Each test uses its own `ThrowawayDatabase`, a fixed `FakeTimeProvider`-style `TimeProvider` stub, and a capturing `ILogger` (same pattern as `NormalizationReportLoggerTests.CapturingLogger`):
   - **AC1 (throwaway):** an empty database plus the real seed files → migrations are applied, the table counts equal the file counts, and the sentinels are present;
   - **AC2:** seed twice with the real files → identical row counts per table, an identical ordered dump of the business columns (everything except `seeded_at`), and `count(*) = count(DISTINCT pk)`; `seeded_at` equals the second run's time;
@@ -220,10 +220,10 @@ tests/OrderRouter.Api.IntegrationTests/
 | Action | Path |
 |---|---|
 | New | `Plans/OR-005-reference-data-seeder.md` |
-| New (Infrastructure) | `src/OrderRouter.Infrastructure/Persistence/Seeding/*.cs` (see Target structure) |
-| New (tests) | `tests/OrderRouter.Tests/Infrastructure/Persistence/Seeding/NormalizedSeedFileReaderTests.cs`, AC7 guard under `tests/OrderRouter.Tests/Architecture/`, `tests/OrderRouter.Api.IntegrationTests/{ReferenceDataFixture.cs, xunit.runner.json}`, `tests/OrderRouter.Api.IntegrationTests/Persistence/{SeedFiles,ReferenceDataSeederTests,SeededReferenceDataTests}.cs` |
+| New (Infrastructure) | `src/OrderRouter.Infrastructure/Services/Seeding/*.cs` (see Target structure) |
+| New (tests) | `tests/OrderRouter.Tests/Infrastructure/Services/Seeding/NormalizedSeedFileReaderTests.cs`, AC7 guard under `tests/OrderRouter.Tests/Architecture/`, `tests/OrderRouter.Api.IntegrationTests/{ReferenceDataFixture.cs, xunit.runner.json}`, `tests/OrderRouter.Api.IntegrationTests/Persistence/{SeedFiles,ReferenceDataSeederTests,SeededReferenceDataTests}.cs` |
 | Modified | `src/OrderRouter.Infrastructure/OrderRouter.Infrastructure.csproj` (CsvHelper), `tests/OrderRouter.Api.IntegrationTests/OrderRouter.Api.IntegrationTests.csproj` (copy `xunit.runner.json`) |
-| Reused | `ThrowawayDatabase` (throwaway DBs), `OrderRouterDbContextFactory.ConnectionStringVariable` / `DefaultConnectionString`, the `TestRepository` repo-root pattern, the `CapturingLogger` pattern, `NormalizedCsvWriter` headers (test-only cross-check), OR-002 constructors (`Supplier`, `Product`, `Category`, `ZipRange.Parse`) |
+| Reused | `ThrowawayDatabase` (throwaway DBs), `OrderRouterDataContextFactory.ConnectionStringVariable` / `DefaultConnectionString`, the `TestRepository` repo-root pattern, the `CapturingLogger` pattern, `NormalizedCsvWriter` headers (test-only cross-check), OR-002 constructors (`Supplier`, `Product`, `Category`, `ZipRange.Parse`) |
 | Unchanged | `src/OrderRouter.Domain/**`, `src/OrderRouter.Api/**`, `docker-compose.yml`, migrations, `Docs/Data/**` |
 
 ## Verification summary (ticket acceptance criteria)
