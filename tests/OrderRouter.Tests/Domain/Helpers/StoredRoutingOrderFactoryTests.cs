@@ -136,6 +136,32 @@ public class StoredRoutingOrderFactoryTests
             order.ExperimentArmsJson);
     }
 
+    private static readonly RoutingWarning warning = new(RoutingWarning.DependentItemUnfulfilledCode, "B needs X.", ["X"], ["A"]);
+
+    [Fact]
+    public void Create_NoWarningsGiven_StoresNone()
+        => Assert.Empty(Create(Command(("A", 1)), Decision(RoutingOutcomeStatus.Routed, [Routed("A", "S1")], [])).Warnings);
+
+    // FR-18: the warnings are stored with the order, so GET reads them back (ADR-0007).
+    [Fact]
+    public void Create_PartialRouteWithWarnings_StoresThem()
+    {
+        var decision = Decision(RoutingOutcomeStatus.PartiallyRouted, [Routed("A", "S1")], [Unknown("X")]);
+
+        var order = StoredRoutingOrderFactory.Create(id, Command(("A", 1), ("X", 1)), "hash", now, decision, [warning]);
+
+        Assert.Equal([warning], order.Warnings);
+    }
+
+    // Fail safe: the contract has warnings on partial routes only.
+    [Fact]
+    public void Create_WarningsOnARoutedDecision_Throws()
+    {
+        var decision = Decision(RoutingOutcomeStatus.Routed, [Routed("A", "S1")], []);
+
+        Assert.Throws<InvalidOperationException>(() => StoredRoutingOrderFactory.Create(id, Command(("A", 1)), "hash", now, decision, [warning]));
+    }
+
     [Fact]
     public void Create_DecisionDoesNotMatchTheRequest_Throws()
     {

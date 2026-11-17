@@ -12,6 +12,8 @@
       "TreatmentPercentage": 0,
       "Salt": "exp2",
       "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] },
+      // UnratedPrior (1-10): rating an unrated supplier counts as in the treatment arm; control counts it as 0.
+      // Seed data: 916 of 1,100 suppliers are rated, mean 7.10, median 7.0. 6.5 is slightly below the mean.
       "Parameters": { "UnratedPrior": 6.5 }
     },
     "Exp3PartialRouting": {

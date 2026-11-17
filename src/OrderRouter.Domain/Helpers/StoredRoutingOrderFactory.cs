@@ -21,19 +21,29 @@ public static class StoredRoutingOrderFactory
     /// <param name="callerHash">The hashed caller, or <see langword="null"/> when there is no caller ID.</param>
     /// <param name="createdAt">When the order is stored.</param>
     /// <param name="decision">The routing decision.</param>
+    /// <param name="warnings">The dependency warnings for the decision (FR-18); <see langword="null"/> means none.</param>
     /// <exception cref="InvalidOperationException">
-    /// The decision's routed and unfulfilled lines cannot be matched to the requested lines. This is a programming
-    /// error; it becomes a 500 and nothing is stored (fail safe: no guessed line).
+    /// The decision's routed and unfulfilled lines cannot be matched to the requested lines, or there are warnings on a
+    /// decision that is not a partial route. Both are programming errors; they become a 500 and nothing is stored
+    /// (fail safe: no guessed line, no warning the contract says cannot exist).
     /// </exception>
     public static StoredRoutingOrder Create(
         Guid id,
         RouteOrderCommand command,
         string? callerHash,
         DateTimeOffset createdAt,
-        RoutingDecision decision)
+        RoutingDecision decision,
+        IReadOnlyList<RoutingWarning>? warnings = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(decision);
+
+        warnings ??= [];
+
+        if (warnings.Count > 0 && decision.Status is not RoutingOutcomeStatus.PartiallyRouted)
+        {
+            throw new InvalidOperationException("Dependency warnings are only valid on a partially routed decision (FR-18).");
+        }
 
         return new StoredRoutingOrder(
             id,
@@ -48,7 +58,7 @@ public static class StoredRoutingOrderFactory
             decision.SearchMode is { } mode ? SnakeCase(mode.ToString()) : null,
             createdAt,
             Items(command, decision),
-            []);
+            [.. warnings]);
     }
 
     // Routed and unfulfilled lines are both in request order, so one ordered walk matches them to the requested

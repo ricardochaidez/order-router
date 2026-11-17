@@ -110,6 +110,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(provider => new SupplierEligibility(ZipRange.Parse(provider.GetRequiredService<IOptions<RoutingOptions>>().Value.NationwideZipRange)));
         services.AddSingleton<OrderRoutingService>();
 
+        // Item-dependency rules (OR-020, DR-01 to DR-03): shipped empty; a malformed rule stops the host at startup.
+        // The validator checks shape only and never reads the database (DR-02, AC5).
+        services.AddOptions<ItemDependencyOptions>()
+            .Bind(configuration.GetSection(ItemDependencyOptions.Name))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<ItemDependencyOptions>, ItemDependencyOptionsValidator>();
+        services.AddSingleton<DependencyWarningService>();
+
         // The decision log (AB-04): one event per stored order. It only needs an ILogger, so it is a singleton.
         services.AddSingleton<IRoutingDecisionLog, LoggerRoutingDecisionLog>();
 

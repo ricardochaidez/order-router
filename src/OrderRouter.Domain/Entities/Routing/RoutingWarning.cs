@@ -10,4 +10,10 @@ public sealed record RoutingWarning(
     string Code,
     string Message,
     IReadOnlyList<string> UnfulfilledProductCodes,
-    IReadOnlyList<string> AffectedProductCodes);
+    IReadOnlyList<string> AffectedProductCodes)
+{
+    /// <summary>
+    /// Code of the warning raised when a routed item's required companion could not be fulfilled (FR-18, OR-020).
+    /// </summary>
+    public const string DependentItemUnfulfilledCode = "DEPENDENT_ITEM_UNFULFILLED";
+}

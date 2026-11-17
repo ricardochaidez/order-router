@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OrderRouter.Api.Mappers;
 using OrderRouter.Api.ViewModels.Response;
 using OrderRouter.Domain.Entities.Experiments;
@@ -27,6 +29,7 @@ public class RouteOrderServiceTests
     private readonly FakeLog log;
     private static readonly DateTimeOffset now = new(2026, 11, 15, 10, 0, 0, TimeSpan.Zero);
     private bool exposeDiagnostics;
+    private List<ItemDependencyRuleOptions> dependencyRules = [];
 
     public RouteOrderServiceTests()
     {
@@ -46,6 +49,9 @@ public class RouteOrderServiceTests
                 new SupplierEligibility(ZipRange.Parse("00100-99999")),
                 new CountingPlanSearch(),
                 new UniformRandomTieBreaker(new FixedRandomSource(0))),
+            new DependencyWarningService(
+                Options.Create(new ItemDependencyOptions { Rules = dependencyRules }),
+                NullLogger<DependencyWarningService>.Instance),
             hasher,
             store,
             log,
@@ -302,6 +308,95 @@ public class RouteOrderServiceTests
         Assert.Null(diagnostics.SearchMode);
     }
 
+    // A hospital bed with a local supplier, and a patient lift nobody delivers to 10015.
+    private void BedRoutableLiftNot()
+    {
+        catalog.Known["BED"] = new Category("hospital bed");
+        catalog.Known["LIFT"] = new Category("patient lift");
+        reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("hospital bed")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
+    }
+
+    private static ItemDependencyRuleOptions BedNeedsLift() => new() { Category = "hospital bed", Requires = ["patient lift"] };
+
+    // OR-020 AC1: the warning is stored with the order and returned in the response.
+    [Fact]
+    public async Task RouteAsync_PartialRouteMatchingARule_StoresAndReturnsTheWarning()
+    {
+        BedRoutableLiftNot();
+        policyFactory.PartialRouting = true;
+        dependencyRules = [BedNeedsLift()];
+
+        var response = await UseCase().RouteAsync(Command("BED", "LIFT"), token);
+
+        Assert.Equal(RoutingStatus.PartiallyRouted, response.Status);
+        var warning = Assert.Single(response.Warnings);
+        Assert.Equal("DEPENDENT_ITEM_UNFULFILLED", warning.Code);
+        Assert.Equal(["LIFT"], warning.UnfulfilledProductCodes);
+        Assert.Equal(["BED"], warning.AffectedProductCodes);
+        Assert.Equal(warning.Message, Assert.Single(Assert.Single(store.Saved).Warnings).Message);
+        Assert.Equal(1, catalog.CategoryCalls);
+    }
+
+    // OR-020 AC2.
+    [Fact]
+    public async Task RouteAsync_PartialRouteWithNoRules_HasNoWarningsAndSkipsTheCategoryLookup()
+    {
+        BedRoutableLiftNot();
+        policyFactory.PartialRouting = true;
+
+        var response = await UseCase().RouteAsync(Command("BED", "LIFT"), token);
+
+        Assert.Equal(RoutingStatus.PartiallyRouted, response.Status);
+        Assert.Empty(response.Warnings);
+        Assert.Equal(0, catalog.CategoryCalls);
+    }
+
+    // FR-18: under all-or-nothing nothing is routed, so nothing can be affected.
+    [Fact]
+    public async Task RouteAsync_NotRoutedWithRules_HasNoWarningsAndSkipsTheCategoryLookup()
+    {
+        BedRoutableLiftNot();
+        dependencyRules = [BedNeedsLift()];
+
+        var response = await UseCase().RouteAsync(Command("BED", "LIFT"), token);
+
+        Assert.Equal(RoutingStatus.NotRouted, response.Status);
+        Assert.Empty(response.Warnings);
+        Assert.Equal(0, catalog.CategoryCalls);
+    }
+
+    // OR-020 AC4: the rule names a category the catalog does not have, so it is skipped and the request succeeds.
+    [Fact]
+    public async Task RouteAsync_RuleNamingAnUnknownCategory_IsSkipped()
+    {
+        BedRoutableLiftNot();
+        policyFactory.PartialRouting = true;
+        dependencyRules = [new() { Category = "hospital bed", Requires = ["patient lift", "bed rail"] }];
+
+        var response = await UseCase().RouteAsync(Command("BED", "LIFT"), token);
+
+        Assert.Equal(RoutingStatus.PartiallyRouted, response.Status);
+        Assert.Empty(response.Warnings);
+    }
+
+    // OR-020 AC6: rules only add warnings; the routing is the same.
+    [Fact]
+    public async Task RouteAsync_SameOrderWithAndWithoutRules_RoutesTheSame()
+    {
+        BedRoutableLiftNot();
+        policyFactory.PartialRouting = true;
+
+        await UseCase().RouteAsync(Command("BED", "LIFT"), token);
+        dependencyRules = [BedNeedsLift()];
+        await UseCase().RouteAsync(Command("BED", "LIFT"), token);
+
+        var (without, with) = (store.Saved[0], store.Saved[1]);
+        Assert.Equal(without.Items, with.Items);
+        Assert.Equal(without.Status, with.Status);
+        Assert.Empty(without.Warnings);
+        Assert.Single(with.Warnings);
+    }
+
     [Fact]
     public async Task RouteAsync_NullCommand_Throws()
         => await Assert.ThrowsAsync<ArgumentNullException>(() => UseCase().RouteAsync(null!, token));
@@ -372,6 +467,9 @@ public class RouteOrderServiceTests
     {
         public List<ExperimentAssignment> Assignments { get; } = [];
 
+        // EXP-3 treatment rules, for the dependency-warning tests that need a partial route.
+        public bool PartialRouting { get; set; }
+
         public RoutingPolicy Create(ExperimentAssignment assignment)
         {
             Assignments.Add(assignment);
@@ -379,7 +477,7 @@ public class RouteOrderServiceTests
             // Control rules, but carrying the assignment it was given, so the decision (and the stored order) shows it.
             var control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
 
-            return new RoutingPolicy(control.Rating, control.Selection, control.Unfulfillable, assignment);
+            return new RoutingPolicy(control.Rating, control.Selection, PartialRouting ? PartialRoutingPolicy.Instance : control.Unfulfillable, assignment);
         }
     }
 
@@ -403,6 +501,16 @@ public class RouteOrderServiceTests
                     .Where(entry => ProductCodeKey.TryCreate(entry.Key, out var key) && keys.Contains(key))
                     .Select(entry => new Product(entry.Key, entry.Key, entry.Value)),
             ];
+
+            return Task.FromResult(result);
+        }
+
+        public int CategoryCalls { get; private set; }
+
+        public Task<IReadOnlySet<Category>> FindExistingCategoriesAsync(IReadOnlyCollection<Category> categories, CancellationToken ct)
+        {
+            CategoryCalls++;
+            IReadOnlySet<Category> result = categories.Where(Known.ContainsValue).ToHashSet();
 
             return Task.FromResult(result);
         }

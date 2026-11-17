@@ -156,4 +156,28 @@ public class ProductCatalogTests(ReferenceDataFixture fixture)
         Assert.Contains("ABC-1", exception.Message, StringComparison.Ordinal);
         Assert.Contains("abc-1", exception.Message, StringComparison.Ordinal);
     }
+
+    // OR-020 DR-02: which rule categories exist, in one query.
+    [Fact]
+    public async Task FindExistingCategoriesAsync_MixOfSeededAndUnknown_ReturnsOnlyTheSeededOnes()
+    {
+        var interceptor = new CapturingCommandInterceptor();
+        await using var context = CreateContext(interceptor);
+        var catalog = new ProductCatalog(context);
+
+        var found = await catalog.FindExistingCategoriesAsync([new Category("Hospital Bed"), new Category("walker"), new Category("not a seeded category")], Token);
+
+        Assert.Equal([new Category("hospital bed"), new Category("walker")], found.OrderBy(category => category.Value, StringComparer.Ordinal));
+        Assert.Single(interceptor.Commands);
+    }
+
+    [Fact]
+    public async Task FindExistingCategoriesAsync_NoCategories_SendsNoQuery()
+    {
+        var interceptor = new CapturingCommandInterceptor();
+        await using var context = CreateContext(interceptor);
+
+        Assert.Empty(await new ProductCatalog(context).FindExistingCategoriesAsync([], Token));
+        Assert.Empty(interceptor.Commands);
+    }
 }

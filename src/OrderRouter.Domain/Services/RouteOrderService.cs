@@ -19,6 +19,7 @@ public sealed class RouteOrderService(
     IExperimentAssigner experimentAssigner,
     IRoutingPolicyFactory policyFactory,
     OrderRoutingService routingService,
+    DependencyWarningService dependencyWarnings,
     ICallerHasher callerHasher,
     IRoutingOrderStore orderStore,
     IRoutingDecisionLog decisionLog,
@@ -54,6 +55,14 @@ public sealed class RouteOrderService(
 
         var decision = routingService.Route(new OrderToRoute(command.CustomerZip, command.MailOrder, lines), suppliers, policy);
 
+        // FR-18, OR-020: dependency warnings are read off the finished decision, so they can never change it (DR-04).
+        // Only a partial route with rules configured needs the category lookup, so every other request skips the I/O.
+        IReadOnlyList<RoutingWarning> warnings = dependencyWarnings.AppliesTo(decision)
+            ? dependencyWarnings.WarningsFor(
+                decision,
+                await productCatalog.FindExistingCategoriesAsync(dependencyWarnings.RuleCategories, ct))
+            : [];
+
         // FR-20, SC-29: every valid POST is stored under a new server-generated UUIDv7, retries included. The save
         // happens before the answer, so an id is never returned for an order that cannot be read back. A failed save
         // throws and the host turns it into a 500 with no id. The raw caller ID is hashed here and never stored
@@ -61,7 +70,7 @@ public sealed class RouteOrderService(
         var id = Guid.CreateVersion7();
         var callerHash = command.CallerId is { } callerId ? callerHasher.Hash(callerId) : null;
 
-        var stored = StoredRoutingOrderFactory.Create(id, command, callerHash, timeProvider.GetUtcNow(), decision);
+        var stored = StoredRoutingOrderFactory.Create(id, command, callerHash, timeProvider.GetUtcNow(), decision, warnings);
 
         await orderStore.SaveAsync(stored, ct);
 

@@ -42,6 +42,32 @@ public sealed class ProductCatalog(IOrderRouterDataContext context) : IProductCa
         return [.. rows.Select(ToDomain)];
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlySet<Category>> FindExistingCategoriesAsync(
+        IReadOnlyCollection<Category> categories,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(categories);
+
+        if (categories.Count == 0)
+        {
+            return new HashSet<Category>();
+        }
+
+        var values = categories.Select(category => category.Value).Distinct(StringComparer.Ordinal).ToList();
+
+        // Seeded categories are normalized; lower() matches Category's normalization anyway, as a parameterized
+        // `= ANY(@values)`. DISTINCT keeps the result to at most one row per category.
+        var found = await context.Products
+            .AsNoTracking()
+            .Where(product => values.Contains(product.Category.ToLower()))
+            .Select(product => product.Category.ToLower())
+            .Distinct()
+            .ToListAsync(ct);
+
+        return found.Select(value => new Category(value)).ToHashSet();
+    }
+
     // The Product constructor stays the only place invariants are checked. A row it rejects is never skipped or
     // repaired (NFR-10): it throws with the product code.
     private static Product ToDomain(ProductEntity row)

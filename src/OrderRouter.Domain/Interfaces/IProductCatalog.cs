@@ -25,4 +25,13 @@ public interface IProductCatalog
     /// </returns>
     /// <exception cref="InvalidOperationException">A stored product violates a domain invariant (never skipped or repaired, NFR-10).</exception>
     Task<IReadOnlyList<Product>> FindByKeysAsync(IReadOnlyCollection<ProductCodeKey> keys, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns which of the given categories have at least one stored product, in one round trip. Used to skip
+    /// item-dependency rules that name a category not in the reference data (DR-02).
+    /// </summary>
+    /// <param name="categories">The categories to check; empty returns an empty set without any I/O.</param>
+    /// <param name="ct">Cancels the lookup.</param>
+    /// <returns>The subset of <paramref name="categories"/> that exists. Never <c>null</c>.</returns>
+    Task<IReadOnlySet<Category>> FindExistingCategoriesAsync(IReadOnlyCollection<Category> categories, CancellationToken ct = default);
 }
