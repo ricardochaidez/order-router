@@ -285,6 +285,8 @@ The threshold also stops splits that are not worth it. `ORD-001` under the same 
 
 **Benefit:** a patient with a CPAP and a back brace gets both from well-rated suppliers instead of one weak one, for one extra delivery. The experiment measures whether that improves satisfaction more than the extra shipment costs.
 
+**More detail:** [ticket OR-017](Docs/Tickets/OR-017-exp1-bounded-tradeoff.md) · [integration tests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/BoundedTradeOffHostTests.cs) · [results on 125 orders](Docs/TestingAnalysis/routing_results.md#4-effect-by-experiment)
+
 #### EXP-2: unrated suppliers
 
 Order: ZIP `02101`, local, `CP-STD-031` (cpap) + `GL-STD-081` (glucose meter). Only two local suppliers handle both categories: `SUP-0955` (rated 4.8) and `SUP-0781` Sunrise Mobility Network #781 (no rating yet).
@@ -297,6 +299,8 @@ Order: ZIP `02101`, local, `CP-STD-031` (cpap) + `GL-STD-081` (glucose meter). O
 Same number of shipments either way. In control the new supplier loses to a below-average supplier only because it has no history. In the treatment its starting rating of 6.5 beats 4.8 by more than the 0.5 similarity band.
 
 **Benefit:** 184 of the 1,100 seeded suppliers have no rating. Under control they only get orders when nobody rated can do the job, so most of them never earn a rating. The treatment gives them real orders in low-risk cases, so the network learns which new suppliers are good.
+
+**More detail:** [ticket OR-018](Docs/Tickets/OR-018-exp2-cold-start-prior.md) · [unit tests](tests/OrderRouter.Tests/Domain/Services/ColdStartRoutingTests.cs) · [results on 125 orders](Docs/TestingAnalysis/routing_results.md#4-effect-by-experiment)
 
 #### EXP-3: partial routing
 
@@ -337,6 +341,8 @@ Treatment response (`id` and `diagnostics` omitted):
   "errors": []
 }
 ```
+
+**More detail:** [ticket OR-019](Docs/Tickets/OR-019-exp3-partial-routing.md) · [integration tests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/PartialRoutingApiTests.cs) · [results on 125 orders](Docs/TestingAnalysis/routing_results.md#4-effect-by-experiment)
 
 **Benefit:** one bad line no longer blocks the whole order. The patient's wheelchair and oxygen can ship now, and only the unknown item goes to a person to fix. `feasible` stays `false`, so downstream systems still know the order is incomplete.
 
@@ -388,6 +394,21 @@ The wheelchair still ships, and the warning tells the reviewer it should not be 
 | EXP-2 (02101, cpap + glucose meter) | Rated supplier at 4.8 | New, unrated supplier | New supplier gets an order |
 | EXP-3 (10015, 2 known + 1 unknown item) | 0 of 3 items routed | 2 of 3 items routed | Known items ship now |
 
+### Experiment tests and results
+
+Where to find the detail behind each experiment. The examples above are single orders; the links below cover every arm combination and a larger run.
+
+| Experiment | Ticket | Tests | Results |
+|---|---|---|---|
+| EXP-1 consolidation vs. quality | [OR-017](Docs/Tickets/OR-017-exp1-bounded-tradeoff.md) | [BoundedTradeOffHostTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/BoundedTradeOffHostTests.cs) | [Effect by experiment](Docs/TestingAnalysis/routing_results.md#4-effect-by-experiment) |
+| EXP-2 unrated suppliers | [OR-018](Docs/Tickets/OR-018-exp2-cold-start-prior.md) | [ColdStartRoutingTests](tests/OrderRouter.Tests/Domain/Services/ColdStartRoutingTests.cs) | [Effect by experiment](Docs/TestingAnalysis/routing_results.md#4-effect-by-experiment) |
+| EXP-3 partial routing | [OR-019](Docs/Tickets/OR-019-exp3-partial-routing.md), [OR-020](Docs/Tickets/OR-020-dependency-warnings.md) | [PartialRoutingApiTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/PartialRoutingApiTests.cs), [DependencyWarningsApiTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/DependencyWarningsApiTests.cs) | [Effect by experiment](Docs/TestingAnalysis/routing_results.md#4-effect-by-experiment) |
+| Assignment and bucketing (all) | [OR-016](Docs/Tickets/OR-016-experiment-assignment.md) | [ExperimentAssignmentHostTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/ExperimentAssignmentHostTests.cs), [ExperimentArmsHostTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/ExperimentArmsHostTests.cs), [ConfigurationExperimentAssignerTests](tests/OrderRouter.Tests/Infrastructure/Services/ConfigurationExperimentAssignerTests.cs), [ExperimentBucketerTests](tests/OrderRouter.Tests/Domain/Helpers/ExperimentBucketerTests.cs) | [ADR-0005](Docs/ADRs/ADR-0005-experiment-assignment.md) |
+| All 8 arm combinations | [OR-024](Docs/Tickets/OR-024-experiment-combination-matrix.md) | [ExperimentCombinationMatrixTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/ExperimentCombinationMatrixTests.cs) | [`scripts/run-tests.sh` output](#test-run-with-saved-results) (`responses/experiments/combinations/`) |
+| Everything off equals the spec | [OR-023](Docs/Tickets/OR-023-acceptance-tests.md) | [AllControlEqualsAcceptanceTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/AllControlEqualsAcceptanceTests.cs), [SampleOrderAcceptanceTests](tests/OrderRouter.Api.IntegrationTests/Controllers/V1/SampleOrderAcceptanceTests.cs) | [Sample orders](#sample-orders-all-experiments-off) |
+
+Control vs. treatment over all 125 orders (sample plus production-like): [Docs/TestingAnalysis/routing_results.md](Docs/TestingAnalysis/routing_results.md). It has [key findings](Docs/TestingAnalysis/routing_results.md#1-key-findings), [headline metrics](Docs/TestingAnalysis/routing_results.md#3-headline-metrics), [caveats](Docs/TestingAnalysis/routing_results.md#5-caveats-for-interpreting-the-numbers) and [every order](Docs/TestingAnalysis/routing_results.md#appendix-b-every-order). Raw responses: [routing_results.json](Docs/TestingAnalysis/routing_results.json).
+
 Everything below is for local development only.
 
 ## Prerequisites
@@ -400,6 +421,8 @@ Everything below is for local development only.
 Run these from the repository root, in this order.
 
 1. Copy the dev-only settings: `cp .env.example .env`
+
+   `.env` holds the dev API key (`DEV_API_KEY`, default `dev-only-change-me`). Every request to the API must send it in the `X-Api-Key` header; a missing or wrong key returns `401`. Compose passes it to the API as `Authentication__DevApiKey`, and it only works when `ASPNETCORE_ENVIRONMENT=Development` (see [Authentication](#authentication)). If you run the API with `dotnet run` instead of Docker, set it with `dotnet user-secrets set "Authentication:DevApiKey" "dev-only-change-me" --project src/OrderRouter.Api`.
 2. Start PostgreSQL and the API:
 
    ```bash
@@ -447,6 +470,18 @@ dotnet test
 - `tests/OrderRouter.Api.IntegrationTests` holds the endpoint and persistence tests. It needs PostgreSQL (`docker compose up -d postgres` is enough) and seeds it before the first test.
 - By default the integration tests connect to the compose database: `Host=localhost;Port=5432;Database=orderrouter;Username=orderrouter;Password=orderrouter-dev-only`. To use another database, set the `ConnectionStrings__OrderRouter` environment variable. If PostgreSQL is not reachable the test run fails; it is never skipped.
 - To run one project: `dotnet test --project tests/OrderRouter.Tests` or `dotnet test --project tests/OrderRouter.Api.IntegrationTests`.
+
+### Test run with saved results
+
+`scripts/run-tests.sh` runs both test projects from the command line and keeps the results in `test-results/run-<timestamp>/` (git-ignored; `test-results/latest` links to the newest run). It starts PostgreSQL through `docker compose` unless you pass `--no-db`, and `--only unit|integration` runs one project. The exit code is `0` only when every test passed.
+
+- `summary.md`: one row per recorded response (HTTP status, order status, suppliers, experiment arms).
+- `responses/default-route/`: the three sample orders with every experiment off.
+- `responses/experiments/exp1|exp2|exp3/`: control and treatment of each experiment, side by side, each with the `experiments.json` it ran with. `responses/experiments/combinations/` has all 8 arm combinations over the four sentinel orders.
+- `responses/all-tests/`: every response captured by the acceptance tests.
+- `unit-tests.*` and `integration-tests.*` (`.trx` and `.html`): the pass/fail result of every test.
+
+Responses are recorded only when `ORDERROUTER_RESULTS_DIR` is set, which the script does; a plain `dotnet test` writes nothing.
 
 ## Configuration
 
@@ -598,6 +633,7 @@ ItemDependencies__Rules__0__Requires__0="patient lift"
 ## Further reading
 
 - [Requirements](Docs/BusinessRequirements/Order-Router-Technical-Requirements.md)
+- [Experiment results: control vs. treatment](Docs/TestingAnalysis/routing_results.md) and the [experiment test index](#experiment-tests-and-results)
 - [Architecture decision records](Docs/ADRs/README.md)
 - [Tickets](Docs/Tickets/README.md)
 - [AI prompts used to build this service](Docs/AI_PROMPTS.md)

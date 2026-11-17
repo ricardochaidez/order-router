@@ -254,5 +254,1189 @@
     ],
     "priority": "standard",
     "notes": "Boston, mail order. Bi-level CPAP and mesh nebulizer; look for tied top suppliers (random tie-break)."
+  },
+  {
+    "order_id": "PRD-023",
+    "customer_zip": "23219",
+    "mail_order": true,
+    "items": [
+      { "product_code": "KS-BAR-076", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 },
+      { "product_code": "CS-ARM-089", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Richmond, VA. mail order allowed."
+  },
+  {
+    "order_id": "PRD-024",
+    "customer_zip": "85004",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-MIA-101", "quantity": 1 },
+      { "product_code": "TD-CERV-117", "quantity": 1 },
+      { "product_code": "HP-NECK-109", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Cervical spine surgery follow-up, Phoenix, AZ. local delivery only."
+  },
+  {
+    "order_id": "PRD-025",
+    "customer_zip": "79901",
+    "mail_order": true,
+    "items": [
+      { "product_code": "BP-AUTO-077", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Home BP monitoring, El Paso, TX. mail order allowed."
+  },
+  {
+    "order_id": "PRD-026",
+    "customer_zip": "68102",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CP-AUTO-033", "quantity": 1 },
+      { "product_code": "CP-MSK-FF-035", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "CPAP with full-face mask, Omaha, NE. local delivery only."
+  },
+  {
+    "order_id": "PRD-027",
+    "customer_zip": "38103",
+    "mail_order": true,
+    "items": [
+      { "product_code": "OX-STAT-025", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 },
+      { "product_code": "NB-COMP-039", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "COPD home setup, Memphis, TN. mail order allowed."
+  },
+  {
+    "order_id": "PRD-028",
+    "customer_zip": "29401",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CN-QUAD-064", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Quad cane after stroke, Charleston, SC. local delivery only."
+  },
+  {
+    "order_id": "PRD-029",
+    "customer_zip": "94110",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-PHIL-100", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Philadelphia collar, San Francisco, CA. local delivery only."
+  },
+  {
+    "order_id": "PRD-030",
+    "customer_zip": "88001",
+    "mail_order": false,
+    "items": [
+      { "product_code": "GL-CGM-082", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "CGM start, Las Cruces, NM. local delivery only."
+  },
+  {
+    "order_id": "PRD-031",
+    "customer_zip": "02110",
+    "mail_order": false,
+    "items": [
+      { "product_code": "KS-BAR-076", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 },
+      { "product_code": "CS-ARM-089", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Boston, MA. local delivery only."
+  },
+  {
+    "order_id": "PRD-032",
+    "customer_zip": "20001",
+    "mail_order": true,
+    "items": [
+      { "product_code": "KS-AT-074", "quantity": 1 },
+      { "product_code": "AB-RIG-096", "quantity": 1 },
+      { "product_code": "CR-FOR-069", "quantity": 1 },
+      { "product_code": "IM-PORT-113", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Ankle fracture recovery, Washington, DC. mail order allowed."
+  },
+  {
+    "order_id": "PRD-033",
+    "customer_zip": "35203",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "WC-PWR-007", "quantity": 1 },
+      { "product_code": "PL-CEIL-046", "quantity": 1 },
+      { "product_code": "CM-ROL-052", "quantity": 1 },
+      { "product_code": "SC-ROL-055", "quantity": 1 },
+      { "product_code": "CP-BI-032", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "ALS patient home setup, Birmingham, AL. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-034",
+    "customer_zip": "87102",
+    "mail_order": true,
+    "items": [
+      { "product_code": "RL-LW-059", "quantity": 1 },
+      { "product_code": "TU-WIRE-104", "quantity": 1 },
+      { "product_code": "NB-MESH-041", "quantity": 1 },
+      { "product_code": "AB-AIR-097", "quantity": 1 },
+      { "product_code": "BP-WRS-079", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Large mixed order, items not clinically related, Albuquerque, NM. mail order allowed."
+  },
+  {
+    "order_id": "PRD-035",
+    "customer_zip": "95814",
+    "mail_order": true,
+    "items": [
+      { "product_code": "WC-LW-003", "quantity": 1 },
+      { "product_code": "PL-STS-045", "quantity": 1 },
+      { "product_code": "BB-TLSO-092", "quantity": 1 },
+      { "product_code": "CC-RIG-099", "quantity": 1 },
+      { "product_code": "CS-TH-15-087", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Spinal injury rehab, Sacramento, CA. mail order allowed. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-036",
+    "customer_zip": "50309",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-OUT-062", "quantity": 1 },
+      { "product_code": "CC-SOFT-098", "quantity": 1 },
+      { "product_code": "NB-ULTR-040", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Mixed order, unrelated items, Des Moines, IA. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-037",
+    "customer_zip": "57104",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-LW-003", "quantity": 1 },
+      { "product_code": "PL-STS-045", "quantity": 1 },
+      { "product_code": "BB-TLSO-092", "quantity": 1 },
+      { "product_code": "CC-RIG-099", "quantity": 1 },
+      { "product_code": "CS-TH-15-087", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Spinal injury rehab, Sioux Falls, SD. local delivery only."
+  },
+  {
+    "order_id": "PRD-038",
+    "customer_zip": "43215",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CP-AUTO-033", "quantity": 1 },
+      { "product_code": "CP-MSK-FF-035", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "CPAP with full-face mask, Columbus, OH. mail order allowed."
+  },
+  {
+    "order_id": "PRD-039",
+    "customer_zip": "04101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CP-STD-031", "quantity": 1 },
+      { "product_code": "KS-STD-073", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "BB-LUM-090", "quantity": 1 },
+      { "product_code": "HP-MOIST-107", "quantity": 1 },
+      { "product_code": "CC-SOFT-098", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Large mixed order, items not clinically related, Portland, ME. mail order allowed."
+  },
+  {
+    "order_id": "PRD-040",
+    "customer_zip": "96813",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CR-AXL-068", "quantity": 1 },
+      { "product_code": "PL-PORT-047", "quantity": 1 },
+      { "product_code": "BP-MAN-078", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Honolulu, HI. local delivery only."
+  },
+  {
+    "order_id": "PRD-041",
+    "customer_zip": "46204",
+    "mail_order": false,
+    "items": [
+      { "product_code": "BP-AUTO-077", "quantity": 1 },
+      { "product_code": "OX-PULOX-030", "quantity": 1 },
+      { "product_code": "CS-KH-20-086", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Home dialysis-adjacent monitoring, Indianapolis, IN. local delivery only."
+  },
+  {
+    "order_id": "PRD-042",
+    "customer_zip": "55401",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CM-FLD-051", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bedside commode for night-time use, Minneapolis, MN. local delivery only."
+  },
+  {
+    "order_id": "PRD-043",
+    "customer_zip": "33602",
+    "mail_order": true,
+    "items": [
+      { "product_code": "TU-DUAL-102", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "TENS unit for sciatica, Tampa, FL. mail order allowed."
+  },
+  {
+    "order_id": "PRD-044",
+    "customer_zip": "04730",
+    "mail_order": true,
+    "items": [
+      { "product_code": "HB-MAN-019", "quantity": 1 },
+      { "product_code": "BB-TLSO-092", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "CP-TRV-034", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Mixed order, unrelated items, Houlton, ME (rural). mail order allowed, rush. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-045",
+    "customer_zip": "89101",
+    "mail_order": false,
+    "items": [
+      { "product_code": "BB-LSO-091", "quantity": 1 },
+      { "product_code": "TU-QUAD-103", "quantity": 1 },
+      { "product_code": "HP-IR-108", "quantity": 1 },
+      { "product_code": "TD-LUMB-118", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Lower-back pain program, Las Vegas, NV. local delivery only."
+  },
+  {
+    "order_id": "PRD-046",
+    "customer_zip": "84101",
+    "mail_order": false,
+    "items": [
+      { "product_code": "GL-STD-081", "quantity": 2 },
+      { "product_code": "BP-AUTO-077", "quantity": 1 },
+      { "product_code": "CS-KH-15-085", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Diabetic supplies bundle, Salt Lake City, UT. local delivery only."
+  },
+  {
+    "order_id": "PRD-047",
+    "customer_zip": "92101",
+    "mail_order": false,
+    "items": [
+      { "product_code": "GL-STD-081", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Newly diagnosed diabetes: meter, San Diego, CA. local delivery only."
+  },
+  {
+    "order_id": "PRD-048",
+    "customer_zip": "32202",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CM-FLD-051", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bedside commode for night-time use, Jacksonville, FL. mail order allowed."
+  },
+  {
+    "order_id": "PRD-049",
+    "customer_zip": "83702",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-MAN-019", "quantity": 1 },
+      { "product_code": "BB-TLSO-092", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "CP-TRV-034", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Mixed order, unrelated items, Boise, ID. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-050",
+    "customer_zip": "58102",
+    "mail_order": true,
+    "items": [
+      { "product_code": "RL-LW-059", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Rollator for early-stage Parkinson's, Fargo, ND. mail order allowed."
+  },
+  {
+    "order_id": "PRD-051",
+    "customer_zip": "44114",
+    "mail_order": false,
+    "items": [
+      { "product_code": "KS-STD-073", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Knee scooter for foot surgery, Cleveland, OH. local delivery only."
+  },
+  {
+    "order_id": "PRD-052",
+    "customer_zip": "21201",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-STD-058", "quantity": 1 },
+      { "product_code": "SC-TUB-057", "quantity": 1 },
+      { "product_code": "CM-DROP-049", "quantity": 1 },
+      { "product_code": "HB-SEM-017", "quantity": 1 },
+      { "product_code": "BP-AUTO-077", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Elderly fall-prevention home package, Baltimore, MD. local delivery only."
+  },
+  {
+    "order_id": "PRD-053",
+    "customer_zip": "05401",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HP-MOIST-107", "quantity": 1 },
+      { "product_code": "GL-TLK-083", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Burlington, VT. local delivery only."
+  },
+  {
+    "order_id": "PRD-054",
+    "customer_zip": "63101",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-STD-058", "quantity": 1 },
+      { "product_code": "SC-TUB-057", "quantity": 1 },
+      { "product_code": "CM-DROP-049", "quantity": 1 },
+      { "product_code": "HB-SEM-017", "quantity": 1 },
+      { "product_code": "BP-AUTO-077", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Elderly fall-prevention home package, St. Louis, MO. local delivery only."
+  },
+  {
+    "order_id": "PRD-055",
+    "customer_zip": "99501",
+    "mail_order": true,
+    "items": [
+      { "product_code": "KS-AT-074", "quantity": 1 },
+      { "product_code": "AB-RIG-096", "quantity": 1 },
+      { "product_code": "CR-FOR-069", "quantity": 1 },
+      { "product_code": "IM-PORT-113", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Ankle fracture recovery, Anchorage, AK. mail order allowed."
+  },
+  {
+    "order_id": "PRD-056",
+    "customer_zip": "73102",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "PL-ELEC-043", "quantity": 1 },
+      { "product_code": "CM-BED-048", "quantity": 1 },
+      { "product_code": "WC-REC-006", "quantity": 1 },
+      { "product_code": "OX-STAT-025", "quantity": 1 },
+      { "product_code": "SC-STD-053", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Hospice home setup, Oklahoma City, OK. local delivery only."
+  },
+  {
+    "order_id": "PRD-057",
+    "customer_zip": "82414",
+    "mail_order": true,
+    "items": [
+      { "product_code": "BP-AMB-080", "quantity": 1 },
+      { "product_code": "TU-PRO-105", "quantity": 1 },
+      { "product_code": "CC-MIA-101", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Cody, WY (rural). mail order allowed."
+  },
+  {
+    "order_id": "PRD-058",
+    "customer_zip": "64106",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-PED-005", "quantity": 1 },
+      { "product_code": "WK-PED-014", "quantity": 1 },
+      { "product_code": "NB-PED-042", "quantity": 1 },
+      { "product_code": "HB-PED-022", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Pediatric complex care, Kansas City, MO. local delivery only."
+  },
+  {
+    "order_id": "PRD-059",
+    "customer_zip": "33130",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WK-FLD-015", "quantity": 1 },
+      { "product_code": "NB-MESH-041", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Miami, FL. local delivery only."
+  },
+  {
+    "order_id": "PRD-060",
+    "customer_zip": "96799",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WK-ROL-010", "quantity": 1 },
+      { "product_code": "SC-TRNB-054", "quantity": 1 },
+      { "product_code": "CM-FLD-051", "quantity": 1 },
+      { "product_code": "IM-KNEE-110", "quantity": 1 },
+      { "product_code": "CPM-KNEE-114", "quantity": 1 },
+      { "product_code": "CS-TH-20-088", "quantity": 2 }
+    ],
+    "priority": "rush",
+    "notes": "Post-op ortho discharge, Pago Pago, AS. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-061",
+    "customer_zip": "79520",
+    "mail_order": true,
+    "items": [
+      { "product_code": "IM-UNI-112", "quantity": 1 },
+      { "product_code": "CN-FLD-066", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Hamlin, TX (rural). mail order allowed."
+  },
+  {
+    "order_id": "PRD-062",
+    "customer_zip": "98101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "WC-PWR-007", "quantity": 1 },
+      { "product_code": "PL-CEIL-046", "quantity": 1 },
+      { "product_code": "CM-ROL-052", "quantity": 1 },
+      { "product_code": "SC-ROL-055", "quantity": 1 },
+      { "product_code": "CP-BI-032", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "ALS patient home setup, Seattle, WA. mail order allowed. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-063",
+    "customer_zip": "75201",
+    "mail_order": false,
+    "items": [
+      { "product_code": "OX-STAT-025", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 },
+      { "product_code": "OX-PULOX-030", "quantity": 1 },
+      { "product_code": "NB-COMP-039", "quantity": 1 },
+      { "product_code": "CP-BI-032", "quantity": 1 },
+      { "product_code": "CP-MSK-FF-035", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Respiratory home setup, Dallas, TX. local delivery only."
+  },
+  {
+    "order_id": "PRD-064",
+    "customer_zip": "40202",
+    "mail_order": false,
+    "items": [
+      { "product_code": "AB-HING-095", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Foot-drop support: hinged ankle brace, Louisville, KY. local delivery only."
+  },
+  {
+    "order_id": "PRD-065",
+    "customer_zip": "82001",
+    "mail_order": true,
+    "items": [
+      { "product_code": "AB-HING-095", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Foot-drop support: hinged ankle brace, Cheyenne, WY. mail order allowed."
+  },
+  {
+    "order_id": "PRD-066",
+    "customer_zip": "97204",
+    "mail_order": true,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "PL-ELEC-043", "quantity": 1 },
+      { "product_code": "CM-BED-048", "quantity": 1 },
+      { "product_code": "WC-REC-006", "quantity": 1 },
+      { "product_code": "OX-STAT-025", "quantity": 1 },
+      { "product_code": "SC-STD-053", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Hospice home setup, Portland, OR. mail order allowed. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-067",
+    "customer_zip": "06103",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-MAN-019", "quantity": 1 },
+      { "product_code": "BB-TLSO-092", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "CP-TRV-034", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Hartford, CT. local delivery only."
+  },
+  {
+    "order_id": "PRD-068",
+    "customer_zip": "57501",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-MIA-101", "quantity": 1 },
+      { "product_code": "TD-CERV-117", "quantity": 1 },
+      { "product_code": "HP-NECK-109", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Cervical spine surgery follow-up, Pierre, SD (rural). local delivery only."
+  },
+  {
+    "order_id": "PRD-069",
+    "customer_zip": "99701",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WK-ROL-010", "quantity": 1 },
+      { "product_code": "SC-TRNB-054", "quantity": 1 },
+      { "product_code": "CM-FLD-051", "quantity": 1 },
+      { "product_code": "IM-KNEE-110", "quantity": 1 },
+      { "product_code": "CPM-KNEE-114", "quantity": 1 },
+      { "product_code": "CS-TH-20-088", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Post-op ortho discharge, Fairbanks, AK. local delivery only."
+  },
+  {
+    "order_id": "PRD-070",
+    "customer_zip": "59301",
+    "mail_order": true,
+    "items": [
+      { "product_code": "AB-HING-095", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Foot-drop support: hinged ankle brace, Miles City, MT (rural). mail order allowed, rush."
+  },
+  {
+    "order_id": "PRD-071",
+    "customer_zip": "80202",
+    "mail_order": true,
+    "items": [
+      { "product_code": "AB-HING-095", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Foot-drop support: hinged ankle brace, Denver, CO. mail order allowed."
+  },
+  {
+    "order_id": "PRD-072",
+    "customer_zip": "72201",
+    "mail_order": true,
+    "items": [
+      { "product_code": "AB-LACE-094", "quantity": 1 },
+      { "product_code": "CR-AXL-068", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Ankle sprain kit: brace and crutches, Little Rock, AR. mail order allowed."
+  },
+  {
+    "order_id": "PRD-073",
+    "customer_zip": "07102",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-PED-005", "quantity": 1 },
+      { "product_code": "WK-PED-014", "quantity": 1 },
+      { "product_code": "NB-PED-042", "quantity": 1 },
+      { "product_code": "HB-PED-022", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Pediatric complex care, Newark, NJ. local delivery only."
+  },
+  {
+    "order_id": "PRD-074",
+    "customer_zip": "10001",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CS-ARM-089", "quantity": 2 }
+    ],
+    "priority": "rush",
+    "notes": "Lymphedema arm sleeves, New York, NY. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-075",
+    "customer_zip": "39201",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-STD-001", "quantity": 1 },
+      { "product_code": "CP-AUTO-033", "quantity": 1 },
+      { "product_code": "GL-STD-081", "quantity": 1 },
+      { "product_code": "AB-LACE-094", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Jackson, MS. local delivery only."
+  },
+  {
+    "order_id": "PRD-076",
+    "customer_zip": "90012",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CR-AXL-068", "quantity": 1 },
+      { "product_code": "PL-PORT-047", "quantity": 1 },
+      { "product_code": "BP-MAN-078", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Los Angeles, CA. mail order allowed. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-077",
+    "customer_zip": "59101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "RL-OUT-062", "quantity": 1 },
+      { "product_code": "CC-SOFT-098", "quantity": 1 },
+      { "product_code": "NB-ULTR-040", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Billings, MT. mail order allowed."
+  },
+  {
+    "order_id": "PRD-078",
+    "customer_zip": "78701",
+    "mail_order": false,
+    "items": [
+      { "product_code": "BP-AUTO-077", "quantity": 1 },
+      { "product_code": "OX-PULOX-030", "quantity": 1 },
+      { "product_code": "CS-KH-20-086", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Home dialysis-adjacent monitoring, Austin, TX. local delivery only."
+  },
+  {
+    "order_id": "PRD-079",
+    "customer_zip": "48226",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CC-PHIL-100", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Philadelphia collar, Detroit, MI. mail order allowed, rush."
+  },
+  {
+    "order_id": "PRD-080",
+    "customer_zip": "83201",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-BAR-021", "quantity": 1 },
+      { "product_code": "WC-BAR-004", "quantity": 1 },
+      { "product_code": "CM-BAR-050", "quantity": 1 },
+      { "product_code": "SC-BAR-056", "quantity": 1 },
+      { "product_code": "WK-BAR-013", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bariatric home-care setup, Pocatello, ID. local delivery only."
+  },
+  {
+    "order_id": "PRD-081",
+    "customer_zip": "53202",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CM-FLD-051", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bedside commode for night-time use, Milwaukee, WI. local delivery only."
+  },
+  {
+    "order_id": "PRD-082",
+    "customer_zip": "70112",
+    "mail_order": false,
+    "items": [
+      { "product_code": "SC-TUB-057", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Transfer bench for tub, New Orleans, LA. local delivery only."
+  },
+  {
+    "order_id": "PRD-083",
+    "customer_zip": "77002",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-SEM-017", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Hospital bed for home recovery, Houston, TX. local delivery only."
+  },
+  {
+    "order_id": "PRD-084",
+    "customer_zip": "30303",
+    "mail_order": true,
+    "items": [
+      { "product_code": "WC-STD-001", "quantity": 2 },
+      { "product_code": "WK-STD-009", "quantity": 3 },
+      { "product_code": "CN-QUAD-064", "quantity": 4 },
+      { "product_code": "SC-STD-053", "quantity": 2 },
+      { "product_code": "CM-BED-048", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Large mixed order, items not clinically related, Atlanta, GA. mail order allowed. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-085",
+    "customer_zip": "25301",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CP-STD-031", "quantity": 1 },
+      { "product_code": "KS-STD-073", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "BB-LUM-090", "quantity": 1 },
+      { "product_code": "HP-MOIST-107", "quantity": 1 },
+      { "product_code": "CC-SOFT-098", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Large mixed order, items not clinically related, Charleston, WV. local delivery only."
+  },
+  {
+    "order_id": "PRD-086",
+    "customer_zip": "11201",
+    "mail_order": true,
+    "items": [
+      { "product_code": "SC-TRNB-054", "quantity": 1 },
+      { "product_code": "CM-DROP-049", "quantity": 1 },
+      { "product_code": "WK-4WH-012", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bathroom safety after fall, Brooklyn, NY. mail order allowed."
+  },
+  {
+    "order_id": "PRD-087",
+    "customer_zip": "28202",
+    "mail_order": true,
+    "items": [
+      { "product_code": "RL-LW-059", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Rollator for early-stage Parkinson's, Charlotte, NC. mail order allowed."
+  },
+  {
+    "order_id": "PRD-088",
+    "customer_zip": "15222",
+    "mail_order": true,
+    "items": [
+      { "product_code": "RL-LW-059", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Rollator for early-stage Parkinson's, Pittsburgh, PA. mail order allowed."
+  },
+  {
+    "order_id": "PRD-089",
+    "customer_zip": "23219",
+    "mail_order": true,
+    "items": [
+      { "product_code": "IM-UNI-112", "quantity": 1 },
+      { "product_code": "CN-FLD-066", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Richmond, VA. mail order allowed."
+  },
+  {
+    "order_id": "PRD-090",
+    "customer_zip": "85004",
+    "mail_order": true,
+    "items": [
+      { "product_code": "BB-POST-093", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Posture brace, Phoenix, AZ. mail order allowed."
+  },
+  {
+    "order_id": "PRD-091",
+    "customer_zip": "79901",
+    "mail_order": true,
+    "items": [
+      { "product_code": "SC-TUB-057", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Transfer bench for tub, El Paso, TX. mail order allowed."
+  },
+  {
+    "order_id": "PRD-092",
+    "customer_zip": "68102",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CS-KH-20-086", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Compression stockings for venous insufficiency, Omaha, NE. mail order allowed."
+  },
+  {
+    "order_id": "PRD-093",
+    "customer_zip": "38103",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-SEM-017", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Hospital bed for home recovery, Memphis, TN. local delivery only."
+  },
+  {
+    "order_id": "PRD-094",
+    "customer_zip": "29401",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-RIG-099", "quantity": 1 },
+      { "product_code": "OX-PULOX-030", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Charleston, SC. local delivery only."
+  },
+  {
+    "order_id": "PRD-095",
+    "customer_zip": "94110",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CM-FLD-051", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bedside commode for night-time use, San Francisco, CA. local delivery only."
+  },
+  {
+    "order_id": "PRD-096",
+    "customer_zip": "88001",
+    "mail_order": true,
+    "items": [
+      { "product_code": "HB-SEM-017", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Hospital bed for home recovery, Las Cruces, NM. mail order allowed. Contains bulky equipment that may not be mailable."
+  },
+  {
+    "order_id": "PRD-097",
+    "customer_zip": "02110",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-OUT-062", "quantity": 1 },
+      { "product_code": "CC-SOFT-098", "quantity": 1 },
+      { "product_code": "NB-ULTR-040", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Boston, MA. local delivery only."
+  },
+  {
+    "order_id": "PRD-098",
+    "customer_zip": "20001",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CN-STD-063", "quantity": 1 },
+      { "product_code": "BP-WRS-079", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Washington, DC. local delivery only."
+  },
+  {
+    "order_id": "PRD-099",
+    "customer_zip": "35203",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CS-ARM-089", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Lymphedema arm sleeves, Birmingham, AL. mail order allowed."
+  },
+  {
+    "order_id": "PRD-100",
+    "customer_zip": "87102",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-MAN-019", "quantity": 1 },
+      { "product_code": "BB-TLSO-092", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "CP-TRV-034", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Albuquerque, NM. local delivery only."
+  },
+  {
+    "order_id": "PRD-101",
+    "customer_zip": "95814",
+    "mail_order": true,
+    "items": [
+      { "product_code": "WK-ROL-010", "quantity": 1 },
+      { "product_code": "SC-TRNB-054", "quantity": 1 },
+      { "product_code": "CM-FLD-051", "quantity": 1 },
+      { "product_code": "IM-KNEE-110", "quantity": 1 },
+      { "product_code": "CPM-KNEE-114", "quantity": 1 },
+      { "product_code": "CS-TH-20-088", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Post-op ortho discharge, Sacramento, CA. mail order allowed."
+  },
+  {
+    "order_id": "PRD-102",
+    "customer_zip": "50309",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-LW-059", "quantity": 1 },
+      { "product_code": "TU-WIRE-104", "quantity": 1 },
+      { "product_code": "NB-MESH-041", "quantity": 1 },
+      { "product_code": "AB-AIR-097", "quantity": 1 },
+      { "product_code": "BP-WRS-079", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Large mixed order, items not clinically related, Des Moines, IA. local delivery only."
+  },
+  {
+    "order_id": "PRD-103",
+    "customer_zip": "57104",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-LW-003", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Single wheelchair for community mobility, Sioux Falls, SD. local delivery only."
+  },
+  {
+    "order_id": "PRD-104",
+    "customer_zip": "43215",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CP-BI-032", "quantity": 1 },
+      { "product_code": "CP-MSK-FF-035", "quantity": 1 },
+      { "product_code": "CP-HUM-038", "quantity": 1 },
+      { "product_code": "OX-PULOX-030", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Sleep apnea start kit, Columbus, OH. local delivery only."
+  },
+  {
+    "order_id": "PRD-105",
+    "customer_zip": "04101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CN-STD-063", "quantity": 2 },
+      { "product_code": "BP-WRS-079", "quantity": 1 },
+      { "product_code": "TU-DUAL-102", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Portland, ME. mail order allowed."
+  },
+  {
+    "order_id": "PRD-106",
+    "customer_zip": "96813",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-LW-003", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Single wheelchair for community mobility, Honolulu, HI. local delivery only."
+  },
+  {
+    "order_id": "PRD-107",
+    "customer_zip": "46204",
+    "mail_order": true,
+    "items": [
+      { "product_code": "GL-STD-081", "quantity": 2 },
+      { "product_code": "BP-AUTO-077", "quantity": 1 },
+      { "product_code": "CS-KH-15-085", "quantity": 2 }
+    ],
+    "priority": "standard",
+    "notes": "Diabetic supplies bundle, Indianapolis, IN. mail order allowed."
+  },
+  {
+    "order_id": "PRD-108",
+    "customer_zip": "55401",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-LW-059", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Rollator for early-stage Parkinson's, Minneapolis, MN. local delivery only."
+  },
+  {
+    "order_id": "PRD-109",
+    "customer_zip": "33602",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WK-FLD-015", "quantity": 1 },
+      { "product_code": "NB-MESH-041", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Mixed order, unrelated items, Tampa, FL. local delivery only."
+  },
+  {
+    "order_id": "PRD-110",
+    "customer_zip": "04730",
+    "mail_order": true,
+    "items": [
+      { "product_code": "SC-TRNB-054", "quantity": 1 },
+      { "product_code": "CM-DROP-049", "quantity": 1 },
+      { "product_code": "WK-4WH-012", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Bathroom safety after fall, Houlton, ME (rural). mail order allowed."
+  },
+  {
+    "order_id": "PRD-111",
+    "customer_zip": "89101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "BB-POST-093", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Posture brace, Las Vegas, NV. mail order allowed, rush."
+  },
+  {
+    "order_id": "PRD-112",
+    "customer_zip": "84101",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-MIA-101", "quantity": 1 },
+      { "product_code": "TD-CERV-117", "quantity": 1 },
+      { "product_code": "HP-NECK-109", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Cervical spine surgery follow-up, Salt Lake City, UT. local delivery only."
+  },
+  {
+    "order_id": "PRD-113",
+    "customer_zip": "92101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "TU-DUAL-102", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "TENS unit for sciatica, San Diego, CA. mail order allowed."
+  },
+  {
+    "order_id": "PRD-114",
+    "customer_zip": "32202",
+    "mail_order": false,
+    "items": [
+      { "product_code": "IM-UNI-112", "quantity": 1 },
+      { "product_code": "CN-FLD-066", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Mixed order, unrelated items, Jacksonville, FL. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-115",
+    "customer_zip": "83702",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CN-QUAD-064", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Quad cane after stroke, Boise, ID. mail order allowed."
+  },
+  {
+    "order_id": "PRD-116",
+    "customer_zip": "58102",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "PL-ELEC-043", "quantity": 1 },
+      { "product_code": "CM-BED-048", "quantity": 1 },
+      { "product_code": "WC-REC-006", "quantity": 1 },
+      { "product_code": "OX-STAT-025", "quantity": 1 },
+      { "product_code": "SC-STD-053", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Hospice home setup, Fargo, ND. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-117",
+    "customer_zip": "44114",
+    "mail_order": false,
+    "items": [
+      { "product_code": "SC-TUB-057", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Transfer bench for tub, Cleveland, OH. local delivery only."
+  },
+  {
+    "order_id": "PRD-118",
+    "customer_zip": "21201",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-MIA-101", "quantity": 1 },
+      { "product_code": "TD-CERV-117", "quantity": 1 },
+      { "product_code": "HP-NECK-109", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Cervical spine surgery follow-up, Baltimore, MD. local delivery only, rush."
+  },
+  {
+    "order_id": "PRD-119",
+    "customer_zip": "05401",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CP-STD-031", "quantity": 1 },
+      { "product_code": "KS-STD-073", "quantity": 1 },
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "BB-LUM-090", "quantity": 1 },
+      { "product_code": "HP-MOIST-107", "quantity": 1 },
+      { "product_code": "CC-SOFT-098", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Large mixed order, items not clinically related, Burlington, VT. mail order allowed."
+  },
+  {
+    "order_id": "PRD-120",
+    "customer_zip": "63101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "TU-DUAL-102", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "TENS unit for sciatica, St. Louis, MO. mail order allowed."
+  },
+  {
+    "order_id": "PRD-121",
+    "customer_zip": "99501",
+    "mail_order": true,
+    "items": [
+      { "product_code": "TU-DUAL-102", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "TENS unit for sciatica, Anchorage, AK. mail order allowed."
+  },
+  {
+    "order_id": "PRD-122",
+    "customer_zip": "73102",
+    "mail_order": false,
+    "items": [
+      { "product_code": "OX-PORT-024", "quantity": 1 },
+      { "product_code": "OX-CONS-029", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Portable oxygen for travel, Oklahoma City, OK. local delivery only, rush."
   }
 ]

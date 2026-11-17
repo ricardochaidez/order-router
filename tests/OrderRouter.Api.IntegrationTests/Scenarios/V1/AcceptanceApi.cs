@@ -41,10 +41,17 @@ internal sealed class AcceptanceApi(ReferenceDataFixture fixture)
     /// <summary>Sends any request through <paramref name="factory"/> and reads the reply.</summary>
     public static async Task<Reply> SendAsync(WebApplicationFactory<Program> factory, HttpRequestMessage request)
     {
+        // Read the body first: the request is disposed with the client's handler once it has been sent.
+        var requestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         using var client = factory.CreateClient();
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
         var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         var json = text.Length > 0 && text[0] == '{' ? JsonDocument.Parse(text).RootElement.Clone() : default;
+
+        // Every acceptance call is kept under all-tests/<test name> when ORDERROUTER_RESULTS_DIR is set (a no-op otherwise).
+        var testName = TestContext.Current.Test?.TestDisplayName ?? "unknown-test";
+        ResponseRecorder.Record("all-tests", testName, "Response captured from an acceptance test call.", request.Method.Method,
+            request.RequestUri?.OriginalString ?? string.Empty, requestBody, (int)response.StatusCode, response.Headers.Location?.OriginalString, text);
 
         return new Reply(response, text, json);
     }

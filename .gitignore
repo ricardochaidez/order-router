@@ -428,3 +428,6 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Output of scripts/run-tests.sh (one folder per run)
+/test-results/
