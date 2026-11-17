@@ -1,4 +1,5 @@
 using OrderRouter.Domain.Entities.Routing;
+using OrderRouter.Domain.Models.PlanSearch;
 
 namespace OrderRouter.Domain.Helpers;
 
@@ -20,6 +21,8 @@ public static class UnfulfilledMessages
             UnfulfilledLine.UnknownProductCode => $"Product code '{line.ProductCode}' was not found in the catalog.",
             "NO_SUPPLIER_FOR_CATEGORY_IN_AREA" => $"No supplier delivers '{line.Category}' to the delivery ZIP.",
             "NO_SUPPLIER_FOR_CATEGORY" => $"No mail-order supplier handles '{line.Category}'.",
+            UnfulfilledLine.TooManyCategories =>
+                $"The order spans more than {PlanSearchRequest.MaxCategories} product categories, so it was not routed. Review or split the order.",
             _ => throw new ArgumentOutOfRangeException(nameof(line), line.ReasonCode, "Unknown unfulfilled reason code."),
         };
     }

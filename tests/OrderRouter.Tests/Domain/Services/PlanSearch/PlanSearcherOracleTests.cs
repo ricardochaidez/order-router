@@ -73,7 +73,7 @@ public class PlanSearcherOracleTests
                 // Same assignment rule as the searcher: each category goes to a best (rating, then local) of the used suppliers able to take it.
                 for (var c = 0; c < categories.Count; c++)
                 {
-                    var bit = 1u << c;
+                    var bit = 1UL << c;
                     var chosen = candidates[assignment[c]];
 
                     if (used.Any(u => (candidates[u].Mask & bit) != 0 && Rank(candidates[u]).CompareTo(Rank(chosen)) > 0))
@@ -91,7 +91,7 @@ public class PlanSearcherOracleTests
 
             for (var i = 0; i < candidates.Count; i++)
             {
-                if ((candidates[i].Mask & (1u << category)) != 0)
+                if ((candidates[i].Mask & (1UL << category)) != 0)
                 {
                     assignment[category] = i;
                     Walk(category + 1);

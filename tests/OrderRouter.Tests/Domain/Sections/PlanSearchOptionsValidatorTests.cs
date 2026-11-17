@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using OrderRouter.Domain.Models.PlanSearch;
 using OrderRouter.Domain.Sections;
 
 namespace OrderRouter.Tests.Domain.Sections;
@@ -16,7 +17,7 @@ public class PlanSearchOptionsValidatorTests
     [Fact]
     public void Validate_BadCategoryLimit_Fails()
     {
-        var result = validator.Validate(null, new PlanSearchOptions { MaxExactCategories = 33 });
+        var result = validator.Validate(null, new PlanSearchOptions { MaxExactCategories = PlanSearchRequest.MaxCategories + 1 });
 
         Assert.True(result.Failed);
         Assert.Contains("max exact categories", Assert.Single(result.Failures!));

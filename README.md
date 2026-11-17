@@ -288,7 +288,7 @@ Request body of `POST`:
 | `order_id` | Required, not blank. |
 | `customer_zip` | Required, exactly 5 digits. |
 | `mail_order` | Optional, defaults to `false`. |
-| `items` | Required, at least one item: `product_code` (required) and `quantity` (required, at least 1). |
+| `items` | Required, 1 to 100 items: `product_code` (required) and `quantity` (required, at least 1). |
 
 ### Status codes
 

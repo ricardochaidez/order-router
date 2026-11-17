@@ -22,7 +22,7 @@ public sealed class GreedyPlanSearcher
     internal PlanSearchResult Search(PreparedSearch prepared)
     {
         var categoryCount = prepared.Categories.Count;
-        var full = categoryCount == 32 ? uint.MaxValue : (1u << categoryCount) - 1;
+        var full = categoryCount == PlanSearchRequest.MaxCategories ? ulong.MaxValue : (1UL << categoryCount) - 1;
         var uncovered = full;
         var chosen = new List<PreparedCandidate>();
 
@@ -61,7 +61,7 @@ public sealed class GreedyPlanSearcher
 
         for (var c = 0; c < categoryCount; c++)
         {
-            var bit = 1u << c;
+            var bit = 1UL << c;
             PreparedCandidate? winner = null;
 
             foreach (var candidate in chosen.OrderBy(x => x.SupplierId, StringComparer.Ordinal))

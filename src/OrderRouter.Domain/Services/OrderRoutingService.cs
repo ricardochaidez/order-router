@@ -67,6 +67,16 @@ public sealed class OrderRoutingService(SupplierEligibility eligibility, IPlanSe
             return ToDecision(policy.Unfulfillable.Apply(null, unfulfilled), [], policy, null, null);
         }
 
+        // Fail safe: the plan search holds one bit per demanded category, so it cannot plan an order that spans more.
+        // Such an order is held back whole, under either unfulfillable policy, rather than routing an arbitrary part
+        // of it; every line it could have routed is listed with its own reason so a person can review it.
+        if (demandCounts.Count > PlanSearchRequest.MaxCategories)
+        {
+            var heldBack = new RoutingOutcome(RoutingOutcomeStatus.NotRouted, null, HeldBackLines(order, evaluations));
+
+            return ToDecision(heldBack, [], policy, null, null);
+        }
+
         var offers = BuildOffers(evaluations, demandCounts.Keys);
         var candidates = offers.Values
             .Select(offer => new SupplierCandidate(
@@ -123,6 +133,16 @@ public sealed class OrderRoutingService(SupplierEligibility eligibility, IPlanSe
 
         return offers;
     }
+
+    // Every line of an order with too many categories, in request order (the stored order matches lines by that order).
+    // A line that was already unfulfillable keeps its reason; every routable line gets TOO_MANY_CATEGORIES.
+    private static List<UnfulfilledLine> HeldBackLines(OrderToRoute order, Dictionary<Category, EligibilityResult> evaluations)
+        => [.. order.Lines.Select(line => line.Category switch
+        {
+            null => new UnfulfilledLine(line.ProductCode, line.Quantity, null, UnfulfilledLine.UnknownProductCode),
+            { } category when evaluations[category].Reason is { } reason => new UnfulfilledLine(line.ProductCode, line.Quantity, category, reason.Code()),
+            { } category => new UnfulfilledLine(line.ProductCode, line.Quantity, category, UnfulfilledLine.TooManyCategories),
+        })];
 
     // Request order is kept (FR-15). Unfulfilled lines have no entry in the plan, so they are skipped.
     private static List<RoutedLine> RoutedLinesFor(OrderToRoute order, RoutingPlan plan, Dictionary<string, SupplierOffer> offers)

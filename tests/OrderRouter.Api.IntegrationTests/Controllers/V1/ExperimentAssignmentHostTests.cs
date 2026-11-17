@@ -298,18 +298,24 @@ public class ExperimentAssignmentHostTests(ReferenceDataFixture fixture)
     }
 
     [Fact]
-    public async Task Host_ExperimentsFileSource_SitsBeforeEnvironmentVariablesAndTheCommandLine()
+    public async Task Host_ExperimentsFileSource_SitsAfterAppSettingsAndBeforeEnvironmentVariablesAndTheCommandLine()
     {
-        // ADR-0005: environment variables and the command line must still override experiments.json.
+        // ADR-0005: experiments.json overrides appsettings*.json, and environment variables and the command line must
+        // still override experiments.json.
         await using var host = new Host(fixture.ConnectionString, file: null);
         _ = host.Client;
         var providers = ((IConfigurationRoot)host.Services.GetRequiredService<IConfiguration>()).Providers.ToList();
 
         var experiments = providers.FindIndex(provider => provider is Microsoft.Extensions.Configuration.Json.JsonConfigurationProvider json && json.Source.Path == "experiments.json");
-        var environment = providers.FindIndex(provider => provider is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationProvider);
-        var commandLine = providers.FindIndex(provider => provider is Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider);
+        var appSettings = providers.FindLastIndex(provider => provider is Microsoft.Extensions.Configuration.Json.JsonConfigurationProvider { Source.Path: { } path } && path.StartsWith("appsettings", StringComparison.Ordinal));
+
+        // The host also adds ASPNETCORE_ and DOTNET_ prefixed environment sources, and a host-settings command line when
+        // there are args, ahead of appsettings.json. The ones that carry ordinary overrides are the last of each kind.
+        var environment = providers.FindLastIndex(provider => provider is Microsoft.Extensions.Configuration.EnvironmentVariables.EnvironmentVariablesConfigurationProvider);
+        var commandLine = providers.FindLastIndex(provider => provider is Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider);
 
         Assert.True(experiments >= 0, "experiments.json is not a configuration source.");
+        Assert.True(appSettings >= 0 && experiments > appSettings, "experiments.json must come after appsettings*.json.");
         Assert.True(environment > experiments, "environment variables must come after experiments.json.");
         Assert.True(commandLine < 0 || commandLine > experiments, "the command line must come after experiments.json.");
     }

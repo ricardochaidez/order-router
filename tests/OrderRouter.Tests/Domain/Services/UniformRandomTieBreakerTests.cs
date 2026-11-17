@@ -16,7 +16,7 @@ public class UniformRandomTieBreakerTests
 
         Assert.Same(plans[2], result.Chosen);
         Assert.Equal(plans, result.TiedCandidates);
-        Assert.True(result.UsedRandom);
+        Assert.True(result.HasTie);
         Assert.Equal(1, source.CallCount);
         Assert.Equal([3], source.RequestedBounds);
     }
@@ -30,7 +30,7 @@ public class UniformRandomTieBreakerTests
         var result = new UniformRandomTieBreaker(source).Pick(plans);
 
         Assert.Same(plans[0], result.Chosen);
-        Assert.False(result.UsedRandom);
+        Assert.False(result.HasTie);
         Assert.Equal(0, source.CallCount);
     }
 

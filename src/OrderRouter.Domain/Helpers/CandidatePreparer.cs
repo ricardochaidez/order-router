@@ -16,18 +16,18 @@ public static class CandidatePreparer
     public static PreparedSearch Prepare(PlanSearchRequest request)
     {
         var demand = request.Demand.OrderBy(d => d.Category.Value, StringComparer.Ordinal).ToList();
-        var bits = new Dictionary<Category, uint>(demand.Count);
+        var bits = new Dictionary<Category, ulong>(demand.Count);
 
         for (var index = 0; index < demand.Count; index++)
         {
-            bits[demand[index].Category] = 1u << index;
+            bits[demand[index].Category] = 1UL << index;
         }
 
         var masked = new List<PreparedCandidate>();
 
         foreach (var candidate in request.Candidates)
         {
-            var mask = 0u;
+            var mask = 0UL;
 
             foreach (var category in candidate.EligibleCategories)
             {

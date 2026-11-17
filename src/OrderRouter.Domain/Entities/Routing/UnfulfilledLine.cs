@@ -11,4 +11,10 @@ public sealed record UnfulfilledLine(string ProductCode, int Quantity, Category?
 {
     /// <summary>Reason code for a product code that is not in the catalog (FR-05, requirements §9.2).</summary>
     public const string UnknownProductCode = "UNKNOWN_PRODUCT";
+
+    /// <summary>
+    /// Reason code for a routable line of an order that spans more distinct categories than one plan search can hold
+    /// (<see cref="Models.PlanSearch.PlanSearchRequest.MaxCategories"/>). The whole order is held back for review.
+    /// </summary>
+    public const string TooManyCategories = "TOO_MANY_CATEGORIES";
 }

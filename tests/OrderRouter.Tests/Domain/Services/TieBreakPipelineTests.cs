@@ -75,7 +75,7 @@ public class TieBreakPipelineTests
             Local("SUP-T003", 8m, "cane"),
             Local("SUP-T004", 8m, "cane"));
 
-        Assert.True(result.UsedRandom);
+        Assert.True(result.HasTie);
         Assert.Equal(tiedSuppliers, result.TiedCandidates.Select(p => Ids(p)[0]));
         Assert.Equal(["SUP-T004"], Ids(result.Chosen));
         Assert.Contains(result.Chosen, result.TiedCandidates);

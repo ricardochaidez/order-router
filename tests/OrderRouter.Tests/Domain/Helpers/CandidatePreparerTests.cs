@@ -16,7 +16,7 @@ public class CandidatePreparerTests
 
         Assert.Equal(2, prepared.Categories.Count);
         Assert.Equal(2, prepared.LineCounts[prepared.Categories.ToList().FindIndex(c => c.Value == "cpap")]);
-        Assert.Equal(3u, Assert.Single(prepared.Candidates).Mask);
+        Assert.Equal(3UL, Assert.Single(prepared.Candidates).Mask);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class CandidatePreparerTests
         var prepared = CandidatePreparer.Prepare(request);
 
         Assert.Equal("B", Assert.Single(prepared.Candidates).SupplierId);
-        Assert.Equal(1u, prepared.Candidates[0].Mask);
+        Assert.Equal(1UL, prepared.Candidates[0].Mask);
     }
 
     [Fact]

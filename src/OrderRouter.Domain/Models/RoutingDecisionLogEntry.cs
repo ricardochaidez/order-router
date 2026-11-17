@@ -18,8 +18,8 @@ namespace OrderRouter.Domain.Models;
 /// <param name="Exp4Arm">Arm of EXP-4.</param>
 /// <param name="Exp4Reason">Reason for the EXP-4 arm.</param>
 /// <param name="ChosenSuppliers">The routed suppliers and modes, for example <c>SUP-1:local,SUP-2:mail</c>; empty when nothing was routed.</param>
-/// <param name="TiedCandidates">Only when the random tie-break ran: every tied plan as its suppliers (joined with <c>+</c>), separated by commas; otherwise <see langword="null"/>.</param>
-/// <param name="TiePick">Only when the random tie-break ran: the plan that was picked, written like one tied candidate; otherwise <see langword="null"/>.</param>
+/// <param name="TiedCandidates">Only when key 5 had more than one tied plan, in any arm (the control tie-break is deterministic, so use the EXP-4 arm to tell a random pick apart): every tied plan as its suppliers (joined with <c>+</c>), separated by commas; otherwise <see langword="null"/>.</param>
+/// <param name="TiePick">Only when key 5 had more than one tied plan, in any arm: the plan that was picked, written like one tied candidate; otherwise <see langword="null"/>.</param>
 /// <param name="ShipmentCount">Number of suppliers the order was routed to; 0 when nothing was routed.</param>
 /// <param name="PlanQuality">The quality of the routed plan; <see langword="null"/> when nothing was routed.</param>
 /// <param name="UnratedChosen">How many of the routed suppliers have no rating.</param>

@@ -15,7 +15,7 @@ public class DeterministicTieBreakerTests
 
         Assert.Same(plans[1], result.Chosen);
         Assert.Equal(plans, result.TiedCandidates);
-        Assert.True(result.UsedRandom);
+        Assert.True(result.HasTie);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class DeterministicTieBreakerTests
         var result = DeterministicTieBreaker.Instance.Pick(plans);
 
         Assert.Same(plans[0], result.Chosen);
-        Assert.False(result.UsedRandom);
+        Assert.False(result.HasTie);
     }
 
     [Fact]

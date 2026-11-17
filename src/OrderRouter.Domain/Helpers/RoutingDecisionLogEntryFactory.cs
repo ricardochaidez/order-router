@@ -30,8 +30,8 @@ public static class RoutingDecisionLogEntryFactory
             .Select(group => (group.First().Supplier, group.First().Mode))
             .ToArray();
 
-        // Key 5 ran with more than one tied plan: record all of them and the pick (AC2). No random, nothing to list.
-        var tie = decision.TieBreak is { UsedRandom: true } result ? result : null;
+        // Key 5 had more than one tied plan, in either arm: record all of them and the pick (AC2, ADR-0005). No tie, nothing to list.
+        var tie = decision.TieBreak is { HasTie: true } result ? result : null;
 
         return new RoutingDecisionLogEntry(
             id,

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using OrderRouter.Api.Filters;
+using OrderRouter.Domain.Models;
 
 namespace OrderRouter.Api.ViewModels.Request;
 
@@ -36,6 +37,8 @@ public sealed record RouteOrderRequestViewModel
     /// <summary>The requested line items. Required, with at least one entry and no upper bound, so large orders are fulfilled.</summary>
     [Required(ErrorMessage = "is required.")]
     [MinLength(1, ErrorMessage = "must contain at least one item.")]
+    // {1} is the limit. A request-size cap (see RouteOrderCommand.MaxLines), shared with the Domain guard.
+    [MaxLength(RouteOrderCommand.MaxLines, ErrorMessage = "must contain at most {1} items.")]
     [NoNullElements(ErrorMessage = "must not contain null entries.")]
     public List<RouteOrderItemRequestViewModel?>? Items { get; init; }
 }

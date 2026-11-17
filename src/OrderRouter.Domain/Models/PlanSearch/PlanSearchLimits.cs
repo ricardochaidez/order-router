@@ -17,7 +17,7 @@ public sealed record PlanSearchLimits
     public static PlanSearchLimits Default { get; } = new(DefaultMaxExactCategories, DefaultNodeBudget);
 
     /// <summary>Creates limits, reporting every invalid value in one exception.</summary>
-    /// <param name="maxExactCategories">More distinct categories than this goes straight to greedy; 1 to 32.</param>
+    /// <param name="maxExactCategories">More distinct categories than this goes straight to greedy; 1 to <see cref="PlanSearchRequest.MaxCategories"/>.</param>
     /// <param name="nodeBudget">Most combinations the exact search may check; 1 or more.</param>
     /// <exception cref="DomainValidationException">One or more values are invalid.</exception>
     public PlanSearchLimits(int maxExactCategories, int nodeBudget)

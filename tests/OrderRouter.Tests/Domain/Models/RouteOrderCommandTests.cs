@@ -32,6 +32,22 @@ public class RouteOrderCommandTests
     }
 
     [Fact]
+    public void Create_ExactlyMaxLines_Succeeds()
+    {
+        var lines = Enumerable.Range(1, RouteOrderCommand.MaxLines).Select(index => new RouteOrderLine($"P-{index}", 1)).ToArray();
+
+        Assert.Equal(RouteOrderCommand.MaxLines, RouteOrderCommand.Create("ORD-1", "10015", false, lines).Lines.Count);
+    }
+
+    [Fact]
+    public void Create_MoreThanMaxLines_Throws()
+    {
+        var lines = Enumerable.Range(1, RouteOrderCommand.MaxLines + 1).Select(index => new RouteOrderLine($"P-{index}", 1)).ToArray();
+
+        Assert.Throws<ArgumentException>(() => RouteOrderCommand.Create("ORD-1", "10015", false, lines));
+    }
+
+    [Fact]
     public void Create_BlankProductCode_Throws()
     {
         Assert.Throws<ArgumentException>(() => RouteOrderCommand.Create("ORD-1", "10015", false, [new(" ", 1)]));

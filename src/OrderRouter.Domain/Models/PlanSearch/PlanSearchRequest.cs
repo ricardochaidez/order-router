@@ -4,14 +4,14 @@ namespace OrderRouter.Domain.Models.PlanSearch;
 /// <summary>Everything the plan search needs: what is demanded, who can supply it, and two policy values.</summary>
 public sealed record PlanSearchRequest
 {
-    /// <summary>One bit per category in a <see cref="uint"/> mask (ADR-0003). Orders above the exact-search limit (<see cref="PlanSearchLimits"/>) use the greedy path, which reuses the same masks.</summary>
-    public const int MaxCategories = 32;
+    /// <summary>One bit per category in a <see cref="ulong"/> mask (ADR-0003). Orders above the exact-search limit (<see cref="PlanSearchLimits"/>) use the greedy path, which reuses the same masks.</summary>
+    public const int MaxCategories = 64;
 
     /// <summary>Default for <see cref="SimilarityBand"/> (ADR-0001).</summary>
     public const decimal DefaultSimilarityBand = 0.5m;
 
     /// <summary>Creates a request, reporting every invalid field in one exception.</summary>
-    /// <param name="demand">One entry per demanded category; at least one, no duplicates, at most 32.</param>
+    /// <param name="demand">One entry per demanded category; at least one, no duplicates, at most <see cref="MaxCategories"/>.</param>
     /// <param name="candidates">Eligible suppliers; unique ids. May be empty (then no plan exists).</param>
     /// <param name="similarityBand">How far below the best plan of the same shipment count a plan may be; 0 or more.</param>
     /// <param name="maxExtraShipments">0, or 1 to also return plans with one more shipment than the minimum.</param>

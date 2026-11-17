@@ -50,21 +50,21 @@ public class PlanSearchRequestTests
     }
 
     [Fact]
-    public void Constructor_MoreThan32Categories_Throws()
+    public void Constructor_MoreThanMaxCategories_Throws()
     {
-        var demand = Enumerable.Range(0, 33).Select(i => new CategoryDemand(new Category($"c{i}"), 1));
+        var demand = Enumerable.Range(0, PlanSearchRequest.MaxCategories + 1).Select(i => new CategoryDemand(new Category($"c{i}"), 1));
 
         var exception = Assert.Throws<DomainValidationException>(() => new PlanSearchRequest(demand, []));
 
-        Assert.Contains("at most 32", exception.Message);
+        Assert.Contains($"at most {PlanSearchRequest.MaxCategories}", exception.Message);
     }
 
     [Fact]
-    public void Constructor_Exactly32Categories_IsAllowed()
+    public void Constructor_ExactlyMaxCategories_IsAllowed()
     {
-        var demand = Enumerable.Range(0, 32).Select(i => new CategoryDemand(new Category($"c{i}"), 1));
+        var demand = Enumerable.Range(0, PlanSearchRequest.MaxCategories).Select(i => new CategoryDemand(new Category($"c{i}"), 1));
 
-        Assert.Equal(32, new PlanSearchRequest(demand, []).Demand.Count);
+        Assert.Equal(PlanSearchRequest.MaxCategories, new PlanSearchRequest(demand, []).Demand.Count);
     }
 
     [Fact]

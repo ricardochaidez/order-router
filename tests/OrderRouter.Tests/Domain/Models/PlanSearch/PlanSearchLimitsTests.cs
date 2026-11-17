@@ -14,7 +14,7 @@ public class PlanSearchLimitsTests
 
     [Theory]
     [InlineData(1, 1)]
-    [InlineData(32, int.MaxValue)]
+    [InlineData(PlanSearchRequest.MaxCategories, int.MaxValue)]
     public void Constructor_BoundaryValues_AreAccepted(int categories, int budget)
     {
         var limits = new PlanSearchLimits(categories, budget);
@@ -25,7 +25,7 @@ public class PlanSearchLimitsTests
 
     [Theory]
     [InlineData(0, 10)]
-    [InlineData(33, 10)]
+    [InlineData(PlanSearchRequest.MaxCategories + 1, 10)]
     [InlineData(-1, 10)]
     [InlineData(8, 0)]
     [InlineData(8, -5)]

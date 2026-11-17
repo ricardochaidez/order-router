@@ -81,6 +81,46 @@ public class OrderRoutingServiceTests
         Assert.Equal([1, 2, 1], decision.RoutedLines.Select(l => l.Quantity));
     }
 
+    // Every bit of the 64-bit category mask is in use, including the top one, and the greedy path covers them all.
+    [Fact]
+    public void Route_ExactlyMaxCategories_IsRoutedThroughGreedy()
+    {
+        var categories = Enumerable.Range(0, PlanSearchRequest.MaxCategories).Select(index => $"c{index:D2}").ToArray();
+
+        var decision = Service().Route(
+            Order(false, [.. categories.Select(category => Known($"P-{category}", category))]),
+            [.. categories.Select(category => Supplier($"S-{category}", [category]))],
+            control);
+
+        Assert.Equal(RoutingOutcomeStatus.Routed, decision.Status);
+        Assert.Equal(PlanSearchRequest.MaxCategories, decision.RoutedLines.Select(line => line.Supplier.Id).Distinct().Count());
+        Assert.All(decision.RoutedLines, line => Assert.Equal($"S-{line.Category}", line.Supplier.Id));
+        Assert.Equal(SearchMode.Greedy, decision.SearchMode);
+    }
+
+    // Fail safe: even partial routing holds the whole order back, without a search, and every line keeps its own reason.
+    [Fact]
+    public void Route_MoreThanMaxCategories_HoldsTheWholeOrderBackWithoutSearching()
+    {
+        var categories = Enumerable.Range(0, PlanSearchRequest.MaxCategories + 1).Select(index => $"c{index:D2}").ToArray();
+        var search = new CountingPlanSearch();
+
+        var decision = Service(search).Route(
+            Order(false, [Unknown("NOPE"), Known("GAP", "unserved"), .. categories.Select(category => Known($"P-{category}", category))]),
+            [.. categories.Select(category => Supplier($"S-{category}", [category]))],
+            partial);
+
+        Assert.Equal(RoutingOutcomeStatus.NotRouted, decision.Status);
+        Assert.Empty(decision.RoutedLines);
+        Assert.Null(decision.TieBreak);
+        Assert.Null(decision.SearchMode);
+        Assert.Equal(0, search.CallCount);
+        Assert.Equal(["NOPE", "GAP", .. categories.Select(category => $"P-{category}")], decision.Unfulfilled.Select(line => line.ProductCode));
+        Assert.Equal(UnfulfilledLine.UnknownProductCode, decision.Unfulfilled[0].ReasonCode);
+        Assert.Equal("NO_SUPPLIER_FOR_CATEGORY_IN_AREA", decision.Unfulfilled[1].ReasonCode);
+        Assert.All(decision.Unfulfilled.Skip(2), line => Assert.Equal(UnfulfilledLine.TooManyCategories, line.ReasonCode));
+    }
+
     [Fact]
     public void Route_OneUnknownLineUnderControl_IsNotRoutedWithUnknownProduct()
     {
@@ -236,7 +276,7 @@ public class OrderRoutingServiceTests
             RandomTieWith(random));
 
         Assert.Equal(1, random.CallCount);
-        Assert.True(decision.TieBreak!.UsedRandom);
+        Assert.True(decision.TieBreak!.HasTie);
         Assert.Equal("S2", Assert.Single(decision.RoutedLines).Supplier.Id);
     }
 
@@ -267,7 +307,7 @@ public class OrderRoutingServiceTests
             RandomTieWith(random));
 
         Assert.Equal(0, random.CallCount);
-        Assert.False(decision.TieBreak!.UsedRandom);
+        Assert.False(decision.TieBreak!.HasTie);
         Assert.Equal("S1", Assert.Single(decision.RoutedLines).Supplier.Id);
     }
 

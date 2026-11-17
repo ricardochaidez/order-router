@@ -37,6 +37,9 @@ public sealed record TieBreakResult
     /// <summary>Every plan that was tied, in input order. Never null or empty.</summary>
     public IReadOnlyList<RoutingPlan> TiedCandidates { get; }
 
-    /// <summary>True when key 5 had a real choice, that is, more than one plan was tied (NFR-08d). With the core (control) tie-breaker that choice is deterministic; only the EXP-4 treatment makes it random.</summary>
-    public bool UsedRandom => TiedCandidates.Count > 1;
+    /// <summary>
+    /// True when key 5 had a real choice, that is, more than one plan was tied (NFR-08d). It says nothing about how the
+    /// choice was made: the core (control) tie-breaker is deterministic, and only the EXP-4 treatment makes it random.
+    /// </summary>
+    public bool HasTie => TiedCandidates.Count > 1;
 }

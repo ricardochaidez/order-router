@@ -39,9 +39,9 @@ public sealed class PlanSearcher
             return greedy.Search(prepared) with { FallbackReason = SearchFallbackReason.TooManyCategories };
         }
 
-        var full = categoryCount == 32 ? uint.MaxValue : (1u << categoryCount) - 1;
+        var full = categoryCount == PlanSearchRequest.MaxCategories ? ulong.MaxValue : (1UL << categoryCount) - 1;
 
-        if (prepared.Candidates.Aggregate(0u, (all, c) => all | c.Mask) != full)
+        if (prepared.Candidates.Aggregate(0UL, (all, c) => all | c.Mask) != full)
         {
             return new PlanSearchResult([], 0);
         }
@@ -127,12 +127,12 @@ public sealed class PlanSearcher
     {
         private readonly PreparedSearch prepared;
         private readonly IReadOnlyList<PreparedCandidate> candidates;
-        private readonly uint full;
+        private readonly ulong full;
         private readonly int size;
         private readonly decimal band;
         private readonly int categoryCount;
         private readonly int totalLines;
-        private readonly uint[] suffixMask;
+        private readonly ulong[] suffixMask;
         private readonly decimal[][] suffixBest;
         private readonly int[] chosen;
 
@@ -145,7 +145,7 @@ public sealed class PlanSearcher
         private readonly List<Plan> plans = [];
         private decimal bestQuality = -1m;
 
-        public SizeSearch(PreparedSearch prepared, uint full, int size, decimal band, NodeBudget budget)
+        public SizeSearch(PreparedSearch prepared, ulong full, int size, decimal band, NodeBudget budget)
         {
             this.budget = budget;
             this.prepared = prepared;
@@ -167,7 +167,7 @@ public sealed class PlanSearcher
 
             // suffixMask[i]: categories the candidates from i onward can still cover.
             // suffixBest[i][c]: best rating among candidates from i onward for category c (for the bound).
-            suffixMask = new uint[candidates.Count + 1];
+            suffixMask = new ulong[candidates.Count + 1];
             suffixBest = new decimal[candidates.Count + 1][];
             suffixBest[candidates.Count] = new decimal[categoryCount];
 
@@ -178,7 +178,7 @@ public sealed class PlanSearcher
 
                 for (var c = 0; c < categoryCount; c++)
                 {
-                    if ((candidates[i].Mask & (1u << c)) != 0 && candidates[i].Rating > suffixBest[i][c])
+                    if ((candidates[i].Mask & (1UL << c)) != 0 && candidates[i].Rating > suffixBest[i][c])
                     {
                         suffixBest[i][c] = candidates[i].Rating;
                     }
@@ -188,12 +188,12 @@ public sealed class PlanSearcher
 
         public List<Plan> Run()
         {
-            Extend(0, 0, 0u);
+            Extend(0, 0, 0UL);
 
             return plans;
         }
 
-        private void Extend(int start, int depth, uint covered)
+        private void Extend(int start, int depth, ulong covered)
         {
             budget.Spend();
 
@@ -250,7 +250,7 @@ public sealed class PlanSearcher
                 {
                     var candidate = candidates[chosen[d]];
 
-                    if ((candidate.Mask & (1u << c)) != 0 && candidate.Rating > best)
+                    if ((candidate.Mask & (1UL << c)) != 0 && candidate.Rating > best)
                     {
                         best = candidate.Rating;
                     }
@@ -267,7 +267,7 @@ public sealed class PlanSearcher
             // Per category: the chosen supplier with the higher rating, then local; exact ties give separate plans (ADR-0003).
             for (var c = 0; c < categoryCount; c++)
             {
-                var bit = 1u << c;
+                var bit = 1UL << c;
                 var winners = options[c];
                 winners.Clear();
 

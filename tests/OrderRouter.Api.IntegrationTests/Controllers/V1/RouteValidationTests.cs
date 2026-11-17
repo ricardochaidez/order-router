@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using OrderRouter.Domain.Entities.Routing;
+using OrderRouter.Domain.Models;
 
 namespace OrderRouter.Api.IntegrationTests.Controllers.V1;
 
@@ -62,6 +63,20 @@ public class RouteValidationTests(ReferenceDataFixture fixture)
         Assert.Equal(HttpStatusCode.BadRequest, status);
         AssertEnvelope(json);
         Assert.Contains(Errors(json), error => error.StartsWith("order_id ", StringComparison.Ordinal));
+        Assert.Empty(useCase.Commands);
+    }
+
+    [Theory]
+    [MemberData(nameof(RouteApiFactory.Paths), MemberType = typeof(RouteApiFactory))]
+    public async Task Post_MoreThanMaxItems_Returns400(string path)
+    {
+        var items = $"[{string.Join(", ", Enumerable.Range(1, RouteOrderCommand.MaxLines + 1).Select(index => $$"""{ "product_code": "P-{{index}}", "quantity": 1 }"""))}]";
+
+        var (status, json, useCase) = await PostAsync(path, Body(items: items));
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        AssertEnvelope(json);
+        Assert.Contains($"items must contain at most {RouteOrderCommand.MaxLines} items.", Errors(json));
         Assert.Empty(useCase.Commands);
     }
 

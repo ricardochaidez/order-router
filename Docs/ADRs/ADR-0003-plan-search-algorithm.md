@@ -15,7 +15,7 @@ What the data tells us (profiled 2026-11-15):
 
 | Fact | Value | Consequence |
 |---|---|---|
-| Distinct categories in the catalog | 24 | A category set fits in a `uint` bitmask |
+| Distinct categories in the catalog | 24 | A category set fits in a `ulong` bitmask (up to 64; an order over that is held back as `TOO_MANY_CATEGORIES`) |
 | Distinct categories per sample order | ≤ 4 | Typical *k* is tiny |
 | Suppliers per category | 233–277 | With `mail_order=true`, about half are eligible nationwide → **100+ candidates per category** |
 | Suppliers with exactly 1 category | 232 of 1,100 | Many specialists → many equivalent options |

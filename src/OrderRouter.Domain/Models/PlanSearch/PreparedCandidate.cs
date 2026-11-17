@@ -8,4 +8,4 @@ namespace OrderRouter.Domain.Models.PlanSearch;
 /// <param name="Mask">Bit i set when the supplier can fulfill demanded category i.</param>
 /// <param name="Mode">Local or mail.</param>
 /// <param name="Rating">Effective rating.</param>
-public sealed record PreparedCandidate(string SupplierId, uint Mask, FulfillmentMode Mode, decimal Rating);
+public sealed record PreparedCandidate(string SupplierId, ulong Mask, FulfillmentMode Mode, decimal Rating);

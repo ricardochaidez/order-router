@@ -18,12 +18,12 @@ public class TieBreakResultTests
     }
 
     [Fact]
-    public void UsedRandom_MatchesCandidateCount()
+    public void HasTie_MatchesCandidateCount()
     {
         var one = Plan("SUP-1");
         var two = Plan("SUP-2");
 
-        Assert.False(new TieBreakResult(one, [one]).UsedRandom);
-        Assert.True(new TieBreakResult(one, [one, two]).UsedRandom);
+        Assert.False(new TieBreakResult(one, [one]).HasTie);
+        Assert.True(new TieBreakResult(one, [one, two]).HasTie);
     }
 }
