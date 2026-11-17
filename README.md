@@ -181,14 +181,14 @@ Run these from the repository root, in this order.
 
 1. Copy the dev-only settings: `cp .env.example .env`
 
-   `.env` holds the dev API key (`DEV_API_KEY`, default `dev-only-change-me`). Every request to the API must send it in the `X-Api-Key` header; a missing or wrong key returns `401`. Compose passes it to the API as `Authentication__DevApiKey`, and it only works when `ASPNETCORE_ENVIRONMENT=Development` (see [Authentication](#authentication)). If you run the API with `dotnet run` instead of Docker, set it with `dotnet user-secrets set "Authentication:DevApiKey" "dev-only-change-me" --project src/OrderRouter.Api`.
+   `.env` holds the dev API key (`DEV_API_KEY`, default `dev-only-change-me`). Every request to the API except `GET /health` must send it in the `X-Api-Key` header; a missing or wrong key returns `401`. Compose passes it to the API as `Authentication__DevApiKey`, and it only works when `ASPNETCORE_ENVIRONMENT=Development` (see [Authentication](#authentication)). If you run the API with `dotnet run` instead of Docker, set it with `dotnet user-secrets set "Authentication:DevApiKey" "dev-only-change-me" --project src/OrderRouter.Api`.
 2. Start PostgreSQL and the API:
 
    ```bash
    docker compose up -d --build --wait
    ```
 
-   The API listens on `http://localhost:8080` (change it with `API_PORT` in `.env`). `--wait` can return a second or two before the API accepts requests; if the next call is refused, try again.
+   The API listens on `http://localhost:8080` (change it with `API_PORT` in `.env`) and PostgreSQL on `localhost:5432` (change it with `POSTGRES_PORT`). If you change `POSTGRES_PORT`, the tests in step 3 still connect to port 5432 by default, so also set `ConnectionStrings__OrderRouter` (see [Build and test](#build-and-test)). `--wait` can return a second or two before the API accepts requests; if the next call is refused, try again.
 3. Run the tests. **This step is required.**
 
    ```bash
@@ -214,7 +214,7 @@ Run these from the repository root, in this order.
 
    You get `200 OK` with the stored order and the same decision.
 
-To stop everything, run `docker compose down`. To also delete the local database (you must then run `dotnet test` again), run `docker compose down -v`. `./localsetup.sh` runs `docker compose down` and then `docker compose up -d --wait`.
+To stop everything, run `docker compose down`. To also delete the local database (you must then run `dotnet test` again), run `docker compose down -v`. `./localsetup.sh` runs `docker compose down` and then `docker compose up -d --wait`. It does not rebuild the API image, so after a code change use `docker compose up -d --build --wait` instead.
 
 `/health` only checks that PostgreSQL is reachable, so an empty database is healthy. If PostgreSQL is not reachable when the API starts, the API exits with an error. In Development the OpenAPI document is at `http://localhost:8080/openapi/v1.json`.
 
