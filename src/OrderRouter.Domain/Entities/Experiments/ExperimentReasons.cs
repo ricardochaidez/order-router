@@ -4,11 +4,13 @@ namespace OrderRouter.Domain.Entities.Experiments;
 /// <param name="Exp1ConsolidationVsQuality">EXP-1 reason.</param>
 /// <param name="Exp2UnratedSuppliers">EXP-2 reason.</param>
 /// <param name="Exp3PartialRouting">EXP-3 reason.</param>
+/// <param name="Exp4TieBreaking">EXP-4 reason.</param>
 public sealed record ExperimentReasons(
     ExposureReason Exp1ConsolidationVsQuality,
     ExposureReason Exp2UnratedSuppliers,
-    ExposureReason Exp3PartialRouting)
+    ExposureReason Exp3PartialRouting,
+    ExposureReason Exp4TieBreaking)
 {
     /// <summary>Every experiment disabled, which is the default when nothing is configured (AB-03).</summary>
-    public static ExperimentReasons AllDisabled { get; } = new(ExposureReason.Disabled, ExposureReason.Disabled, ExposureReason.Disabled);
+    public static ExperimentReasons AllDisabled { get; } = new(ExposureReason.Disabled, ExposureReason.Disabled, ExposureReason.Disabled, ExposureReason.Disabled);
 }

@@ -23,7 +23,7 @@ internal static class ResponseRecorder
     private static readonly JsonSerializerOptions indented = new() { WriteIndented = true };
     private static int sequence;
 
-    private sealed record Row(string Group, string Name, int Status, string? OrderStatus, bool? Feasible, string Suppliers, string Arms, string File);
+    private sealed record Row(string Group, string Name, int Status, string? OrderStatus, bool? Feasible, string Suppliers, string File);
 
     /// <summary>The output folder, or <c>null</c> when recording is off.</summary>
     private static string? Directory
@@ -120,7 +120,6 @@ internal static class ResponseRecorder
         string? orderStatus = null;
         bool? feasible = null;
         var suppliers = string.Empty;
-        var arms = string.Empty;
 
         if (body is { ValueKind: JsonValueKind.Object } json)
         {
@@ -131,14 +130,9 @@ internal static class ResponseRecorder
             {
                 suppliers = string.Join(" + ", routing.EnumerateArray().Select(group => group.TryGetProperty("supplier_id", out var id) ? id.GetString() : "?"));
             }
-
-            if (json.TryGetProperty("diagnostics", out var diagnostics) && diagnostics.TryGetProperty("experiment_arms", out var experimentArms))
-            {
-                arms = string.Join(", ", experimentArms.EnumerateObject().Select(arm => $"{arm.Name[..4]}={arm.Value.GetProperty("arm").GetString()}"));
-            }
         }
 
-        return new Row(group, name, status, orderStatus, feasible, suppliers, arms, file);
+        return new Row(group, name, status, orderStatus, feasible, suppliers, file);
     }
 
     private static void WriteSummary(string root)
@@ -148,13 +142,13 @@ internal static class ResponseRecorder
             .AppendLine()
             .AppendLine(CultureInfo.InvariantCulture, $"{rows.Count} recorded responses. Open the linked file for the full request and response.")
             .AppendLine()
-            .AppendLine("| Group | Scenario | HTTP | Order status | Feasible | Suppliers | Experiment arms | File |")
-            .AppendLine("|---|---|---|---|---|---|---|---|");
+            .AppendLine("| Group | Scenario | HTTP | Order status | Feasible | Suppliers | File |")
+            .AppendLine("|---|---|---|---|---|---|---|");
 
         foreach (var row in rows.OrderBy(row => row.Group, StringComparer.Ordinal).ThenBy(row => row.Name, StringComparer.Ordinal))
         {
             var file = row.File.Replace(Path.DirectorySeparatorChar, '/');
-            text.AppendLine(CultureInfo.InvariantCulture, $"| {row.Group} | {row.Name.Replace("|", "\\|", StringComparison.Ordinal)} | {row.Status} | {row.OrderStatus} | {row.Feasible} | {row.Suppliers} | {row.Arms} | [{Path.GetFileName(file)}]({file}) |");
+            text.AppendLine(CultureInfo.InvariantCulture, $"| {row.Group} | {row.Name.Replace("|", "\\|", StringComparison.Ordinal)} | {row.Status} | {row.OrderStatus} | {row.Feasible} | {row.Suppliers} | [{Path.GetFileName(file)}]({file}) |");
         }
 
         File.WriteAllText(Path.Combine(root, "summary.md"), text.ToString());

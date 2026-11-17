@@ -431,3 +431,6 @@ FodyWeavers.xsd
 
 # Output of scripts/run-tests.sh (one folder per run)
 /test-results/
+
+# k6 load test output (loadtests/run.sh)
+loadtests/results/

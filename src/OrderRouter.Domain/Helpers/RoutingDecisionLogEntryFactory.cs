@@ -43,6 +43,8 @@ public static class RoutingDecisionLogEntryFactory
             Text(reasons.Exp2UnratedSuppliers),
             Text(arms.Exp3PartialRouting),
             Text(reasons.Exp3PartialRouting),
+            Text(arms.Exp4TieBreaking),
+            Text(reasons.Exp4TieBreaking),
             string.Join(',', suppliers.Select(entry => $"{entry.Supplier.Id}:{Text(entry.Mode)}")),
             tie is null ? null : string.Join(',', tie.TiedCandidates.Select(PlanText)),
             tie is null ? null : PlanText(tie.Chosen),

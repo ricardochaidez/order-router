@@ -74,10 +74,7 @@ public class ExperimentCombinationMatrixTests(MatrixDatabaseFixture fixture) : I
 
         // Order A (EXP-1) also proves the arms first, so a configuration mistake cannot pass silently.
         var a = await RouteAsync(factory, "00007", (wheelchair, 1), (cane, 1));
-        var arms = a.Json.GetProperty("diagnostics").GetProperty("experiment_arms");
-        Assert.Equal(ExperimentCombination.ArmName(exp1), arms.GetProperty("exp1_consolidation_vs_quality").GetProperty("arm").GetString());
-        Assert.Equal(ExperimentCombination.ArmName(exp2), arms.GetProperty("exp2_unrated_suppliers").GetProperty("arm").GetString());
-        Assert.Equal(ExperimentCombination.ArmName(exp3), arms.GetProperty("exp3_partial_routing").GetProperty("arm").GetString());
+        await StoredArms.AssertAsync(fixture.ConnectionString, a.Json, new ExperimentCombination(exp1, exp2, exp3), TestContext.Current.CancellationToken);
         Assert.Equal(expected.OrderA, a.SupplierIds.Order(StringComparer.Ordinal));
         Assert.Equal("routed", a.Json.GetProperty("status").GetString());
         Assert.True(a.Json.GetProperty("feasible").GetBoolean());

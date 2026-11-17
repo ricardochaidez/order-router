@@ -13,11 +13,11 @@ public class OrderRoutingServiceTests
 {
     private static readonly ZipRange nationwide = ZipRange.Parse("00100-99999");
     private static readonly ZipCode zip = ZipCode.Parse("10015");
-    private static readonly RoutingPolicy control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+    private static readonly RoutingPolicy control = new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(ExperimentAssignment.AllControl);
 
-    private static readonly RoutingPolicy partial = new RoutingPolicyFactory().Create(
+    private static readonly RoutingPolicy partial = new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(
         new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment), RoutingParameters.Default));
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control), RoutingParameters.Default));
 
     private static Supplier Supplier(string id, string[] categories, string range = "10000-10099", bool canMail = false, decimal? rating = 8m)
         => new(id, id, categories.Select(c => new Category(c)), new ServiceArea([ZipRange.Parse(range)]), rating, canMail);
@@ -28,8 +28,13 @@ public class OrderRoutingServiceTests
 
     private static OrderToRoute Order(bool mail, params OrderLine[] lines) => new(zip, mail, lines);
 
-    private static OrderRoutingService Service(CountingPlanSearch? search = null, FixedRandomSource? random = null)
-        => new(new SupplierEligibility(nationwide), search ?? new CountingPlanSearch(), new UniformRandomTieBreaker(random ?? new FixedRandomSource(0)));
+    private static OrderRoutingService Service(CountingPlanSearch? search = null)
+        => new(new SupplierEligibility(nationwide), search ?? new CountingPlanSearch());
+
+    // The random tie-breaker exists only as the EXP-4 treatment, so every random-source test uses that arm.
+    private static RoutingPolicy RandomTieWith(FixedRandomSource random)
+        => new RoutingPolicyFactory(new UniformRandomTieBreaker(random)).Create(new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment), RoutingParameters.Default));
 
     [Fact]
     public void Route_AllLinesFromOneSupplier_IsRoutedWithOneShipment()
@@ -157,7 +162,7 @@ public class OrderRoutingServiceTests
         var search = new CountingPlanSearch();
         var random = new FixedRandomSource(0);
 
-        var decision = Service(search, random).Route(Order(false, Unknown("X"), Unknown("Y")), [], control);
+        var decision = Service(search).Route(Order(false, Unknown("X"), Unknown("Y")), [], RandomTieWith(random));
 
         Assert.Equal(0, search.CallCount);
         Assert.Equal(0, random.CallCount);
@@ -197,12 +202,12 @@ public class OrderRoutingServiceTests
     {
         var search = new CountingPlanSearch();
         var assignment = new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control), RoutingParameters.Default);
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control), RoutingParameters.Default);
 
         Service(search).Route(
             Order(false, Known("A", "cane")),
             [Supplier("S1", ["cane"], rating: null)],
-            new RoutingPolicyFactory().Create(assignment));
+            new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(assignment));
 
         Assert.Equal(6.5m, Assert.Single(search.LastRequest!.Candidates).EffectiveRating);
     }
@@ -212,7 +217,7 @@ public class OrderRoutingServiceTests
     {
         var search = new CountingPlanSearch();
         var assignment = new ExperimentAssignment(ExperimentArms.AllControl, new RoutingParameters(similarityBand: 0.25m));
-        var policy = new RoutingPolicyFactory().Create(assignment);
+        var policy = new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(assignment);
 
         Service(search).Route(Order(false, Known("A", "cane")), [Supplier("S1", ["cane"])], policy);
 
@@ -221,14 +226,14 @@ public class OrderRoutingServiceTests
     }
 
     [Fact]
-    public void Route_FullTie_UsesTheRandomSource()
+    public void Route_FullTieUnderExp4Treatment_UsesTheRandomSource()
     {
         var random = new FixedRandomSource(1);
 
-        var decision = Service(random: random).Route(
+        var decision = Service().Route(
             Order(false, Known("A", "cane")),
             [Supplier("S1", ["cane"]), Supplier("S2", ["cane"])],
-            control);
+            RandomTieWith(random));
 
         Assert.Equal(1, random.CallCount);
         Assert.True(decision.TieBreak!.UsedRandom);
@@ -236,14 +241,30 @@ public class OrderRoutingServiceTests
     }
 
     [Fact]
+    public void Route_FullTieUnderCore_ChoosesTheLowestSupplierIdWithoutRandomness()
+    {
+        var random = new FixedRandomSource(1);
+        var core = new RoutingPolicyFactory(new UniformRandomTieBreaker(random)).Create(ExperimentAssignment.AllControl);
+
+        var decision = Service().Route(
+            Order(false, Known("A", "cane")),
+            [Supplier("S2", ["cane"]), Supplier("S1", ["cane"])],
+            core);
+
+        Assert.Equal(0, random.CallCount);
+        Assert.Equal(2, decision.TieBreak!.TiedCandidates.Count);
+        Assert.Equal("S1", Assert.Single(decision.RoutedLines).Supplier.Id);
+    }
+
+    [Fact]
     public void Route_NoTie_DoesNotUseTheRandomSource()
     {
         var random = new FixedRandomSource(0);
 
-        var decision = Service(random: random).Route(
+        var decision = Service().Route(
             Order(false, Known("A", "cane")),
             [Supplier("S1", ["cane"], rating: 9m), Supplier("S2", ["cane"], rating: 5m)],
-            control);
+            RandomTieWith(random));
 
         Assert.Equal(0, random.CallCount);
         Assert.False(decision.TieBreak!.UsedRandom);

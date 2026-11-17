@@ -119,6 +119,7 @@ public static class StoredRoutingOrderFactory
             [SnakeCase(nameof(ExperimentArms.Exp1ConsolidationVsQuality))] = Experiment(arms.Exp1ConsolidationVsQuality, reasons.Exp1ConsolidationVsQuality),
             [SnakeCase(nameof(ExperimentArms.Exp2UnratedSuppliers))] = Experiment(arms.Exp2UnratedSuppliers, reasons.Exp2UnratedSuppliers),
             [SnakeCase(nameof(ExperimentArms.Exp3PartialRouting))] = Experiment(arms.Exp3PartialRouting, reasons.Exp3PartialRouting),
+            [SnakeCase(nameof(ExperimentArms.Exp4TieBreaking))] = Experiment(arms.Exp4TieBreaking, reasons.Exp4TieBreaking),
         }.ToJsonString();
     }
 

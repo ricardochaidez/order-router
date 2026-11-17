@@ -86,8 +86,8 @@ flowchart LR
 | SC-14 | Authentication scheme (OQ-16) | **JWT bearer**, plus a **simple development key** to run it locally. |
 | SC-15 | 400 response body (OQ-17) | **Same response envelope as a successful response** (then 200, now 201 per SC-30), with the correct status code. |
 | SC-16 | Authorization / permissions (OQ-19) | **Deferred.** Focus on permissions later. |
-| SC-17 | Tie-break between equal suppliers (e.g., sentinels T003/T004) | **Pick randomly, but only when all other rules are the same** (same category, same rating, same mail/local mode, etc.), so orders are not always routed to the same supplier. Confirmed: **truly random** (not seeded), and the tests must account for it (NFR-08). |
-| SC-18 | Retries when the tie-break is random (OQ-21) | **The caller treats the first response as authoritative.** ~~The service does not remember decisions per `order_id`.~~ **Superseded by SC-28/SC-29:** every POST is stored under a new UUID, and retries are not de-duplicated. |
+| SC-17 | Tie-break between equal suppliers (e.g., sentinels T003/T004) | **Pick deterministically, but only when all other rules are the same** (same category, same rating, same mail/local mode, etc.): the plan whose sorted supplier IDs come first in ordinal order wins, so the same input always gives the same plan. **Superseded:** the first version picked at random so orders were not always routed to the same supplier. The random pick now exists only as the EXP-4 treatment (`UniformRandomTieBreaker`, see [Experiments](../Experiments.md)); it is not part of the core behavior. |
+| SC-18 | Retries when the EXP-4 treatment tie-break is random (OQ-21) | **The caller treats the first response as authoritative.** ~~The service does not remember decisions per `order_id`.~~ **Superseded by SC-28/SC-29:** every POST is stored under a new UUID, and retries are not de-duplicated. |
 | SC-19 | Which candidate ADRs are needed | **C-01, C-08, C-10, C-11, C-12 are organization standards; no ADRs.** (§13.1) |
 | SC-20 | Role of a database for supplier/product data; what ADR C-04 covers | **Seed from CSV, serve from the database.** The CSVs stay the input (BR-03 holds); routing reads from the database. **C-04 is the database technology decision**, weighing options in the ADR (since decided: PostgreSQL, [ADR-0002](../ADRs/ADR-0002-reference-data-database.md)). |
 | SC-21 | Re-seeding behavior (OQ-12, OQ-22) | **The data seed happens as an upsert when running the integration tests, and so do the database migrations.** (Supersedes the earlier answers: overwrite on every app run, then seed only on docker-compose.) Whether docker-compose also seeds: OQ-23. |
@@ -205,7 +205,7 @@ flowchart TD
     CAT -->|none| UNF2[Mark item unfulfillable:<br/>NO_ELIGIBLE_SUPPLIER]
     CAT --> PLAN[Generate candidate plans<br/>covering all routable items]
     PLAN --> RANK[Rank plans with the assigned strategy<br/>see Section 7 and 8]
-    RANK --> TIE[Tie-break only on a full tie<br/>across keys 1-4: uniform random pick<br/>FR-13]
+    RANK --> TIE[Tie-break only on a full tie<br/>across keys 1-4: lowest supplier IDs<br/>FR-13 (EXP-4 treatment: random pick)]
     UNF1 --> PART{Any unfulfillable items?}
     UNF2 --> PART
     PART -->|"EXP-3 control"| NONE[Route nothing:<br/>all-or-nothing]
@@ -273,7 +273,7 @@ erDiagram
 | FR-10 | Every routable line item is assigned to exactly one supplier. A line item's quantity is never split across suppliers (DEV-05). | BR-09 |
 | FR-11 | Rank candidate plans with the strategy for the order's experiment variant (§7, §8). | BR-07, BR-08, BR-12–14 |
 | FR-12 | Ratings within the configurable **similarity band** (default `0.5`) count as equal when applying the local-over-mail preference. | BR-14, SC-03 |
-| FR-13 | **Random tie-break only on a full tie.** Choose among plans only if they are equal on **every** ranking key 1–4 (items routed, shipment count, quality, local preference; same category coverage, same rating, same mail/local mode). Then pick one of the tied plans **uniformly at random** (each tied plan equally likely), so the same supplier does not always win. The randomness comes from an injected abstraction (`IRandomSource`) so tests can control it. The pick is **not repeatable**: a retry of the same order may choose a different tied supplier. By agreement the **caller treats the first response as authoritative** (SC-18); this is documented in the README and API docs. | SC-17, SC-18 |
+| FR-13 | **Deterministic tie-break only on a full tie.** Choose among plans only if they are equal on **every** ranking key 1–4 (items routed, shipment count, quality, local preference; same category coverage, same rating, same mail/local mode). Then pick the tied plan whose sorted supplier IDs come first in ordinal order (a plan that differs only in how categories are split between the same suppliers keeps the search order). The pick is **repeatable** and needs no random source. The **uniform random pick** (each tied plan equally likely, from an injected `IRandomSource` so tests can control it) is **only the EXP-4 treatment**; under it a retry of the same order may choose a different tied supplier, so the **caller treats the first response as authoritative** (SC-18). | SC-17, SC-18 |
 | FR-14 | **Unfulfillable items** behave per EXP-3 arm (§8). **Control:** route nothing, `feasible:false`, `status:"not_routed"`, list each item in `unfulfilled_items` + `errors`. **Treatment:** route the rest, `feasible:false`, `status:"partially_routed"`, same `unfulfilled_items` + `errors`. Both arms always return `unfulfilled_items` with a reason code and message, so the user can act. | SC-04, SC-05 |
 | FR-18 | **Dependency warnings:** on a partial route, for each configured item-dependency rule where at least one member is unfulfilled and at least one is routed, add a `warnings[]` entry naming both sides (§9). Rules are configuration, not code. Without rules, no warnings are produced. | SC-08 |
 | FR-15 | Group response `routing` entries by supplier. Within a supplier, keep items in request order. | BR-17 |
@@ -322,11 +322,11 @@ These rows look like grader fixtures. The behaviors they imply match the priorit
 
 | Sentinel(s) | ZIP | Setup | Implied expected behavior |
 |---|---|---|---|
-| T001 Exclusive Local / T002 Mail-Only High | 00001 / 00002 | Local 9.0 (no mail) vs mail-capable 10.0 elsewhere | `mail_order=false` at 00001 → **T001** (only local wheelchair supplier). With `mail_order=true`, T001 is **excluded** (SC-06). A 10.0 mail wheelchair supplier wins; several real suppliers also qualify, so on a full tie the random tie-break (FR-13) may pick one of them over T002. |
-| T003 / T004 Tiebreak A/B | 00003 | Same category, same rating 8.0 | Fully tied (same category, rating, mode) → random pick between **T003 and T004** (SC-17). Over many calls both should appear. Tests assert the result is one of {T003, T004}, never anything else; exact assertions use a fixed random source. ⚠ A grader that expects always-T003 would fail this about half the time. |
-| T005 Local Pref / T006 Mail Competitor | 00005 / 00006 | Both 10.0, walker; T006 mail-capable | `mail_order=false` at 00005 → **T005**. `mail_order=true` at 00005 → T005 is **excluded** (SC-06), and a 10.0 mail walker supplier wins (T006 or a real supplier; on a full tie, picked at random per FR-13). ⚠ The name "Local Pref" suggests a grader may expect T005 to win here; SC-06 deliberately diverges (see DEV-03). |
+| T001 Exclusive Local / T002 Mail-Only High | 00001 / 00002 | Local 9.0 (no mail) vs mail-capable 10.0 elsewhere | `mail_order=false` at 00001 → **T001** (only local wheelchair supplier). With `mail_order=true`, T001 is **excluded** (SC-06). A 10.0 mail wheelchair supplier wins; several real suppliers also qualify, so on a full tie the tie-break (FR-13) may pick one of them over T002. |
+| T003 / T004 Tiebreak A/B | 00003 | Same category, same rating 8.0 | Fully tied (same category, rating, mode) → the core tie-break picks **T003** (lowest supplier ID, SC-17). Under the EXP-4 treatment the pick is random between **T003 and T004**, and tests assert the result is one of {T003, T004}, never anything else; exact assertions use a fixed random source. |
+| T005 Local Pref / T006 Mail Competitor | 00005 / 00006 | Both 10.0, walker; T006 mail-capable | `mail_order=false` at 00005 → **T005**. `mail_order=true` at 00005 → T005 is **excluded** (SC-06), and a 10.0 mail walker supplier wins (T006 or a real supplier; on a full tie, the FR-13 tie-break decides). ⚠ The name "Local Pref" suggests a grader may expect T005 to win here; SC-06 deliberately diverges (see DEV-03). |
 | T007 Generalist (6.0) vs T008–T010 Specialists (10.0) | 00007 | One supplier covers wheelchair+cane+walker; three specialists rated 10 | Strict order → **T007, 1 shipment**, even though its rating is lower. |
-| T011 / T012 Unrated pool | 00040 | Both unrated, rollator | Must still be routable (feasibility first). Fully tied → random pick between T011 and T012. |
+| T011 / T012 Unrated pool | 00040 | Both unrated, rollator | Must still be routable (feasibility first). Fully tied → the core tie-break picks T011 (lowest supplier ID); under the EXP-4 treatment it is a random pick between T011 and T012. |
 | T013 Mail-Only CPM | 00100-99999 | Nationwide, mail, cpm machine | Mail-only (SC-09). Eligible for CPM orders anywhere when `mail_order=true`, always reported as `"mail"`. Excluded when `mail_order=false` (SC-12). |
 | T014 No-Coverage Control | 00098 | Only supplier at 00098; wheelchair only; no mail | Likely control: any other category at 00098 with `mail_order=false` → **unfulfillable** (`NO_SUPPLIER_FOR_CATEGORY_IN_AREA`). Its exact intent is unclear from the data alone. |
 
@@ -338,7 +338,7 @@ From profiling with the normalization above. Treat these as candidate acceptance
 |---|---|---|---|
 | ORD-001 (10015, no mail) | wheelchair, oxygen | 4 cover the ZIP; 3 of them are mail-only (excluded, SC-12) | **SUP-0810** (6.0), 1 shipment, local |
 | ORD-002 (77059, no mail) | hospital bed, patient lift, commode, BP monitor | 2 cover the ZIP, both mail-only (excluded) → none | **2 shipments:** SUP-0375 (9.2: bed, lift, commode) + SUP-042 (9.0: BP monitor), plan quality 9.15, all local. This exercises the multi-supplier consolidation path the sample note describes. |
-| ORD-003 (02130, mail) | CPAP ×2 lines, nebulizer | 35 | **SUP-023** (10.0, mail). It is fully tied with SUP-065 (both 10.0, both mail), so the winner is a random pick between them (SC-17); SUP-023 and SUP-065 are both valid results. Only mail-capable suppliers are eligible (SC-06); a mail-capable supplier that also serves 02130 would win only if it rates within the band of 10.0. |
+| ORD-003 (02130, mail) | CPAP ×2 lines, nebulizer | 35 | **SUP-023** (10.0, mail). It is fully tied with SUP-065 (both 10.0, both mail), so the winner is decided by the tie-break (SC-17): SUP-023 in the core, and either one under the EXP-4 treatment. Only mail-capable suppliers are eligible (SC-06); a mail-capable supplier that also serves 02130 would win only if it rates within the band of 10.0. |
 
 ---
 
@@ -372,7 +372,7 @@ A plan assigns each routable item to one supplier in `Eligible(i)`. Shipment cou
 
 ### 7.3 Ranking keys
 
-All variants share keys **1 (feasibility)** and **5 (random tie-break)**. They differ in how keys 2–4 combine.
+All variants share keys **1 (feasibility)** and **5 (deterministic tie-break; random only under the EXP-4 treatment)**. They differ in how keys 2–4 combine.
 
 | Key | Meaning | Source |
 |---|---|---|
@@ -380,7 +380,7 @@ All variants share keys **1 (feasibility)** and **5 (random tie-break)**. They d
 | 2 | Fewer shipments | BR-12 |
 | 3 | Higher plan quality: item-weighted mean of supplier effective ratings | BR-13 |
 | 4 | More items fulfilled locally, **only** when plan qualities are within the similarity band | BR-14, SC-03 |
-| 5 | Uniform random pick among plans still tied after keys 1–4 (FR-13) | FR-13, SC-17 |
+| 5 | Lowest supplier IDs (ordinal) among plans still tied after keys 1–4; uniform random pick only under the EXP-4 treatment (FR-13) | FR-13, SC-17 |
 
 **Effective rating** handles unrated suppliers and differs by experiment arm (§8.3).
 
@@ -419,11 +419,11 @@ flowchart LR
 
 | ID | Requirement |
 |---|---|
-| AB-01 | Assignment is **targeted, then split by user** (SC-26). An experiment applies only to orders whose authenticated caller and `customer_zip` match its targeting rules (callers; ZIP prefixes/ranges). Among those, assignment is **deterministic per caller** (JWT `sub` / client ID; `order_id` only when no caller ID exists) and independent per experiment (salted with the experiment ID). Non-targeted orders get control. A retried request gets the same variant, and the same routing unless the FR-13 random tie-break applies (NFR-01; the caller treats the first response as authoritative, SC-18). `string.GetHashCode()` is randomized per process in .NET and **must not** be used. |
+| AB-01 | Assignment is **targeted, then split by user** (SC-26). An experiment applies only to orders whose authenticated caller and `customer_zip` match its targeting rules (callers; ZIP prefixes/ranges). Among those, assignment is **deterministic per caller** (JWT `sub` / client ID; `order_id` only when no caller ID exists) and independent per experiment (salted with the experiment ID). Non-targeted orders get control. A retried request gets the same variant, and the same routing unless the EXP-4 treatment's random tie-break applies (NFR-01; the caller treats the first response as authoritative, SC-18). `string.GetHashCode()` is randomized per process in .NET and **must not** be used. |
 | AB-02 | Experiments are configured in a **reloadable appsettings file** (no feature-flag service, SC-25): `enabled`, `treatment_percentage` (0–100), `targeting` (callers, ZIP prefixes, ZIP ranges), per-arm parameters (`quality_uplift_threshold`, `unrated_prior`), and the shared `Routing:SimilarityBand` (FR-12) in the same reloadable file. The assigner passes all of them to the policies in `ExperimentAssignment.Parameters` ([ADR-0005](../ADRs/ADR-0005-experiment-assignment.md)). Changes take effect **without a code deploy or restart**. Invalid changes are rejected and the last valid configuration stays active. Assignment sits behind a vendor-agnostic port, so a managed platform (e.g., Statsig, LaunchDarkly) can be added later as an adapter. |
 | AB-03 | **Default configuration = all experiments off = control arms** (strict priority, unrated last, all-or-nothing). This keeps behavior aligned with the written spec and the sentinel fixtures (§6.1). Confirmed by stakeholder (SC-10). |
-| AB-04 | Emit one structured **decision log event** (`RoutingDecisionMade`) per valid POST, after its order is stored, whatever the outcome (routed, partially routed, not routed): `id`, `order_id`, `caller_hash` (never the raw caller ID), arm and reason per experiment, chosen plan (supplier IDs, modes), tied candidates and the random pick when the FR-13 tie-break was used, shipment count, plan quality, count of unrated suppliers chosen, count of unfulfilled items, `search_mode`, config version, `customer_zip`. No patient PII beyond `customer_zip`. 400 and 401 requests produce no event. Field list owned by [ADR-0005](../ADRs/ADR-0005-experiment-assignment.md). |
-| AB-05 | Variant arms are exposed in the response only through an optional diagnostic field (OQ-08). Clients must not depend on it. |
+| AB-04 | Emit one structured **decision log event** (`RoutingDecisionMade`) per valid POST, after its order is stored, whatever the outcome (routed, partially routed, not routed): `id`, `order_id`, `caller_hash` (never the raw caller ID), arm and reason per experiment, chosen plan (supplier IDs, modes), tied candidates and the pick when the FR-13 tie-break had more than one plan to choose from, shipment count, plan quality, count of unrated suppliers chosen, count of unfulfilled items, `search_mode`, config version, `customer_zip`. No patient PII beyond `customer_zip`. 400 and 401 requests produce no event. Field list owned by [ADR-0005](../ADRs/ADR-0005-experiment-assignment.md). |
+| AB-05 | Variant arms are never exposed in the response (OQ-08). They are stored with the order and logged for analysis only. |
 | AB-06 | Each arm is a separate strategy implementation behind one interface (Strategy pattern, OCP). Adding an arm must not change the routing core. |
 
 ### 8.3 Analysis limitation
@@ -563,7 +563,7 @@ stateDiagram-v2
 
 ### 9.5 Retrieve a stored order (FR-21, SC-28, SC-31)
 
-`GET /api/v1/route/{id}` returns what was stored when the order was routed. It never re-routes, so a random tie-break pick does not change.
+`GET /api/v1/route/{id}` returns what was stored when the order was routed. It never re-routes, so a tie-break pick (random under the EXP-4 treatment) does not change.
 
 ```json
 {
@@ -588,7 +588,7 @@ stateDiagram-v2
 - `items` lists every requested line in request order. In the all-or-nothing arm, routable lines appear here even though `routing` is empty.
 - `feasible`, `status`, `routing`, `unfulfilled_items`, `warnings` and `errors` equal the original POST response.
 - Supplier names are a snapshot from routing time. A later re-seed does not change them.
-- `diagnostics` follows the same `Routing:ExposeDiagnostics` flag as POST.
+- The body never carries experiment arms or the search mode, same as POST.
 - 404 for an unknown `id`, a non-UUID `id`, or another caller's order. 401 without credentials.
 
 ---
@@ -597,14 +597,14 @@ stateDiagram-v2
 
 | ID | Requirement | Rationale |
 |---|---|---|
-| NFR-01 | **Deterministic routing.** Same request + same data + same config → identical routing, **except** when plans are fully tied on every ranking rule, where the supplier is chosen at random (FR-13, SC-17). That is the only source of randomness; experiment assignment stays hash-based and deterministic. Whenever there is no full tie, the result is repeatable. Storage is **not** idempotent: every POST, retries included, creates a new stored record (SC-29), as `POST` is not idempotent (CLAUDE.md REST API conventions). | CLAUDE.md design principles; retried requests |
+| NFR-01 | **Deterministic routing.** Same request + same data + same config → identical routing, **except** under the EXP-4 treatment, where a full tie on every ranking rule is broken at random (FR-13, SC-17). That is the only source of randomness and it is never part of the core; experiment assignment stays hash-based and deterministic. Storage is **not** idempotent: every POST, retries included, creates a new stored record (SC-29), as `POST` is not idempotent (CLAUDE.md REST API conventions). | CLAUDE.md design principles; retried requests |
 | NFR-02 | **Stateless instances.** Instances keep no per-request state in memory; stored orders live in the database (FR-20). Reference data is read-only at request time (only the seed step writes it), and each POST only inserts its own new order rows, so concurrent requests need no locking and instances scale horizontally against one database. | Horizontal scaling |
 | NFR-03 | **Latency target**: p95 < 50 ms per request, including database reads and, for POST, the stored-order insert (FR-20), for orders ≤ 10 distinct categories (to confirm with a load test). The service ships **without a reference-data cache**: routing reads PostgreSQL directly. Whether a cache is added is decided after load testing ([ADR-0006](../ADRs/ADR-0006-reference-data-caching.md)). | Small, read-mostly data set; the load test decides whether caching is needed |
 | NFR-04 | **Data validation with summary logs**, never at API startup. The normalization generator logs rows read, written, skipped (with row numbers and reasons) and duplicates removed. The seeder logs rows loaded, the unrated count, and rows in the database that are no longer in the CSVs. | Messy data must be observable, not silently dropped |
 | NFR-05 | **Configuration** via `appsettings.json` + environment overrides: data file paths, similarity band, experiment settings, plan-search threshold. | Decouple rules from code (CLAUDE.md "decouple rules from state") |
 | NFR-06 | **Observability**: structured logging (decision event per AB-04), health endpoint (`/health`) reporting whether dependency services (the database) are up and reachable. Empty reference data is **not** a health failure (SC-23). API startup checks only that dependencies are reachable and never inspects reference data, so there is no startup warning for empty tables. | Container orchestration, A/B analysis |
 | NFR-07 | **Containerized** with a multi-stage Dockerfile on the .NET 10 runtime image; listens on a documented port; runs as non-root. | BR-19 |
-| NFR-08 | **Testing**: unit tests for parsing/normalization, eligibility, and each strategy; integration tests for the endpoints covering sample orders, sentinel scenarios, partial routing, validation, both POST paths, and stored-order read-back with `GET` (including 404 for another caller's order). Domain + application coverage ≥ 85%. **Seed data in integration tests (SC-21):** when the integration tests run, they first apply the **database migrations** and then **upsert the seed data** from the committed normalized CSVs in `Docs/Data/Seed` (including the sentinel suppliers), so every test run starts with the current schema and known reference data. Tests treat the reference data as read-only. They do add stored routing orders (FR-20), which is expected. **Tie-break tests (SC-17):** (a) exact-outcome tests inject a fixed `IRandomSource`; (b) endpoint and sentinel tests (T003/T004, T011/T012, ORD-003) assert the result is **a member of the valid tied set**, never a fixed supplier; (c) a distribution test runs N calls and asserts every tied supplier appears and no non-tied supplier ever does; (d) a test proves non-tied cases never use randomness (the same result every time). | `.claude/rules`, SC-17 |
+| NFR-08 | **Testing**: unit tests for parsing/normalization, eligibility, and each strategy; integration tests for the endpoints covering sample orders, sentinel scenarios, partial routing, validation, both POST paths, and stored-order read-back with `GET` (including 404 for another caller's order). Domain + application coverage ≥ 85%. **Seed data in integration tests (SC-21):** when the integration tests run, they first apply the **database migrations** and then **upsert the seed data** from the committed normalized CSVs in `Docs/Data/Seed` (including the sentinel suppliers), so every test run starts with the current schema and known reference data. Tests treat the reference data as read-only. They do add stored routing orders (FR-20), which is expected. **Tie-break tests (SC-17):** (a) core tie-break tests assert the lowest supplier ID wins and the random source is never called; (b) EXP-4 treatment tests inject a fixed `IRandomSource` for exact outcomes; (c) endpoint and sentinel tests (T003/T004, T011/T012, ORD-003) assert the result is **a member of the valid tied set**; (d) a treatment distribution test runs N calls and asserts every tied supplier appears and no non-tied supplier ever does; (e) a test proves non-tied cases never use randomness. | `.claude/rules`, SC-17 |
 | NFR-11 | **Security**: authentication on every routing endpoint (FR-19); caller identities stored and logged only as HMAC hashes; HTTPS in production; credentials and secrets from environment or a secret store, never committed; no credentials or tokens in logs. Integration tests cover 401 (no token, bad token), 400 (each validation rule) and 404 on `GET` for another caller's order. | SC-13; patient-adjacent data |
 | NFR-09 | **Timebox**: core routing + Variant A + partial routing + container first. A/B arms B are additive and can be stubbed behind config if time runs short. | BR-22 |
 | NFR-10 | **Fail-safe**: an ambiguous data condition (conflicting duplicate product, unparseable rating) excludes that row and logs it. It is never guessed. | CLAUDE.md "fail safe on compliance" |
@@ -624,7 +624,7 @@ Every place this document departs from, or adds to, the original wording.
 | DEV-05 | BR-09 | A line item's quantity is never split across suppliers. | Splitting adds shipments (against BR-12). Quantity/inventory isn't modelled; capability is per category. | **Proposed** |
 | DEV-06 | BR-24 ("200 products"), BR-23 (`supplier_name`) | Load the actual 1,200-row file; accept the `suplier_name` header. | The data is authoritative over the prose description. | **Proposed** (low risk) |
 | DEV-07 | BR-16 ("always returns HTTP 200") | **Replaced.** 400 for invalid requests, 401 for unauthenticated callers, a success code for all valid requests (routed or not; **201** since DEV-14), 500 for server faults (§9.4). | SC-13. Standard REST semantics separate caller errors (4xx) from business outcomes (success + `feasible`). Authentication is required for an endpoint handling patient-adjacent orders. | **Approved** (SC-13). ⚠ Grader risk: the spec's grader likely expects 200 for invalid input and sends no credentials (access via SC-32) |
-| DEV-08 | — | Tie-break: only on a full tie, pick uniformly at random among the tied plans (FR-13). | The spec doesn't say how to break ties. SC-17: don't always route to the same supplier. | **Approved** (SC-17, SC-18). Trade-off: a retry may pick a different tied supplier; the caller treats the first response as authoritative |
+| DEV-08 | — | Tie-break: only on a full tie, pick the plan with the lowest supplier IDs (FR-13). The uniform random pick is the EXP-4 treatment only. | The spec doesn't say how to break ties. A deterministic core keeps routing repeatable; whether to spread ties at random is tested as an experiment. | **Approved** (SC-17, SC-18). Trade-off: the same supplier wins every full tie in the core; under the treatment a retry may pick a different tied supplier, and the caller treats the first response as authoritative |
 | DEV-09 | BR-17 example | The example response is illustrative only (DQ-16). | It contradicts the data. | **Informational** |
 | DEV-12 | BR-17 (`fulfillment_mode`), BR-23 (`service_zips`) | Infer "mail-only" from `can_mail_order = y` + nationwide placeholder range. The data has no explicit mail-only field. | SC-09. Without it, a nationwide shipper would be labelled and preferred as "local" everywhere. | **Approved** (SC-09, SC-12). Mail-only suppliers are excluded from no-mail orders. Recommend adding an explicit field to the supplier feed later |
 | DEV-11 | — | Configurable item-dependency rules and `warnings[]` on partial routes. | SC-08: the user must know when a routed item is useless without an unfulfilled one. | **Approved** (SC-08, SC-11). Rule data to be built (§8.4) |
@@ -645,7 +645,7 @@ Every place this document departs from, or adds to, the original wording.
 | ~~OQ-05~~ | **Resolved (SC-07):** range-covering suppliers without mail capability are local only. | — |
 | OQ-06 | Should `priority: "rush"` affect routing (e.g., prefer local for speed)? | Ignore. No requirement defines it. |
 | ~~OQ-07~~ | **Resolved (SC-08):** partial routes may split dependent items but must warn the user (FR-18). | — |
-| OQ-08 | Expose experiment arms in the API response (for debugging/grading), or only in logs? | Logs only. Optional `diagnostics` object behind a config flag. |
+| OQ-08 | Expose experiment arms in the API response (for debugging/grading), or only in logs? | Logs and the stored order only. The response never carries them: clients must not know their arm. (Supersedes the earlier optional `diagnostics` object.) |
 | OQ-09 | Where do outcome metrics (satisfaction, delivery) for A/B analysis come from? | Out of scope. Stored orders and the decision log carry `id` and `order_id` for a later join. |
 | OQ-10 | EXP-1 treatment parameters (max one extra shipment, ≥ 2.0 uplift) and EXP-2 prior (6.5): are these acceptable starting points? | Use as defaults, configurable. |
 | OQ-11 | Validate `customer_zip` as "5 digits" only, or against a real USPS ZIP list? Sentinels use synthetic ZIPs (`00001`). | 5-digit format only. |
@@ -663,7 +663,7 @@ Every place this document departs from, or adds to, the original wording.
 | ~~OQ-17~~ | **Resolved (SC-15):** 400 uses the same response envelope as a successful response, with the correct status code. | — |
 | ~~OQ-18~~ | **Resolved (SC-32):** graders copy `.env.example` to `.env` (placeholder dev key, Development only), then run `docker compose up`. The README also explains the status-code changes (DEV-07, DEV-14) and that the integration tests must run to seed data. | — |
 | ~~OQ-19~~ | **Deferred (SC-16):** permissions are out of scope for now; authenticated = allowed. Keep the authorization policy as a single named hook so a scope check (403) can be added later. | — |
-| ~~OQ-20~~ | **Resolved (SC-17):** truly random on a full tie, tests account for it. | — |
+| ~~OQ-20~~ | **Resolved (SC-17):** the core breaks a full tie deterministically; random is the EXP-4 treatment only. | — |
 | ~~OQ-21~~ | **Resolved (SC-18, updated by SC-28/SC-29):** the caller treats the first response as authoritative. Every response is stored under its own `id`, so the pick can be read back; the decision log also records the tied candidates and the pick. | — |
 | ~~OQ-14~~ | **Resolved (SC-10):** with all A/B tests off, the default is all-or-nothing. | — |
 | ~~OQ-15~~ | **Resolved (SC-11):** category-level dependency rules in config. The rule data does not exist yet and must be built (§8.4). | — |
@@ -676,7 +676,7 @@ Decisions this analysis surfaced for ADRs. All candidates now have an ADR: C-02 
 
 | ID | Decision to record | Options to weigh |
 |---|---|---|
-| C-02 | Routing strategy abstraction and A/B composition | Strategy pattern + factory keyed by experiment arms; composition of EXP-1 × EXP-2 × EXP-3; injectable random source for the FR-13 tie-break |
+| C-02 | Routing strategy abstraction and A/B composition | Strategy pattern + factory keyed by experiment arms; composition of EXP-1 × EXP-2 × EXP-3; injectable random source for the EXP-4 treatment tie-break |
 | ~~C-03~~ | Capability matching model | **No ADR (SC-27).** Handled as an implementation note: §5.1 |
 | C-04 | **Database technology** (SC-20): which database holds supplier and product reference data, seeded from the CSVs | Weigh candidates (e.g., PostgreSQL, SQL Server, SQLite, in-memory store) against: ~1,100 suppliers / 1,200 products, read-heavy and nearly static data; ZIP-range and category lookups (indexing, range types); simple container run for the take-home; ORM/provider fit with .NET 10; idempotent re-seeding; later room for A/B decision-log storage (§8) and stored routing decisions (now [ADR-0007](../ADRs/ADR-0007-routing-decision-persistence.md)). Also cover: CSV seeding approach (CsvHelper vs hand-rolled), schema and indexes, migrations, and how the seeding step applies the §6 normalization rules |
 | C-05 | Plan-search algorithm | Exact enumeration with threshold vs greedy set cover vs ILP; complexity bounds |

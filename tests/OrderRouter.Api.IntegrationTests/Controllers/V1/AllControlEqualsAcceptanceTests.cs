@@ -38,19 +38,19 @@ public class AllControlEqualsAcceptanceTests(ReferenceDataFixture fixture)
         await AssertCasesAsync(host.Factory);
 
         var reply = await AcceptanceApi.PostCreatedAsync(host.Factory, "/api/v1/route", Or023Expectations.Cases[0].Body(AcceptanceApi.NewOrderId()));
-        var arms = reply.Json.GetProperty("diagnostics").GetProperty("experiment_arms");
+        var arms = await StoredArms.ReadAsync(fixture.ConnectionString, reply.Json, TestContext.Current.CancellationToken);
         Assert.All(arms.EnumerateObject(), arm => Assert.Equal("control", arm.Value.GetProperty("arm").GetString()));
     }
 
     [Fact]
     public async Task Post_ShippedExperimentsFile_EqualsTheOr023ResultsAndEveryArmIsControl()
     {
-        await using var factory = RouteApiFactory.Create(fixture.ConnectionString, useCase: null, exposeDiagnostics: true);
+        await using var factory = RouteApiFactory.Create(fixture.ConnectionString, useCase: null);
 
         await AssertCasesAsync(factory);
 
         var reply = await AcceptanceApi.PostCreatedAsync(factory, "/api/v1/route", Or023Expectations.Cases[0].Body(AcceptanceApi.NewOrderId()));
-        var arms = reply.Json.GetProperty("diagnostics").GetProperty("experiment_arms");
+        var arms = await StoredArms.ReadAsync(fixture.ConnectionString, reply.Json, TestContext.Current.CancellationToken);
         Assert.All(arms.EnumerateObject(), arm =>
         {
             Assert.Equal("control", arm.Value.GetProperty("arm").GetString());

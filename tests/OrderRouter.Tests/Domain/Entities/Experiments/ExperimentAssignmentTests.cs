@@ -20,7 +20,7 @@ public class ExperimentAssignmentTests
     [Fact]
     public void Constructor_WithReasonsAndVersion_KeepsThem()
     {
-        var reasons = new ExperimentReasons(ExposureReason.Bucketed, ExposureReason.NotTargeted, ExposureReason.Disabled);
+        var reasons = new ExperimentReasons(ExposureReason.Bucketed, ExposureReason.NotTargeted, ExposureReason.Disabled, ExposureReason.Disabled);
 
         var assignment = new ExperimentAssignment(ExperimentArms.AllControl, RoutingParameters.Default, reasons, "abc123");
 

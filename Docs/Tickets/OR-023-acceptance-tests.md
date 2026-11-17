@@ -39,11 +39,11 @@ Add endpoint-level integration tests against the seeded database for the sample 
 - **When** it is routed
 - **Then** `SUP-T007` is chosen as one shipment
 
-### AC6: Random ties
+### AC6: Tied sentinels
 
 - **Given** the tied sentinel pairs `SUP-T003`/`SUP-T004` and `SUP-T011`/`SUP-T012`
 - **When** each is routed
-- **Then** the winner is always one of its pair
+- **Then** the winner is always one of its pair (the core picks the lowest supplier ID; EXP-4 treatment tests must not assume a fixed winner)
 
 ### AC7: No coverage
 

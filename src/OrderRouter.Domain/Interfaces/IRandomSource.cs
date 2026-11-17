@@ -1,8 +1,8 @@
 namespace OrderRouter.Domain.Interfaces;
 
 /// <summary>
-/// The only source of randomness in the domain (NFR-08a, ADR-0001). Tests inject a fixed source for exact
-/// assertions; production uses a truly random one.
+/// The only source of randomness in the domain (NFR-08a, ADR-0001), used only by the EXP-4 treatment tie-breaker.
+/// Tests inject a fixed source for exact assertions; production uses a truly random one.
 /// </summary>
 public interface IRandomSource
 {

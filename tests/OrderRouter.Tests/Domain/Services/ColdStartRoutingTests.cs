@@ -14,7 +14,7 @@ namespace OrderRouter.Tests.Domain.Services;
 public class ColdStartRoutingTests
 {
     private static readonly ZipCode zip = ZipCode.Parse("10015");
-    private static readonly RoutingPolicy control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+    private static readonly RoutingPolicy control = new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(ExperimentAssignment.AllControl);
 
     // Both suppliers use the same fulfillment mode (local): the similarity band only prefers local over mail
     // among plans of equal shipment count, so a mixed pair would hide the effect of the prior.
@@ -24,11 +24,11 @@ public class ColdStartRoutingTests
     private static OrderToRoute Order() => new(zip, false, [new OrderLine("A", 1, new Category("cane"))]);
 
     private static OrderRoutingService Service()
-        => new(new SupplierEligibility(ZipRange.Parse("00100-99999")), new CountingPlanSearch(), new UniformRandomTieBreaker(new FixedRandomSource(0)));
+        => new(new SupplierEligibility(ZipRange.Parse("00100-99999")), new CountingPlanSearch());
 
     private static RoutingPolicy Treatment(decimal prior)
-        => new RoutingPolicyFactory().Create(new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
+        => new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control),
             new RoutingParameters(unratedPrior: prior)));
 
     private static string Winner(RoutingDecision decision) => Assert.Single(decision.RoutedLines.Select(l => l.Supplier.Id).Distinct());
@@ -77,7 +77,7 @@ public class ColdStartRoutingTests
         using var assigner = new ConfigurationExperimentAssigner(monitor, NullLogger<ConfigurationExperimentAssigner>.Instance);
         var context = new AssignmentContext("caller", zip, "ORD-1");
         var suppliers = new[] { Supplier("RATED", 6.0m), Supplier("UNRATED", null) };
-        var factory = new RoutingPolicyFactory();
+        var factory = new RoutingPolicyFactory(TestTieBreakers.Treatment());
 
         var before = Service().Route(Order(), suppliers, factory.Create(assigner.Assign(context)));
 

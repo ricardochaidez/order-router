@@ -4,11 +4,13 @@ namespace OrderRouter.Domain.Entities.Experiments;
 /// <param name="Exp1ConsolidationVsQuality">EXP-1: plan selection.</param>
 /// <param name="Exp2UnratedSuppliers">EXP-2: effective rating of unrated suppliers.</param>
 /// <param name="Exp3PartialRouting">EXP-3: what happens to unfulfillable lines.</param>
+/// <param name="Exp4TieBreaking">EXP-4: how one plan is picked from plans that are still tied.</param>
 public sealed record ExperimentArms(
     ExperimentArm Exp1ConsolidationVsQuality,
     ExperimentArm Exp2UnratedSuppliers,
-    ExperimentArm Exp3PartialRouting)
+    ExperimentArm Exp3PartialRouting,
+    ExperimentArm Exp4TieBreaking)
 {
     /// <summary>Every experiment on control: the routing described by the spec (AB-03).</summary>
-    public static ExperimentArms AllControl { get; } = new(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control);
+    public static ExperimentArms AllControl { get; } = new(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control);
 }

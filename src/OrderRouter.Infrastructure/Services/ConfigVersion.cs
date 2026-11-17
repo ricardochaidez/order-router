@@ -18,8 +18,9 @@ public static class ConfigVersion
     /// <param name="exp1">EXP-1 definition.</param>
     /// <param name="exp2">EXP-2 definition.</param>
     /// <param name="exp3">EXP-3 definition.</param>
+    /// <param name="exp4">EXP-4 definition.</param>
     /// <param name="parameters">The parameters carried to every assignment.</param>
-    public static string Compute(ExperimentDefinition exp1, ExperimentDefinition exp2, ExperimentDefinition exp3, RoutingParameters parameters)
+    public static string Compute(ExperimentDefinition exp1, ExperimentDefinition exp2, ExperimentDefinition exp3, ExperimentDefinition exp4, RoutingParameters parameters)
     {
         using var stream = new MemoryStream();
 
@@ -30,6 +31,7 @@ public static class ConfigVersion
             Write(writer, exp1);
             Write(writer, exp2);
             Write(writer, exp3);
+            Write(writer, exp4);
             writer.WriteEndArray();
             writer.WriteStartObject("parameters");
             writer.WriteNumber("similarityBand", Normalize(parameters.SimilarityBand));

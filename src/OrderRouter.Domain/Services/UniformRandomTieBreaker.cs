@@ -5,8 +5,8 @@ using OrderRouter.Domain.Models;
 namespace OrderRouter.Domain.Services;
 
 /// <summary>
-/// Key 5 (FR-13, SC-17): on a full tie, picks one plan uniformly at random so the same supplier does not
-/// always win. Stateless apart from the injected random source (ADR-0001).
+/// Treatment arm of EXP-4 only; the core never uses it. On a full tie, picks one plan uniformly at random so the
+/// same supplier does not always win. Stateless apart from the injected random source (ADR-0001).
 /// </summary>
 public sealed class UniformRandomTieBreaker : ITieBreaker
 {

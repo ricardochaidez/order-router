@@ -31,8 +31,9 @@ public class ShippedExperimentsFileTests
         Assert.False(configuration.Exp1ConsolidationVsQuality.Enabled);
         Assert.False(configuration.Exp2UnratedSuppliers.Enabled);
         Assert.False(configuration.Exp3PartialRouting.Enabled);
+        Assert.False(configuration.Exp4TieBreaking.Enabled);
         Assert.All(
-            new[] { configuration.Exp1ConsolidationVsQuality, configuration.Exp2UnratedSuppliers, configuration.Exp3PartialRouting },
+            new[] { configuration.Exp1ConsolidationVsQuality, configuration.Exp2UnratedSuppliers, configuration.Exp3PartialRouting, configuration.Exp4TieBreaking },
             definition => Assert.Equal(0, definition.TreatmentPercentage));
         Assert.Equal(RoutingParameters.Default, configuration.Parameters);
     }

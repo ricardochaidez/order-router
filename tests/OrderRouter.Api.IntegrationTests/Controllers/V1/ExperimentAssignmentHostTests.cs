@@ -1,3 +1,5 @@
+using OrderRouter.Domain.Services;
+using OrderRouter.Infrastructure.Services;
 using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Net;
@@ -80,7 +82,7 @@ public class ExperimentAssignmentHostTests(ReferenceDataFixture fixture)
         {
             assignments.Enqueue(assignment);
 
-            return new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+            return new RoutingPolicyFactory(new UniformRandomTieBreaker(new SystemRandomSource())).Create(ExperimentAssignment.AllControl);
         }
     }
 

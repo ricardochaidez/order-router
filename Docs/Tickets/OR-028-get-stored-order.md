@@ -17,7 +17,7 @@ Add `GET /api/v1/route/{id}`. It requires authentication and returns the stored 
 
 ### AC2: No re-routing
 
-- **Given** an order whose supplier was picked by the random tie-break (`SUP-T003`/`SUP-T004`)
+- **Given** an order whose supplier was picked by the EXP-4 treatment random tie-break (`SUP-T003`/`SUP-T004`)
 - **When** it is read 10 times
 - **Then** every response shows the same supplier as the POST response
 

@@ -4,7 +4,7 @@ ADRs for the Order Router. They are derived from [Order-Router-Technical-Require
 
 | ADR | Candidate | Decision | Status |
 |---|---|---|---|
-| [ADR-0001](ADR-0001-routing-strategy-composition.md) | C-02 | Compose routing from per-experiment policies (rating, plan selection, unfulfillable handling) plus a random tie-breaker | proposed |
+| [ADR-0001](ADR-0001-routing-strategy-composition.md) | C-02 | Compose routing from per-experiment policies (rating, plan selection, unfulfillable handling) plus a tie-breaker (deterministic by default; the EXP-4 treatment is random) | proposed |
 | [ADR-0002](ADR-0002-reference-data-database.md) | C-04 | PostgreSQL + EF Core 10; migrate + upsert seed run only by the integration tests, against the API's database | proposed |
 | [ADR-0003](ADR-0003-plan-search-algorithm.md) | C-05 | Exact min-shipment cover search with bitmasks, dominance pruning, work budget, greedy fallback | proposed |
 | [ADR-0004](ADR-0004-response-contract-evolution.md) | C-06 | `POST /api/v1/route` from the start, `POST /api/route` as a permanent v1 alias; additive fields within v1 | proposed |

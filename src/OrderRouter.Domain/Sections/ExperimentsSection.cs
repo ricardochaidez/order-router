@@ -12,4 +12,7 @@ public sealed class ExperimentsSection
 
     /// <summary>EXP-3: partial routing.</summary>
     public ExperimentOptions? Exp3PartialRouting { get; set; }
+
+    /// <summary>EXP-4: tie-breaking.</summary>
+    public ExperimentOptions? Exp4TieBreaking { get; set; }
 }

@@ -1,5 +1,7 @@
 # OR-014: Break full ties at random
 
+> **Superseded:** the random tie-break is no longer core behavior. It is only the EXP-4 treatment (`UniformRandomTieBreaker`); the core and the EXP-4 control break a full tie with `DeterministicTieBreaker` (lowest supplier IDs). The text below is the original ticket.
+
 **Depends on:** [OR-013](OR-013-routing-policies-control.md)  
 **References:** [ADR-0001](../ADRs/ADR-0001-routing-strategy-composition.md); [Requirements](../BusinessRequirements/Order-Router-Technical-Requirements.md) FR-13, NFR-01, NFR-08, SC-17, SC-18
 

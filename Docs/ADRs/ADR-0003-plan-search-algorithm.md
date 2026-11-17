@@ -9,7 +9,7 @@
 
 ## Context and Problem Statement
 
-A **routing plan** assigns each routable line item to one eligible supplier. Ranking is lexicographic (§7.3): max items routed → **min shipments** → max quality → more local within the similarity band → random pick on a full tie. Minimizing shipments is **set cover**, which is NP-hard in general.
+A **routing plan** assigns each routable line item to one eligible supplier. Ranking is lexicographic (§7.3): max items routed → **min shipments** → max quality → more local within the similarity band → deterministic pick on a full tie (lowest supplier IDs; a random pick is the EXP-4 treatment only). Minimizing shipments is **set cover**, which is NP-hard in general.
 
 What the data tells us (profiled 2026-11-15):
 
@@ -24,7 +24,7 @@ Naive enumeration of all assignments for a 4-category mail order is about 120⁴
 
 Two more constraints shape the search:
 
-- FR-13 needs **every** plan tied on keys 1–4, not just one optimum, so the random pick is fair.
+- FR-13 needs **every** plan tied on keys 1–4, not just one optimum, so the tie-break (deterministic in the core, random in the EXP-4 treatment) chooses among all of them.
 - The EXP-1 treatment (ADR-0001) needs plans with **one extra shipment** too.
 
 **What algorithm finds the best plans exactly for realistic orders, stays bounded on pathological ones, and supports full-tie enumeration and EXP-1?**
@@ -59,7 +59,7 @@ The search works like this:
 2. **Try one supplier first.** Can any single supplier tick every box? If yes, the answer uses one shipment, and we only compare those suppliers.
 3. **If not, try pairs, then groups of three, and so on.** The first group size that ticks every box is the minimum number of shipments. We stop growing there. The only exception is the "one extra shipment" experiment arm (EXP-1), which also looks one size further.
 4. **Skip combinations that can't win**, so the search stays fast:
-   - **Look-alike suppliers.** If two suppliers tick exactly the same boxes in the same way (local or mail), only the better-rated one can ever be chosen, so we drop the other. If they have the **same** rating, we keep both, so the random tie-break stays fair (e.g., T003 vs T004).
+   - **Look-alike suppliers.** If two suppliers tick exactly the same boxes in the same way (local or mail), only the better-rated one can ever be chosen, so we drop the other. If they have the **same** rating, we keep both, so the tie-break sees every equal candidate (e.g., T003 vs T004).
    - **Hopeless half-built plans.** While building a plan, if even the best possible ending can't come close to the best plan found so far **with the same number of suppliers**, we abandon it early. Plans with different numbers of suppliers are never compared here, because the "one extra shipment" arm needs the best plan of each size.
 5. **Have a safety limit.** We count how many combinations we've checked. If an unusually large order would take too long (more than 8 different categories, or more than 200,000 checks), we switch to a quick "good enough" method: keep picking the supplier that ticks the most remaining boxes. When that happens we log it, so we can see whether the limit is ever hit in practice.
 
@@ -135,7 +135,7 @@ flowchart LR
 
 - Exact results for all sample orders and sentinels; the same ranking code serves every arm.
 - Bitmask operations make each search node a few CPU instructions. Dominance pruning collapses hundreds of specialists to a handful of distinct candidates per (mask, mode) class.
-- Fair tie-breaking: all tied plans are returned, never just "the first found".
+- Complete tie-breaking input: all tied plans are returned, never just "the first found".
 - Degradation is explicit, bounded, and observable rather than a latency spike.
 
 ### Negative Consequences

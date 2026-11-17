@@ -15,6 +15,8 @@ namespace OrderRouter.Domain.Models;
 /// <param name="Exp2Reason">Reason for the EXP-2 arm.</param>
 /// <param name="Exp3Arm">Arm of EXP-3.</param>
 /// <param name="Exp3Reason">Reason for the EXP-3 arm.</param>
+/// <param name="Exp4Arm">Arm of EXP-4.</param>
+/// <param name="Exp4Reason">Reason for the EXP-4 arm.</param>
 /// <param name="ChosenSuppliers">The routed suppliers and modes, for example <c>SUP-1:local,SUP-2:mail</c>; empty when nothing was routed.</param>
 /// <param name="TiedCandidates">Only when the random tie-break ran: every tied plan as its suppliers (joined with <c>+</c>), separated by commas; otherwise <see langword="null"/>.</param>
 /// <param name="TiePick">Only when the random tie-break ran: the plan that was picked, written like one tied candidate; otherwise <see langword="null"/>.</param>
@@ -35,6 +37,8 @@ public sealed record RoutingDecisionLogEntry(
     string Exp2Reason,
     string Exp3Arm,
     string Exp3Reason,
+    string Exp4Arm,
+    string Exp4Reason,
     string ChosenSuppliers,
     string? TiedCandidates,
     string? TiePick,

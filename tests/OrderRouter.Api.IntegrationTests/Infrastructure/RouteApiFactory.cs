@@ -23,10 +23,9 @@ internal static class RouteApiFactory
 
     /// <summary>
     /// Creates the host. Pass <paramref name="useCase"/> as <c>null</c> to keep the real routing use case (OR-015).
-    /// <paramref name="exposeDiagnostics"/> sets <c>Routing:ExposeDiagnostics</c> (OR-022, off by default), and
     /// <paramref name="experimentsFile"/> adds an <c>experiments.json</c> source so a test can put an experiment on treatment.
     /// </summary>
-    public static WebApplicationFactory<Program> Create(string connectionString, IRouteOrderService? useCase, bool exposeDiagnostics = false, IFileProvider? experimentsFile = null)
+    public static WebApplicationFactory<Program> Create(string connectionString, IRouteOrderService? useCase, IFileProvider? experimentsFile = null)
     {
         var factory = AuthApiFactory.Create(connectionString, configureServices: services =>
         {
@@ -39,8 +38,6 @@ internal static class RouteApiFactory
 
         return factory.WithWebHostBuilder(builder =>
         {
-            builder.UseSetting("Routing:ExposeDiagnostics", exposeDiagnostics ? "true" : "false");
-
             if (experimentsFile is not null)
             {
                 builder.ConfigureAppConfiguration((_, config) => config.AddJsonFile(experimentsFile, "experiments.json", optional: false, reloadOnChange: true));

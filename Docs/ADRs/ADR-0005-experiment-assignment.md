@@ -128,6 +128,10 @@ flowchart TD
   "Exp3PartialRouting": {
     "Enabled": false, "TreatmentPercentage": 0, "Salt": "exp3",
     "Targeting": { "Callers": ["portal-client", "user-123"], "ZipPrefixes": [], "ZipRanges": [] }
+  },
+  "Exp4TieBreaking": {
+    "Enabled": false, "TreatmentPercentage": 0, "Salt": "exp4",
+    "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] }
   }
 },
 "Routing": { "SimilarityBand": 0.5 }
@@ -168,7 +172,7 @@ One `RoutingDecisionMade` structured event per valid POST, written after its ord
 - **`caller_hash`** (HMAC-SHA256 of the caller ID with a server secret; the raw caller ID is not logged)
 - per experiment: `arm` and `reason`
 - chosen suppliers and modes
-- tied candidates and the random pick
+- tied candidates and the tie-break pick (random only in the EXP-4 treatment)
 - `shipment_count`, `plan_quality`, `unrated_chosen`, `unfulfilled_count`
 - `search_mode`, `config_version`, `customer_zip`
 
@@ -226,7 +230,7 @@ Arms appear in the response only through the optional `diagnostics` object ([ADR
 ## Implementation notes (OR-016)
 
 - **Caller ID claims:** `sub`, then `client_id` (RFC 9068), then `azp` (OIDC). Blank values count as missing. With no claim the caller is `null` and the order ID is the unit. The dev key already carries `sub = dev-key`.
-- **Experiment IDs** are the configuration section keys (`Exp1ConsolidationVsQuality`, `Exp2UnratedSuppliers`, `Exp3PartialRouting`), the same names as the `ExperimentArms` properties. Each has its own salt, so arms are independent.
+- **Experiment IDs** are the configuration section keys (`Exp1ConsolidationVsQuality`, `Exp2UnratedSuppliers`, `Exp3PartialRouting`, `Exp4TieBreaking`), the same names as the `ExperimentArms` properties. Each has its own salt, so arms are independent.
 - **Bucket:** `SHA256(UTF8("{id}:{salt}:{unit}"))`, first 8 bytes read with `BinaryPrimitives.ReadUInt64BigEndian`, modulo 100. The byte order is explicit so results match on every platform; a known-answer test pins the values (computed outside .NET).
 - **`config_version`:** the first 12 lowercase hex characters of SHA-256 over a canonical JSON of the *parsed* values in a fixed order, with numbers normalized. A whitespace-only edit keeps the version; any value change alters it.
 - **Reload design (decided by a spike):** a failed `IValidateOptions` check on reload makes `IOptionsMonitor` throw inside its own change callback, on the file-watcher thread, without notifying listeners (`OptionsMonitorReloadSpikeTests`). So validation is **not registered** on the options system. `ExperimentsOptionsValidator` (an `IValidateOptions` class over the one mapper) is called directly by a startup check and the assigner calls the same mapper on every change. Behaviour matches the ADR: invalid config stops startup, an invalid reload keeps the last-known-good snapshot and logs an error. Binding failures (for example text where a number is expected) are recorded as a validation error instead of thrown, for the same reason.
@@ -246,7 +250,7 @@ Arms appear in the response only through the optional `diagnostics` object ([ADR
 - **One event per stored order.** `RouteOrderService` calls `IRoutingDecisionLog` once, right after `IRoutingOrderStore.SaveAsync` succeeds, with the stored `id`. A 400, a 401 or a failed save never reaches the call, so no event is written (ADR-0007).
 - **Source-generated `[LoggerMessage]`.** `LoggerRoutingDecisionLog` (Infrastructure) emits event `RoutingDecisionMade` (EventId 2100, Information). The placeholders are the AB-04 field names in snake_case, so structured log tools can filter on each one: `id`, `order_id`, `caller_hash`, `exp1_arm`/`exp1_reason`, `exp2_arm`/`exp2_reason`, `exp3_arm`/`exp3_reason`, `chosen_suppliers`, `tied_candidates`, `tie_pick`, `shipment_count`, `plan_quality`, `unrated_chosen`, `unfulfilled_count`, `search_mode`, `config_version`, `customer_zip`. Every value is a flat scalar.
 - **Privacy.** `RoutingDecisionLogEntry` has no raw caller field and the factory takes only the hash, so the caller ID cannot reach the log by mistake. `caller_hash` is `null` when the token had no caller claim. The only patient-adjacent value is `customer_zip`.
-- **Value formats.** `chosen_suppliers` is `SUP-1:local,SUP-2:mail` in order of each supplier's first line (empty when nothing was routed). `tied_candidates` and `tie_pick` are set only when the random tie-break ran: each tied plan is written as its suppliers joined with `+`, plans separated by commas.
+- **Value formats.** `chosen_suppliers` is `SUP-1:local,SUP-2:mail` in order of each supplier's first line (empty when nothing was routed). `tied_candidates` and `tie_pick` are set only when the tie-break had more than one plan to choose from (any arm): each tied plan is written as its suppliers joined with `+`, plans separated by commas.
 - **Not-routed orders.** `shipment_count` and `plan_quality` describe the routed plan, so they are `0` and `null` when no line was routed, including when all-or-nothing held back lines that a search had already planned. `search_mode` is `null` only when no search ran. `unfulfilled_count` counts the lines that could not be routed.
 - **Log faults are not order faults.** The emitter swallows exceptions from a failing log provider, because the order is already stored and its `id` is about to be returned. The cost is that a broken provider can lose events silently; the response, not the log, is the contract.
 

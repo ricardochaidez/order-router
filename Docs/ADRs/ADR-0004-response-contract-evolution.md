@@ -197,6 +197,8 @@ flowchart LR
 
 ## Implementation notes (OR-022)
 
+> **Superseded (2026-11-16):** the `diagnostics` field and the `Routing:ExposeDiagnostics` flag were removed. The experiment arms and search mode are for analysis only, so no response shows them; they stay in the stored order (`experiment_arms`, `search_mode`) and the decision log. The notes below describe the removed design and are kept for history.
+
 - **Flag:** `Routing:ExposeDiagnostics` (`bool`, default `false`), read through `IOptions<RoutingOptions>`, so a change needs a restart. Off, the `diagnostics` property is absent from every body.
 - **Where:** the 201 of `POST /api/v1/route`, the same 201 on the `POST /api/route` alias, and the 200 of `GET /api/v1/route/{id}`. The 400 body and the 404 never have it (no order exists).
 - **Shape:** `experiment_arms` maps each experiment's snake_case name to `{ "arm", "reason" }`, exactly as stored; `search_mode` is `exact` or `greedy` and is **omitted** (never `null`) when no search ran. Nothing else is exposed: no caller ID or hash, no config version, no targeting rules.

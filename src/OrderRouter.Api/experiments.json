@@ -21,6 +21,12 @@
       "TreatmentPercentage": 0,
       "Salt": "exp3",
       "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] }
+    },
+    "Exp4TieBreaking": {
+      "Enabled": false,
+      "TreatmentPercentage": 0,
+      "Salt": "exp4",
+      "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] }
     }
   },
   "Routing": { "SimilarityBand": 0.5 }

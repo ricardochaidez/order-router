@@ -25,7 +25,7 @@ Document how to build, run and test the service. Most important: after `docker c
 
 - **Given** the README
 - **When** a reader looks for routing behaviour
-- **Then** it says that on a full tie the supplier is random and the first response is authoritative, that `/api/route` is pinned to v1, that every POST (retries included) is stored under a new `id` that only the same caller can read back, and how to turn experiments on or off in `experiments.json`
+- **Then** it says that on a full tie the lowest supplier IDs win (random only under the EXP-4 treatment, where the first response is authoritative), that `/api/route` is pinned to v1, that every POST (retries included) is stored under a new `id` that only the same caller can read back, and how to turn experiments on or off in `experiments.json`
 
 ### AC4: Prompts recorded
 

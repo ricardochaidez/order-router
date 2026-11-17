@@ -44,9 +44,9 @@ public class RoutingDecisionLogTests
     public void Create_RoutedOrder_HasEveryField()
     {
         var assignment = new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control),
             RoutingParameters.Default,
-            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted),
+            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted, ExposureReason.Disabled),
             "cfg-7");
         var decision = Decision(
             RoutingOutcomeStatus.Routed,
@@ -58,7 +58,7 @@ public class RoutingDecisionLogTests
 
         Assert.Equal(
             new RoutingDecisionLogEntry(
-                id, "ORD-1", "abc123", "control", "disabled", "treatment", "bucketed", "control", "not_targeted",
+                id, "ORD-1", "abc123", "control", "disabled", "treatment", "bucketed", "control", "not_targeted", "control", "disabled",
                 "SUP-1:local,SUP-2:mail", null, null, 2, 8m, 1, 0, "exact", "cfg-7", "10015"),
             entry);
     }
@@ -148,7 +148,7 @@ public class RoutingDecisionLogTests
         Assert.Equal("RoutingDecisionMade", logged.EventId.Name);
         Assert.Equal(
             [
-                "id", "order_id", "caller_hash", "exp1_arm", "exp1_reason", "exp2_arm", "exp2_reason", "exp3_arm", "exp3_reason",
+                "id", "order_id", "caller_hash", "exp1_arm", "exp1_reason", "exp2_arm", "exp2_reason", "exp3_arm", "exp3_reason", "exp4_arm", "exp4_reason",
                 "chosen_suppliers", "tied_candidates", "tie_pick", "shipment_count", "plan_quality", "unrated_chosen", "unfulfilled_count",
                 "search_mode", "config_version", "customer_zip",
             ],

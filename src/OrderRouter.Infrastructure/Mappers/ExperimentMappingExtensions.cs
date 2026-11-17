@@ -17,6 +17,7 @@ public static class ExperimentMappingExtensions
     private const string exp1Id = nameof(ExperimentArms.Exp1ConsolidationVsQuality);
     private const string exp2Id = nameof(ExperimentArms.Exp2UnratedSuppliers);
     private const string exp3Id = nameof(ExperimentArms.Exp3PartialRouting);
+    private const string exp4Id = nameof(ExperimentArms.Exp4TieBreaking);
 
     /// <summary>Tries to build a snapshot.</summary>
     /// <param name="options">The bound options.</param>
@@ -37,17 +38,18 @@ public static class ExperimentMappingExtensions
         var exp1 = BuildDefinition(exp1Id, "exp1", options.Experiments.Exp1ConsolidationVsQuality, found);
         var exp2 = BuildDefinition(exp2Id, "exp2", options.Experiments.Exp2UnratedSuppliers, found);
         var exp3 = BuildDefinition(exp3Id, "exp3", options.Experiments.Exp3PartialRouting, found);
+        var exp4 = BuildDefinition(exp4Id, "exp4", options.Experiments.Exp4TieBreaking, found);
         var parameters = BuildParameters(options, found);
 
         errors = found;
         configuration = null;
 
-        if (found.Count > 0 || exp1 is null || exp2 is null || exp3 is null || parameters is null)
+        if (found.Count > 0 || exp1 is null || exp2 is null || exp3 is null || exp4 is null || parameters is null)
         {
             return false;
         }
 
-        configuration = new ExperimentConfiguration(exp1, exp2, exp3, parameters, ConfigVersion.Compute(exp1, exp2, exp3, parameters));
+        configuration = new ExperimentConfiguration(exp1, exp2, exp3, exp4, parameters, ConfigVersion.Compute(exp1, exp2, exp3, exp4, parameters));
 
         return true;
     }

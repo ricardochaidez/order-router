@@ -1,5 +1,7 @@
 # Plan: OR-014: Break full ties at random
 
+> **Superseded:** the random tie-break is no longer core behavior. It is only the EXP-4 treatment (`UniformRandomTieBreaker`); the core and the EXP-4 control break a full tie with `DeterministicTieBreaker` (lowest supplier IDs). The text below is the original ticket.
+
 **Ticket:** [Docs/Tickets/OR-014-random-tie-breaker.md](../Docs/Tickets/OR-014-random-tie-breaker.md)
 **Depends on:** OR-013 (done: `IPlanSelectionPolicy.SelectBest` returns every plan still tied after keys 2–4, in input order).
 **References:** [ADR-0001](../Docs/ADRs/ADR-0001-routing-strategy-composition.md) (`ITieBreaker`, `IRandomSource`, `UniformRandomTieBreaker`); Technical Requirements FR-13, NFR-01, NFR-08 (a–d), SC-17, SC-18, AB-04, §7.3 key 5; `CLAUDE.md`; `.claude/rules/csharp.md`; `.claude/rules/dotnet-ddd-architecture.md`; `.claude/skills/ddd-implementation`

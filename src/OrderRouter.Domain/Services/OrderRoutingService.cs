@@ -9,13 +9,12 @@ namespace OrderRouter.Domain.Services;
 
 /// <summary>
 /// The whole routing pipeline as one pure, synchronous domain service (ADR-0001): eligibility, candidates,
-/// plan search, ranking keys 2-4, key-5 tie-break and the unfulfillable policy. It does no I/O; the Application
+/// plan search, ranking keys 2-4, key-5 tie-break (an EXP-4 policy) and the unfulfillable policy. It does no I/O; the Application
 /// layer loads the suppliers and passes them in, and the plan search is reached through a port.
 /// </summary>
 /// <param name="eligibility">Eligibility rules (OR-010).</param>
 /// <param name="planSearch">Plan search port (OR-012).</param>
-/// <param name="tieBreaker">Key 5 (OR-014).</param>
-public sealed class OrderRoutingService(SupplierEligibility eligibility, IPlanSearchService planSearch, ITieBreaker tieBreaker)
+public sealed class OrderRoutingService(SupplierEligibility eligibility, IPlanSearchService planSearch)
 {
     /// <summary>Routes an order.</summary>
     /// <param name="order">The order with products resolved.</param>
@@ -90,7 +89,7 @@ public sealed class OrderRoutingService(SupplierEligibility eligibility, IPlanSe
             throw new InvalidOperationException("The plan search found no plan although every demanded category has an eligible supplier.");
         }
 
-        var tieBreak = tieBreaker.Pick(policy.Selection.SelectBest(search.Plans));
+        var tieBreak = policy.TieBreaker.Pick(policy.Selection.SelectBest(search.Plans));
         var outcome = policy.Unfulfillable.Apply(tieBreak.Chosen, unfulfilled);
         var routed = outcome.Plan is { } plan ? RoutedLinesFor(order, plan, offers) : [];
 

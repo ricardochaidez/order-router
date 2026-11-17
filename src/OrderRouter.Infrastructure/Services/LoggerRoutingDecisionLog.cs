@@ -20,7 +20,7 @@ public sealed partial class LoggerRoutingDecisionLog(ILogger<LoggerRoutingDecisi
         {
             RoutingDecisionMade(
                 entry.Id, entry.OrderId, entry.CallerHash,
-                entry.Exp1Arm, entry.Exp1Reason, entry.Exp2Arm, entry.Exp2Reason, entry.Exp3Arm, entry.Exp3Reason,
+                entry.Exp1Arm, entry.Exp1Reason, entry.Exp2Arm, entry.Exp2Reason, entry.Exp3Arm, entry.Exp3Reason, entry.Exp4Arm, entry.Exp4Reason,
                 entry.ChosenSuppliers, entry.TiedCandidates, entry.TiePick,
                 entry.ShipmentCount, entry.PlanQuality, entry.UnratedChosen, entry.UnfulfilledCount,
                 entry.SearchMode, entry.ConfigVersion, entry.CustomerZip);
@@ -40,13 +40,13 @@ public sealed partial class LoggerRoutingDecisionLog(ILogger<LoggerRoutingDecisi
         EventName = "RoutingDecisionMade",
         Level = LogLevel.Information,
         Message = "RoutingDecisionMade id={id} order_id={order_id} caller_hash={caller_hash} " +
-                  "exp1_arm={exp1_arm} exp1_reason={exp1_reason} exp2_arm={exp2_arm} exp2_reason={exp2_reason} exp3_arm={exp3_arm} exp3_reason={exp3_reason} " +
+                  "exp1_arm={exp1_arm} exp1_reason={exp1_reason} exp2_arm={exp2_arm} exp2_reason={exp2_reason} exp3_arm={exp3_arm} exp3_reason={exp3_reason} exp4_arm={exp4_arm} exp4_reason={exp4_reason} " +
                   "chosen_suppliers={chosen_suppliers} tied_candidates={tied_candidates} tie_pick={tie_pick} " +
                   "shipment_count={shipment_count} plan_quality={plan_quality} unrated_chosen={unrated_chosen} unfulfilled_count={unfulfilled_count} " +
                   "search_mode={search_mode} config_version={config_version} customer_zip={customer_zip}")]
     private partial void RoutingDecisionMade(
         Guid id, string order_id, string? caller_hash,
-        string exp1_arm, string exp1_reason, string exp2_arm, string exp2_reason, string exp3_arm, string exp3_reason,
+        string exp1_arm, string exp1_reason, string exp2_arm, string exp2_reason, string exp3_arm, string exp3_reason, string exp4_arm, string exp4_reason,
         string chosen_suppliers, string? tied_candidates, string? tie_pick,
         int shipment_count, decimal? plan_quality, int unrated_chosen, int unfulfilled_count,
         string? search_mode, string config_version, string customer_zip);

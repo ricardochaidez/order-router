@@ -73,7 +73,7 @@ public class RoutingDecisionLogApiTests(ReferenceDataFixture fixture)
         Assert.Equal(json.GetProperty("id").GetString(), logged["id"]?.ToString());
         Assert.Equal(
             [
-                "id", "order_id", "caller_hash", "exp1_arm", "exp1_reason", "exp2_arm", "exp2_reason", "exp3_arm", "exp3_reason",
+                "id", "order_id", "caller_hash", "exp1_arm", "exp1_reason", "exp2_arm", "exp2_reason", "exp3_arm", "exp3_reason", "exp4_arm", "exp4_reason",
                 "chosen_suppliers", "tied_candidates", "tie_pick", "shipment_count", "plan_quality", "unrated_chosen", "unfulfilled_count",
                 "search_mode", "config_version", "customer_zip",
             ],

@@ -7,8 +7,8 @@ using OrderRouter.Domain.Interfaces;
 
 namespace OrderRouter.Api.IntegrationTests.Infrastructure;
 
-/// <summary>One arm choice per experiment: <c>true</c> is treatment, <c>false</c> is control.</summary>
-internal readonly record struct ExperimentCombination(bool Exp1, bool Exp2, bool Exp3)
+/// <summary>One arm choice per experiment: <c>true</c> is treatment, <c>false</c> is control. EXP-4 is outside the OR-024 table, so it defaults to control.</summary>
+internal readonly record struct ExperimentCombination(bool Exp1, bool Exp2, bool Exp3, bool Exp4 = false)
 {
     /// <summary>Every combination in the order of the OR-024 table (EXP-3 changes fastest).</summary>
     public static IEnumerable<(int Number, ExperimentCombination Combination)> All()
@@ -19,14 +19,14 @@ internal readonly record struct ExperimentCombination(bool Exp1, bool Exp2, bool
         }
     }
 
-    /// <summary>The arm name the diagnostics report for an experiment.</summary>
+    /// <summary>The arm name stored for an experiment.</summary>
     public static string ArmName(bool treatment) => treatment ? "treatment" : "control";
 }
 
 /// <summary>
 /// Builds the real API host with the three experiments pinned to one combination and a fixed random source (OR-024 AC1).
 /// Treatment is "enabled at 100%, no targeting"; control is "disabled". It goes through the same temp
-/// <c>experiments.json</c> + <c>AddJsonFile</c> route as the OR-017 tests, and diagnostics are on so a test can verify the arms.
+/// <c>experiments.json</c> + <c>AddJsonFile</c> route as the OR-017 tests; a test verifies the arms from the stored order (<see cref="StoredArms"/>).
 /// </summary>
 internal sealed class ExperimentArmsHost : IAsyncDisposable
 {
@@ -53,7 +53,7 @@ internal sealed class ExperimentArmsHost : IAsyncDisposable
     {
         var file = new TempExperimentsFile(Json(combination));
         var random = new FixedRandomSource(randomValue);
-        var factory = RouteApiFactory.Create(connectionString, useCase: null, exposeDiagnostics: true, experimentsFile: file.Provider)
+        var factory = RouteApiFactory.Create(connectionString, useCase: null, experimentsFile: file.Provider)
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IRandomSource>();
@@ -69,7 +69,8 @@ internal sealed class ExperimentArmsHost : IAsyncDisposable
             { "Experiments": {
                 "Exp1ConsolidationVsQuality": {{Definition(combination.Exp1, "exp1", """ "Parameters": { "QualityUpliftThreshold": 2.0 } """)}},
                 "Exp2UnratedSuppliers": {{Definition(combination.Exp2, "exp2", """ "Parameters": { "UnratedPrior": 6.5 } """)}},
-                "Exp3PartialRouting": {{Definition(combination.Exp3, "exp3", null)}} },
+                "Exp3PartialRouting": {{Definition(combination.Exp3, "exp3", null)}},
+                "Exp4TieBreaking": {{Definition(combination.Exp4, "exp4", null)}} },
               "Routing": { "SimilarityBand": 0.5 } }
             """;
 

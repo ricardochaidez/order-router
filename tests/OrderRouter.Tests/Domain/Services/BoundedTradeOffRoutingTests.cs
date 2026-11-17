@@ -11,7 +11,7 @@ namespace OrderRouter.Tests.Domain.Services;
 public class BoundedTradeOffRoutingTests
 {
     private static readonly ZipCode zip = ZipCode.Parse("10015");
-    private static readonly RoutingPolicy control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+    private static readonly RoutingPolicy control = new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(ExperimentAssignment.AllControl);
 
     private static Supplier Supplier(string id, decimal rating, params string[] categories)
         => new(id, id, categories.Select(c => new Category(c)), new ServiceArea([ZipRange.Parse("10000-10099")]), rating, false);
@@ -23,12 +23,12 @@ public class BoundedTradeOffRoutingTests
     {
         var search = new CountingPlanSearch();
 
-        return (new OrderRoutingService(new SupplierEligibility(ZipRange.Parse("00100-99999")), search, new UniformRandomTieBreaker(new FixedRandomSource(0))), search);
+        return (new OrderRoutingService(new SupplierEligibility(ZipRange.Parse("00100-99999")), search), search);
     }
 
     private static RoutingPolicy Treatment(decimal threshold)
-        => new RoutingPolicyFactory().Create(new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control),
+        => new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control),
             new RoutingParameters(qualityUpliftThreshold: threshold)));
 
     private static int Shipments(RoutingDecision decision) => decision.RoutedLines.Select(l => l.Supplier.Id).Distinct().Count();

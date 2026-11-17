@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using OrderRouter.Api.Mappers;
@@ -28,7 +29,6 @@ public class RouteOrderServiceTests
     private readonly FakeStore store;
     private readonly FakeLog log;
     private static readonly DateTimeOffset now = new(2026, 11, 15, 10, 0, 0, TimeSpan.Zero);
-    private bool exposeDiagnostics;
     private List<ItemDependencyRuleOptions> dependencyRules = [];
 
     public RouteOrderServiceTests()
@@ -47,20 +47,19 @@ public class RouteOrderServiceTests
             policyFactory,
             new OrderRoutingService(
                 new SupplierEligibility(ZipRange.Parse("00100-99999")),
-                new CountingPlanSearch(),
-                new UniformRandomTieBreaker(new FixedRandomSource(0))),
+                new CountingPlanSearch()),
             new DependencyWarningService(
                 Options.Create(new ItemDependencyOptions { Rules = dependencyRules }),
                 NullLogger<DependencyWarningService>.Instance),
             hasher,
             store,
             log,
-            new FixedClock(now)), exposeDiagnostics);
+            new FixedClock(now)));
 
-    private sealed class ResponseAdapter(RouteOrderService service, bool exposeDiagnostics)
+    private sealed class ResponseAdapter(RouteOrderService service)
     {
         public async Task<RouteResponseViewModel> RouteAsync(RouteOrderCommand command, CancellationToken ct)
-            => (await service.RouteAsync(command, ct)).ToRouteViewModel(exposeDiagnostics);
+            => (await service.RouteAsync(command, ct)).ToRouteViewModel();
     }
 
     private static RouteOrderCommand Command(params string[] codes)
@@ -243,69 +242,39 @@ public class RouteOrderServiceTests
         Assert.Empty(hasher.Hashed);
     }
 
-    // AB-05, AC1: the default is off, so the field is absent.
+    // The arms, reasons and search mode are stored for analysis; the response never carries them.
     [Fact]
-    public async Task RouteAsync_FlagOffByDefault_HasNoDiagnostics()
+    public async Task RouteAsync_StoresTheArmsReasonsAndSearchMode()
     {
-        catalog.Known["A"] = new Category("cane");
-
-        var response = await UseCase().RouteAsync(Command("A"), token);
-
-        Assert.False(new RoutingOptions().ExposeDiagnostics);
-        Assert.Null(response.Diagnostics);
-    }
-
-    // AC2: arms and reasons of the assignment, and the search mode of the decision.
-    [Fact]
-    public async Task RouteAsync_FlagOn_ShowsTheArmsReasonsAndSearchMode()
-    {
-        exposeDiagnostics = true;
         catalog.Known["A"] = new Category("cane");
         reader.Suppliers.Add(new Supplier("S1", "S1", [new Category("cane")], new ServiceArea([ZipRange.Parse("10000-10099")]), 8m, false));
         assigner.Result = new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control),
             RoutingParameters.Default,
-            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted),
+            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted, ExposureReason.Disabled),
             "v-test");
 
-        var response = await UseCase().RouteAsync(Command("A"), token);
-
-        var diagnostics = Assert.IsType<DiagnosticsResponseViewModel>(response.Diagnostics);
-        Assert.Equal(new ExperimentDiagnosticResponseViewModel("control", "disabled"), diagnostics.ExperimentArms["exp1_consolidation_vs_quality"]);
-        Assert.Equal(new ExperimentDiagnosticResponseViewModel("treatment", "bucketed"), diagnostics.ExperimentArms["exp2_unrated_suppliers"]);
-        Assert.Equal(new ExperimentDiagnosticResponseViewModel("control", "not_targeted"), diagnostics.ExperimentArms["exp3_partial_routing"]);
-        Assert.Equal(Assert.Single(store.Saved).SearchMode, diagnostics.SearchMode);
-        Assert.Equal("exact", diagnostics.SearchMode);
-    }
-
-    // The flag only changes the body: what is stored is the same either way.
-    [Fact]
-    public async Task RouteAsync_FlagOn_StoresTheSameRecordAsFlagOff()
-    {
-        catalog.Known["A"] = new Category("cane");
-
-        await UseCase().RouteAsync(Command("A"), token);
-        exposeDiagnostics = true;
         await UseCase().RouteAsync(Command("A"), token);
 
-        var (off, on) = (store.Saved[0], store.Saved[1]);
-        Assert.Equal(off.ExperimentArmsJson, on.ExperimentArmsJson);
-        Assert.Equal(off.SearchMode, on.SearchMode);
-        Assert.Equal(off.ConfigVersion, on.ConfigVersion);
-        Assert.Equal(off.Status, on.Status);
+        var saved = Assert.Single(store.Saved);
+        var arms = JsonNode.Parse(saved.ExperimentArmsJson)!;
+        Assert.Equal("control", (string?)arms["exp1_consolidation_vs_quality"]!["arm"]);
+        Assert.Equal("disabled", (string?)arms["exp1_consolidation_vs_quality"]!["reason"]);
+        Assert.Equal("treatment", (string?)arms["exp2_unrated_suppliers"]!["arm"]);
+        Assert.Equal("bucketed", (string?)arms["exp2_unrated_suppliers"]!["reason"]);
+        Assert.Equal("not_targeted", (string?)arms["exp3_partial_routing"]!["reason"]);
+        Assert.Equal("exact", saved.SearchMode);
     }
 
-    // Decided with the engineer: no search ran, so search_mode is omitted but the arms are still shown.
+    // No search ran, so there is no search mode, but the arms are still stored.
     [Fact]
-    public async Task RouteAsync_FlagOnAndNoKnownProduct_ShowsArmsWithoutSearchMode()
+    public async Task RouteAsync_NoKnownProduct_StoresArmsWithoutSearchMode()
     {
-        exposeDiagnostics = true;
+        await UseCase().RouteAsync(Command("UNKNOWN"), token);
 
-        var response = await UseCase().RouteAsync(Command("UNKNOWN"), token);
-
-        var diagnostics = Assert.IsType<DiagnosticsResponseViewModel>(response.Diagnostics);
-        Assert.Equal(3, diagnostics.ExperimentArms.Count);
-        Assert.Null(diagnostics.SearchMode);
+        var saved = Assert.Single(store.Saved);
+        Assert.Equal(4, JsonNode.Parse(saved.ExperimentArmsJson)!.AsObject().Count);
+        Assert.Null(saved.SearchMode);
     }
 
     // A hospital bed with a local supplier, and a patient lift nobody delivers to 10015.
@@ -475,9 +444,9 @@ public class RouteOrderServiceTests
             Assignments.Add(assignment);
 
             // Control rules, but carrying the assignment it was given, so the decision (and the stored order) shows it.
-            var control = new RoutingPolicyFactory().Create(ExperimentAssignment.AllControl);
+            var control = new RoutingPolicyFactory(TestTieBreakers.Treatment()).Create(ExperimentAssignment.AllControl);
 
-            return new RoutingPolicy(control.Rating, control.Selection, PartialRouting ? PartialRoutingPolicy.Instance : control.Unfulfillable, assignment);
+            return new RoutingPolicy(control.Rating, control.Selection, PartialRouting ? PartialRoutingPolicy.Instance : control.Unfulfillable, control.TieBreaker, assignment);
         }
     }
 

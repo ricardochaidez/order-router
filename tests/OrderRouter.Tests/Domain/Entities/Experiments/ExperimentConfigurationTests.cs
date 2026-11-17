@@ -15,11 +15,13 @@ public class ExperimentConfigurationTests
         ExperimentDefinition? exp1 = null,
         ExperimentDefinition? exp2 = null,
         ExperimentDefinition? exp3 = null,
+        ExperimentDefinition? exp4 = null,
         string version = "v1")
         => new(
             exp1 ?? ExperimentDefinition.Disabled(nameof(ExperimentArms.Exp1ConsolidationVsQuality), "exp1"),
             exp2 ?? ExperimentDefinition.Disabled(nameof(ExperimentArms.Exp2UnratedSuppliers), "exp2"),
             exp3 ?? ExperimentDefinition.Disabled(nameof(ExperimentArms.Exp3PartialRouting), "exp3"),
+            exp4 ?? ExperimentDefinition.Disabled(nameof(ExperimentArms.Exp4TieBreaking), "exp4"),
             RoutingParameters.Default,
             version);
 
@@ -28,6 +30,20 @@ public class ExperimentConfigurationTests
 
     private static ExperimentTargeting Targeting(string[]? callers = null, string[]? prefixes = null, string[]? ranges = null)
         => new(callers ?? [], prefixes ?? [], [.. (ranges ?? []).Select(ZipRange.Parse)]);
+
+    [Fact]
+    public void Assign_Exp4Enabled_OnlyExp4GetsTreatment()
+    {
+        var config = Config(exp4: Exp(nameof(ExperimentArms.Exp4TieBreaking)));
+
+        var assignment = config.Assign("c", ZipCode.Parse("30500"), "ORD-1");
+
+        Assert.Equal(ExperimentArm.Treatment, assignment.Arms.Exp4TieBreaking);
+        Assert.Equal(ExposureReason.Bucketed, assignment.Reasons.Exp4TieBreaking);
+        Assert.Equal(ExperimentArm.Control, assignment.Arms.Exp1ConsolidationVsQuality);
+        Assert.Equal(ExperimentArm.Control, assignment.Arms.Exp2UnratedSuppliers);
+        Assert.Equal(ExperimentArm.Control, assignment.Arms.Exp3PartialRouting);
+    }
 
     [Fact]
     public void Assign_AllDisabled_IsControlDisabledWithTheVersion()

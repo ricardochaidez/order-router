@@ -1,15 +1,17 @@
+using OrderRouter.Tests.TestData;
 using OrderRouter.Domain.Entities.Experiments;
 using OrderRouter.Domain.Entities.ReferenceData;
 using OrderRouter.Domain.Models.PlanSearch;
 using OrderRouter.Domain.Services.PlanSearch;
 using OrderRouter.Domain.Services.Policies;
+using OrderRouter.Domain.Services;
 using static OrderRouter.Tests.TestData.PlanSearchTestData;
 
 namespace OrderRouter.Tests.Domain.Services.Policies;
 
 public class RoutingPolicyFactoryTests
 {
-    private readonly RoutingPolicyFactory factory = new();
+    private readonly RoutingPolicyFactory factory = new(TestTieBreakers.Treatment());
 
     [Fact]
     public void Create_AllControl_BuildsTheControlPolicies()
@@ -87,11 +89,32 @@ public class RoutingPolicyFactoryTests
     public void Create_AllTreatment_DoesNotThrow()
     {
         var policy = factory.Create(new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Treatment, ExperimentArm.Treatment), RoutingParameters.Default));
+            new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Treatment, ExperimentArm.Treatment, ExperimentArm.Treatment), RoutingParameters.Default));
 
         Assert.IsType<BoundedTradeOffPolicy>(policy.Selection);
         Assert.IsType<ColdStartPriorPolicy>(policy.Rating);
         Assert.IsType<PartialRoutingPolicy>(policy.Unfulfillable);
+    }
+
+    [Fact]
+    public void Create_Exp4Control_UsesTheDeterministicCoreTieBreaker()
+    {
+        var policy = factory.Create(ExperimentAssignment.AllControl);
+
+        Assert.Same(DeterministicTieBreaker.Instance, policy.TieBreaker);
+    }
+
+    [Fact]
+    public void Create_Exp4Treatment_UsesTheInjectedRandomTieBreakerAndLeavesTheOtherArmsOnControl()
+    {
+        var random = TestTieBreakers.Treatment();
+        var policy = new RoutingPolicyFactory(random).Create(new ExperimentAssignment(
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Treatment), RoutingParameters.Default));
+
+        Assert.Same(random, policy.TieBreaker);
+        Assert.IsType<StrictPriorityPolicy>(policy.Selection);
+        Assert.IsType<UnratedLastPolicy>(policy.Rating);
+        Assert.IsType<AllOrNothingPolicy>(policy.Unfulfillable);
     }
 
     [Fact]
@@ -139,7 +162,7 @@ public class RoutingPolicyFactoryTests
     public void Create_UndefinedArm_Throws()
     {
         var assignment = new ExperimentAssignment(
-            new ExperimentArms((ExperimentArm)99, ExperimentArm.Control, ExperimentArm.Control), RoutingParameters.Default);
+            new ExperimentArms((ExperimentArm)99, ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control), RoutingParameters.Default);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => factory.Create(assignment));
     }
@@ -158,13 +181,13 @@ public class RoutingPolicyFactoryTests
     }
 
     private static ExperimentAssignment Exp1Treatment(RoutingParameters parameters)
-        => new(new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control), parameters);
+        => new(new ExperimentArms(ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control, ExperimentArm.Control), parameters);
 
     private static ExperimentAssignment Exp3(ExperimentArm arm)
-        => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, arm), RoutingParameters.Default);
+        => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Control, arm, ExperimentArm.Control), RoutingParameters.Default);
 
     private static ExperimentAssignment Exp2Treatment(RoutingParameters parameters)
-        => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control), parameters);
+        => new(new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control), parameters);
 
     private static ExperimentAssignment Assignment(decimal band)
         => new(ExperimentArms.AllControl, new RoutingParameters(similarityBand: band));

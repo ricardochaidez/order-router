@@ -12,8 +12,10 @@ namespace OrderRouter.Domain.Services.Policies;
 /// EXP-1 treatment (OR-017) is done: <see cref="BoundedTradeOffPolicy"/> gets the band and uplift threshold from the assignment.
 /// EXP-2 treatment (OR-018) is done: <see cref="ColdStartPriorPolicy"/> gets the prior from the assignment.
 /// EXP-3 treatment (OR-019) is done: <see cref="PartialRoutingPolicy"/>.
+/// EXP-4: control (the core behavior) is <see cref="DeterministicTieBreaker"/>; treatment is the injected random tie-breaker.
 /// </remarks>
-public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
+/// <param name="treatmentTieBreaker">The EXP-4 treatment tie-breaker (uniform random). It exists only for this experiment; the core never uses it.</param>
+public sealed class RoutingPolicyFactory(ITieBreaker treatmentTieBreaker) : IRoutingPolicyFactory
 {
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException"><paramref name="assignment"/> is null.</exception>
@@ -45,7 +47,14 @@ public sealed class RoutingPolicyFactory : IRoutingPolicyFactory
             _ => throw OutOfRange(nameof(ExperimentArms.Exp3PartialRouting), arms.Exp3PartialRouting),
         };
 
-        return new RoutingPolicy(rating, selection, unfulfillable, assignment);
+        ITieBreaker tieBreaker = arms.Exp4TieBreaking switch
+        {
+            ExperimentArm.Control => DeterministicTieBreaker.Instance,
+            ExperimentArm.Treatment => treatmentTieBreaker,
+            _ => throw OutOfRange(nameof(ExperimentArms.Exp4TieBreaking), arms.Exp4TieBreaking),
+        };
+
+        return new RoutingPolicy(rating, selection, unfulfillable, tieBreaker, assignment);
     }
 
     private static ArgumentOutOfRangeException OutOfRange(string experiment, ExperimentArm arm)

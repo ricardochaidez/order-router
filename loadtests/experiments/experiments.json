@@ -1,0 +1,31 @@
+{
+  "Experiments": {
+    "Exp1ConsolidationVsQuality": {
+      "Enabled": true,
+      "TreatmentPercentage": 100,
+      "Salt": "exp1",
+      "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] },
+      "Parameters": { "QualityUpliftThreshold": 2.0 }
+    },
+    "Exp2UnratedSuppliers": {
+      "Enabled": true,
+      "TreatmentPercentage": 100,
+      "Salt": "exp2",
+      "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] },
+      "Parameters": { "UnratedPrior": 6.5 }
+    },
+    "Exp3PartialRouting": {
+      "Enabled": true,
+      "TreatmentPercentage": 100,
+      "Salt": "exp3",
+      "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] }
+    },
+    "Exp4TieBreaking": {
+      "Enabled": true,
+      "TreatmentPercentage": 100,
+      "Salt": "exp4",
+      "Targeting": { "Callers": [], "ZipPrefixes": [], "ZipRanges": [] }
+    }
+  },
+  "Routing": { "SimilarityBand": 0.5 }
+}

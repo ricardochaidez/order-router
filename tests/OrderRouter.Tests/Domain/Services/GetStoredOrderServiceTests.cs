@@ -14,16 +14,15 @@ public class GetStoredOrderServiceTests
     private readonly FakeHasher hasher = new();
     private readonly FakeReader reader = new();
 
-    private bool exposeDiagnostics;
 
     // The service returns the stored order; these tests assert on the v1 response, so the adapter applies the Api mapper
     // exactly as the controller does.
-    private ResponseAdapter UseCase() => new(new GetStoredOrderService(hasher, reader), exposeDiagnostics);
+    private ResponseAdapter UseCase() => new(new GetStoredOrderService(hasher, reader));
 
-    private sealed class ResponseAdapter(GetStoredOrderService service, bool exposeDiagnostics)
+    private sealed class ResponseAdapter(GetStoredOrderService service)
     {
         public async Task<StoredOrderResponseViewModel?> GetAsync(Guid id, string? callerId, CancellationToken ct)
-            => (await service.GetAsync(id, callerId, ct))?.ToViewModel(exposeDiagnostics);
+            => (await service.GetAsync(id, callerId, ct))?.ToViewModel();
     }
 
     private const string armsJson = """
@@ -79,78 +78,6 @@ public class GetStoredOrderServiceTests
     [Fact]
     public async Task GetAsync_ReaderMiss_ReturnsNull()
         => Assert.Null(await UseCase().GetAsync(id, "user-123", Token));
-
-    // AC1: off by default, so the field is absent.
-    [Fact]
-    public async Task GetAsync_FlagOffByDefault_HasNoDiagnostics()
-    {
-        reader.Result = Stored() with { ExperimentArmsJson = armsJson };
-
-        var response = await UseCase().GetAsync(id, "user-123", Token);
-
-        Assert.Null(response!.Diagnostics);
-    }
-
-    // AC3: the stored arms and search mode come back.
-    [Fact]
-    public async Task GetAsync_FlagOn_ShowsTheStoredArmsAndSearchMode()
-    {
-        exposeDiagnostics = true;
-        reader.Result = Stored() with { ExperimentArmsJson = armsJson, SearchMode = "greedy" };
-
-        var response = await UseCase().GetAsync(id, "user-123", Token);
-
-        var diagnostics = Assert.IsType<DiagnosticsResponseViewModel>(response!.Diagnostics);
-        Assert.Equal(new ExperimentDiagnosticResponseViewModel("treatment", "bucketed"), diagnostics.ExperimentArms["exp1_consolidation_vs_quality"]);
-        Assert.Equal(new ExperimentDiagnosticResponseViewModel("control", "not_targeted"), diagnostics.ExperimentArms["exp3_partial_routing"]);
-        Assert.Equal("greedy", diagnostics.SearchMode);
-    }
-
-    // AC3: POST and GET build diagnostics from the same stored record, so they are equal.
-    [Fact]
-    public async Task GetAsync_FlagOn_EqualsWhatPostBuildsFromTheSameStoredOrder()
-    {
-        exposeDiagnostics = true;
-        var stored = Stored() with { ExperimentArmsJson = armsJson };
-        reader.Result = stored;
-
-        var response = await UseCase().GetAsync(id, "user-123", Token);
-
-        var fromPost = DiagnosticsMappingExtensions.ToDiagnosticsViewModel(stored);
-        Assert.Equal(fromPost.SearchMode, response!.Diagnostics!.SearchMode);
-        Assert.Equal(fromPost.ExperimentArms, response.Diagnostics.ExperimentArms);
-    }
-
-    [Fact]
-    public async Task GetAsync_FlagOnAndNoSearchRan_ShowsArmsWithoutSearchMode()
-    {
-        exposeDiagnostics = true;
-        reader.Result = Stored() with { ExperimentArmsJson = armsJson, SearchMode = null };
-
-        var response = await UseCase().GetAsync(id, "user-123", Token);
-
-        Assert.Equal(3, response!.Diagnostics!.ExperimentArms.Count);
-        Assert.Null(response.Diagnostics.SearchMode);
-    }
-
-    // A miss is a 404, so no diagnostics are built, even with damaged stored arms in play elsewhere.
-    [Fact]
-    public async Task GetAsync_FlagOnAndMiss_ReturnsNull()
-    {
-        exposeDiagnostics = true;
-
-        Assert.Null(await UseCase().GetAsync(id, "user-123", Token));
-    }
-
-    // Fail safe: damaged stored arms are a fault, never a guessed arm.
-    [Fact]
-    public async Task GetAsync_FlagOnAndDamagedArms_Throws()
-    {
-        exposeDiagnostics = true;
-        reader.Result = Stored();
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => UseCase().GetAsync(id, "user-123", Token));
-    }
 
     // The flag is the only gate: off, damaged arms are never parsed.
     [Fact]

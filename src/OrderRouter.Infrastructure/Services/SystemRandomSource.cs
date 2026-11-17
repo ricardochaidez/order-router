@@ -4,7 +4,7 @@ namespace OrderRouter.Infrastructure.Services;
 
 /// <summary>
 /// Production random source. It wraps <see cref="Random.Shared"/>, which is thread-safe and not seeded, so
-/// ties are truly random and not repeatable (SC-17, SC-18). It lives here, not in the Domain, so the domain
+/// EXP-4 treatment ties are truly random and not repeatable. It lives here, not in the Domain, so the domain
 /// stays free of hidden randomness (NFR-08a, ADR-0001).
 /// </summary>
 public sealed class SystemRandomSource : IRandomSource

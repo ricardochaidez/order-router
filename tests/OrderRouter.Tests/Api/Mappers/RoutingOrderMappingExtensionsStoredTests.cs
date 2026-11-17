@@ -36,9 +36,9 @@ public class RoutingOrderMappingExtensionsStoredTests
     private static (RouteResponseViewModel Post, StoredOrderResponseViewModel Get) RoundTrip(RouteOrderCommand command, RoutingDecision decision)
     {
         var stored = StoredRoutingOrderFactory.Create(id, command, "hash", now, decision);
-        var post = RoutingOrderMappingExtensions.ToRouteViewModel(stored, false);
+        var post = RoutingOrderMappingExtensions.ToRouteViewModel(stored);
 
-        return (post, RoutingOrderMappingExtensions.ToViewModel(stored, false));
+        return (post, RoutingOrderMappingExtensions.ToViewModel(stored));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class RoutingOrderMappingExtensionsStoredTests
         var warning = new RoutingWarning("DEPENDENCY", "Needs B.", ["B"], ["A"]);
         var order = Stored("routed", warnings: [warning]);
 
-        var get = RoutingOrderMappingExtensions.ToViewModel(order, false);
+        var get = RoutingOrderMappingExtensions.ToViewModel(order);
 
         Assert.Equal(new RoutingWarningResponseViewModel(warning.Code, warning.Message, warning.UnfulfilledProductCodes, warning.AffectedProductCodes), Assert.Single(get.Warnings));
     }
@@ -113,7 +113,7 @@ public class RoutingOrderMappingExtensionsStoredTests
     [Fact]
     public void Map_NoRowsOfAKind_CollectionsAreEmptyNeverNull()
     {
-        var get = RoutingOrderMappingExtensions.ToViewModel(Stored("not_routed", items: []), false);
+        var get = RoutingOrderMappingExtensions.ToViewModel(Stored("not_routed", items: []));
 
         Assert.NotNull(get.Items);
         Assert.Empty(get.Items);
@@ -125,19 +125,19 @@ public class RoutingOrderMappingExtensionsStoredTests
 
     [Fact]
     public void Map_UnknownStatus_Throws()
-        => Assert.Throws<ArgumentOutOfRangeException>(() => RoutingOrderMappingExtensions.ToViewModel(Stored("sideways"), false));
+        => Assert.Throws<ArgumentOutOfRangeException>(() => RoutingOrderMappingExtensions.ToViewModel(Stored("sideways")));
 
     [Fact]
     public void Map_RoutedLineWithoutCategory_Throws()
     {
         var order = Stored("routed", items: [new StoredOrderItem(1, "A", 1, null, "S1", "Name S1", "local", null, null)]);
 
-        Assert.Throws<InvalidOperationException>(() => RoutingOrderMappingExtensions.ToViewModel(order, false));
+        Assert.Throws<InvalidOperationException>(() => RoutingOrderMappingExtensions.ToViewModel(order));
     }
 
     [Fact]
     public void Map_NullOrder_Throws()
-        => Assert.Throws<ArgumentNullException>(() => RoutingOrderMappingExtensions.ToViewModel(null!, false));
+        => Assert.Throws<ArgumentNullException>(() => RoutingOrderMappingExtensions.ToViewModel(null!));
 
     private static StoredRoutingOrder Stored(string status, IReadOnlyList<StoredOrderItem>? items = null, IReadOnlyList<RoutingWarning>? warnings = null)
         => new(id, "ORD-1", "hash", "10015", false, status, status == "routed", "{}", "cfg", "exact", now, items ?? [], warnings ?? []);

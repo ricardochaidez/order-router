@@ -106,6 +106,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IPlanSearchService, PlanSearchService>();
         services.AddSingleton<IRoutingPolicyFactory, RoutingPolicyFactory>();
+        // The random tie-breaker is the EXP-4 treatment only; control uses the deterministic core tie-breaker.
         services.AddSingleton<ITieBreaker, UniformRandomTieBreaker>();
         services.AddSingleton(provider => new SupplierEligibility(ZipRange.Parse(provider.GetRequiredService<IOptions<RoutingOptions>>().Value.NationwideZipRange)));
         services.AddSingleton<OrderRoutingService>();

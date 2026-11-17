@@ -24,7 +24,7 @@ Reference data already lives in PostgreSQL ([ADR-0002](ADR-0002-reference-data-d
 
 - **Read back what was returned**: `GET` must show the same suppliers, names, modes and reasons as the original `POST`, even after a re-seed changes reference data.
 - **Never return an `id` that can't be read** (fail safe): storing and responding must be all-or-nothing.
-- **No re-routing on `GET`**: a random tie-break (FR-13) must not change when the order is read again.
+- **No re-routing on `GET`**: an EXP-4 treatment random tie-break (FR-13) must not change when the order is read again.
 - **Ownership** (SC-31) without storing raw caller identities (privacy, AB-04).
 - **Horizontal scaling** (NFR-02): any instance can serve any `GET`.
 - **Latency** (NFR-03): one extra insert per `POST`.
@@ -135,7 +135,7 @@ sequenceDiagram
 
 ### Positive Consequences
 
-- Callers and support can read any decision back exactly as it was returned, including the random tie-break pick.
+- Callers and support can read any decision back exactly as it was returned, including a random tie-break pick under the EXP-4 treatment.
 - Stored orders are unaffected by later re-seeds.
 - No new infrastructure: same database, same migrations, same context.
 - Instances stay stateless in memory and can serve any `GET` (NFR-02).

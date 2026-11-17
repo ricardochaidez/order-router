@@ -12,10 +12,9 @@ public static class RoutingOrderMappingExtensions
 {
     /// <summary>Maps the stored order to the body of <c>POST /api/v1/route</c>.</summary>
     /// <param name="order">The stored order.</param>
-    /// <param name="includeDiagnostics">Whether <c>Routing:ExposeDiagnostics</c> is on (AB-05, OQ-08).</param>
     /// <exception cref="ArgumentOutOfRangeException">The stored status is not one this mapper knows (fail safe: no guessed value).</exception>
     /// <exception cref="InvalidOperationException">A stored row is inconsistent (for example a routed line with no category).</exception>
-    public static RouteResponseViewModel ToRouteViewModel(this StoredRoutingOrder order, bool includeDiagnostics)
+    public static RouteResponseViewModel ToRouteViewModel(this StoredRoutingOrder order)
     {
         ArgumentNullException.ThrowIfNull(order);
 
@@ -30,16 +29,14 @@ public static class RoutingOrderMappingExtensions
             UnfulfilledItems = unfulfilled,
             Errors = [.. unfulfilled.Select(item => item.Message)],
             Warnings = Warnings(order),
-            Diagnostics = includeDiagnostics ? order.ToDiagnosticsViewModel() : null,
         };
     }
 
     /// <summary>Maps the stored order to the body of <c>GET /api/v1/route/{id}</c>.</summary>
     /// <param name="order">The stored order.</param>
-    /// <param name="includeDiagnostics">Whether <c>Routing:ExposeDiagnostics</c> is on (AB-05, OQ-08).</param>
     /// <exception cref="ArgumentOutOfRangeException">The stored status is not one this mapper knows (fail safe: no guessed value).</exception>
     /// <exception cref="InvalidOperationException">A stored row is inconsistent (for example a routed line with no category).</exception>
-    public static StoredOrderResponseViewModel ToViewModel(this StoredRoutingOrder order, bool includeDiagnostics)
+    public static StoredOrderResponseViewModel ToViewModel(this StoredRoutingOrder order)
     {
         ArgumentNullException.ThrowIfNull(order);
 
@@ -58,7 +55,6 @@ public static class RoutingOrderMappingExtensions
             UnfulfilledItems = unfulfilled,
             Warnings = Warnings(order),
             Errors = [.. unfulfilled.Select(item => item.Message)],
-            Diagnostics = includeDiagnostics ? order.ToDiagnosticsViewModel() : null,
         };
     }
 

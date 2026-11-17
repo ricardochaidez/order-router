@@ -45,13 +45,8 @@ public class ResponseReportTests(ReferenceDataFixture fixture, MatrixDatabaseFix
         return reply;
     }
 
-    private static void AssertArms(AcceptanceApi.Reply reply, ExperimentCombination combination)
-    {
-        var arms = reply.Json.GetProperty("diagnostics").GetProperty("experiment_arms");
-        Assert.Equal(ExperimentCombination.ArmName(combination.Exp1), arms.GetProperty("exp1_consolidation_vs_quality").GetProperty("arm").GetString());
-        Assert.Equal(ExperimentCombination.ArmName(combination.Exp2), arms.GetProperty("exp2_unrated_suppliers").GetProperty("arm").GetString());
-        Assert.Equal(ExperimentCombination.ArmName(combination.Exp3), arms.GetProperty("exp3_partial_routing").GetProperty("arm").GetString());
-    }
+    private static Task AssertArmsAsync(string connectionString, AcceptanceApi.Reply reply, ExperimentCombination combination)
+        => StoredArms.AssertAsync(connectionString, reply.Json, combination, TestContext.Current.CancellationToken);
 
     private static string[] Sorted(AcceptanceApi.Reply reply) => [.. reply.SupplierIds.Order(StringComparer.Ordinal)];
 
@@ -66,7 +61,7 @@ public class ResponseReportTests(ReferenceDataFixture fixture, MatrixDatabaseFix
             var (name, description, body) = sampleOrders[index];
             var reply = await RouteAndRecordAsync(host, "default-route", name, description, body(AcceptanceApi.NewOrderId()), allControl);
 
-            AssertArms(reply, allControl);
+            await AssertArmsAsync(fixture.ConnectionString, reply, allControl);
             Assert.Equal("routed", reply.Json.GetProperty("status").GetString());
             Assert.True(reply.Json.GetProperty("feasible").GetBoolean());
 
@@ -98,8 +93,8 @@ public class ResponseReportTests(ReferenceDataFixture fixture, MatrixDatabaseFix
         Assert.Equal(["SUP-065", "SUP-0956"], Sorted(a1));
         Assert.Equal(Or023Expectations.Ord001, b0.SupplierIds);
         Assert.Equal(Or023Expectations.Ord001, b1.SupplierIds);
-        AssertArms(a0, allControl);
-        AssertArms(a1, treatment);
+        await AssertArmsAsync(fixture.ConnectionString, a0, allControl);
+        await AssertArmsAsync(fixture.ConnectionString, a1, treatment);
     }
 
     [Fact]
@@ -114,8 +109,8 @@ public class ResponseReportTests(ReferenceDataFixture fixture, MatrixDatabaseFix
 
         Assert.Equal(["SUP-0955"], c.SupplierIds);
         Assert.Equal(["SUP-0781"], t.SupplierIds);
-        AssertArms(c, allControl);
-        AssertArms(t, treatment);
+        await AssertArmsAsync(fixture.ConnectionString, c, allControl);
+        await AssertArmsAsync(fixture.ConnectionString, t, treatment);
     }
 
     [Fact]
@@ -155,7 +150,7 @@ public class ResponseReportTests(ReferenceDataFixture fixture, MatrixDatabaseFix
             foreach (var (order, description, body) in orders)
             {
                 var reply = await RouteAndRecordAsync(host, "experiments/combinations", $"{label}-order-{order}", $"Combination {number}, order {order}: {description}", body, combination);
-                AssertArms(reply, combination);
+                await AssertArmsAsync(matrix.ConnectionString, reply, combination);
             }
         }
     }

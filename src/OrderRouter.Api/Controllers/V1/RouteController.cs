@@ -1,7 +1,6 @@
 using System.Net.Mime;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using OrderRouter.Api.Constants;
 using OrderRouter.Api.Filters;
 using OrderRouter.Api.Mappers;
@@ -10,7 +9,6 @@ using OrderRouter.Api.ViewModels.Response;
 using OrderRouter.Domain.Helpers;
 using OrderRouter.Domain.Interfaces;
 using OrderRouter.Domain.Models;
-using OrderRouter.Domain.Sections;
 
 namespace OrderRouter.Api.Controllers.V1;
 
@@ -22,15 +20,13 @@ namespace OrderRouter.Api.Controllers.V1;
 /// </summary>
 /// <param name="routeOrderService">Validates, routes and stores an order.</param>
 /// <param name="getStoredOrderService">Reads a stored order back for its caller.</param>
-/// <param name="routingOptions">Supplies <c>Routing:ExposeDiagnostics</c>, which decides whether the response carries diagnostics (AB-05, OQ-08).</param>
 [ApiController]
 [Tags("Routing")]
 // The RouteCaller policy is also the fallback; naming it here makes the intent explicit on the routing endpoints.
 [Authorize(Policy = AuthorizationPolicyNames.RouteCaller)]
 public sealed class RouteController(
     IRouteOrderService routeOrderService,
-    IGetStoredOrderService getStoredOrderService,
-    IOptions<RoutingOptions> routingOptions) : ControllerBase
+    IGetStoredOrderService getStoredOrderService) : ControllerBase
 {
     /// <summary>Route name (and OpenAPI operation id) of the canonical POST.</summary>
     public const string RouteOrderV1Name = "RouteOrderV1";
@@ -70,7 +66,7 @@ public sealed class RouteController(
 
         // SC-30: a valid POST creates a stored order, so it answers 201 Created. The id is the one the service just stored.
         var id = stored.Id;
-        var response = stored.ToRouteViewModel(routingOptions.Value.ExposeDiagnostics);
+        var response = stored.ToRouteViewModel();
 
         // Location always points at the v1 GET, also for the alias, which is POST-only (ADR-0004, ADR-0007). RouteUrl
         // (not CreatedAtRoute) keeps the header a relative path, as it has always been.
@@ -104,8 +100,7 @@ public sealed class RouteController(
 
         var order = await getStoredOrderService.GetAsync(orderId, CallerIdentity.Resolve(User), ct);
 
-        // AB-05, OQ-08: the same diagnostics mapper as POST, only when the flag is on. A miss (404) never builds them.
-        return order is null ? OrderNotFound() : Ok(order.ToViewModel(routingOptions.Value.ExposeDiagnostics));
+        return order is null ? OrderNotFound() : Ok(order.ToViewModel());
     }
 
     // One 404 for every case that is not "this caller's stored order" (unknown id, not a UUID, another caller's order,

@@ -27,6 +27,6 @@ internal static class RouteResponseTestMapper
             .ToArray();
         var command = RouteOrderCommand.Create(orderId, "10015", false, lines);
 
-        return StoredRoutingOrderFactory.Create(Guid.CreateVersion7(), command, null, createdAt, decision).ToRouteViewModel(includeDiagnostics: false);
+        return StoredRoutingOrderFactory.Create(Guid.CreateVersion7(), command, null, createdAt, decision).ToRouteViewModel();
     }
 }

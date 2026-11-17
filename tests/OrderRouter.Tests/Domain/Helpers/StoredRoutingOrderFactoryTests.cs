@@ -123,16 +123,16 @@ public class StoredRoutingOrderFactoryTests
     public void Create_ExperimentAssignment_StoresArmAndReasonPerExperiment()
     {
         var assignment = new ExperimentAssignment(
-            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control),
+            new ExperimentArms(ExperimentArm.Control, ExperimentArm.Treatment, ExperimentArm.Control, ExperimentArm.Control),
             RoutingParameters.Default,
-            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted),
+            new ExperimentReasons(ExposureReason.Disabled, ExposureReason.Bucketed, ExposureReason.NotTargeted, ExposureReason.Disabled),
             "v-123");
 
         var order = Create(Command(("A", 1)), Decision(RoutingOutcomeStatus.Routed, [Routed("A", "S1")], [], assignment));
 
         Assert.Equal("v-123", order.ConfigVersion);
         Assert.Equal(
-            """{"exp1_consolidation_vs_quality":{"arm":"control","reason":"disabled"},"exp2_unrated_suppliers":{"arm":"treatment","reason":"bucketed"},"exp3_partial_routing":{"arm":"control","reason":"not_targeted"}}""",
+            """{"exp1_consolidation_vs_quality":{"arm":"control","reason":"disabled"},"exp2_unrated_suppliers":{"arm":"treatment","reason":"bucketed"},"exp3_partial_routing":{"arm":"control","reason":"not_targeted"},"exp4_tie_breaking":{"arm":"control","reason":"disabled"}}""",
             order.ExperimentArmsJson);
     }
 

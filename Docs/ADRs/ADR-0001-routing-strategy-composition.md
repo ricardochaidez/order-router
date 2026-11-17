@@ -9,7 +9,7 @@
 
 ## Context and Problem Statement
 
-The router ranks candidate plans with five keys (§7.3): feasibility, fewer shipments, plan quality, local preference within a similarity band, and a random pick on a full tie. The stakeholder chose to **A/B test three policy questions** instead of fixing them (SC-01, SC-02, SC-05):
+The router ranks candidate plans with five keys (§7.3): feasibility, fewer shipments, plan quality, local preference within a similarity band, and a deterministic pick on a full tie (a random pick is the EXP-4 treatment only). The stakeholder chose to **A/B test three policy questions** instead of fixing them (SC-01, SC-02, SC-05):
 
 | Experiment | Control (A) | Treatment (B) |
 |---|---|---|
@@ -19,7 +19,7 @@ The router ranks candidate plans with five keys (§7.3): feasibility, fewer ship
 
 The experiments are independent (each is salted separately, AB-01), so one order can land in any of **2 × 2 × 2 = 8 combinations**. AB-06 requires that adding an arm does not change the routing core.
 
-**How should routing behaviour be structured so that each experiment arm can be swapped independently, the core stays closed for modification, and the full-tie random pick stays testable?**
+**How should routing behaviour be structured so that each experiment arm can be swapped independently, the core stays closed for modification, and the EXP-4 random pick stays testable?**
 
 ## Decision Drivers
 
@@ -27,7 +27,7 @@ The experiments are independent (each is salted separately, AB-01), so one order
 - **Runtime control without deploy** (SC-25): turning an experiment on/off, changing its traffic or targeting, or changing its parameters must take effect on the next request, with no code change or redeploy. Assignment itself is [ADR-0005](ADR-0005-experiment-assignment.md).
 - **Independent experiments** (AB-01): the 8 combinations must not become 8 hand-written classes.
 - **AB-03**: with everything off, behaviour equals the spec as written (strict, unrated last, all-or-nothing).
-- **FR-13 / NFR-08**: randomness only on a full tie, through an injectable `IRandomSource`.
+- **FR-13 / NFR-08**: the core breaks a full tie deterministically; randomness exists only in the EXP-4 treatment, through an injectable `IRandomSource`.
 - **"Decouple rules from state"** (CLAUDE.md): policies are separate from eligibility and plan search.
 - **Testability**: each arm can be unit-tested on its own; the composition can be tested once.
 - **Timebox** (BR-22, NFR-09): treatment arms can be stubbed without touching the core.
@@ -50,7 +50,9 @@ Chosen option: **"3. Composed policies, one interface per experiment dimension"*
 | `IEffectiveRatingPolicy` (EXP-2) | What rating to use for an unrated supplier | `UnratedLastPolicy` (0) | `ColdStartPriorPolicy` (`unrated_prior`, default 6.5) |
 | `IPlanSelectionPolicy` (EXP-1) | How shipment count and quality combine (keys 2–4); how many extra shipments plan search must explore | `StrictPriorityPolicy` (max extra = 0) | `BoundedTradeOffPolicy` (max extra = 1, `quality_uplift_threshold`) |
 | `IUnfulfillablePolicy` (EXP-3) | What to do when at least one item has no eligible supplier | `AllOrNothingPolicy` | `PartialRoutingPolicy` |
-| `ITieBreaker` (shared) | Key 5: full tie after keys 1–4 | `UniformRandomTieBreaker(IRandomSource)` | same |
+| `ITieBreaker` (EXP-4) | Key 5: full tie after keys 1–4 | `DeterministicTieBreaker` (lowest supplier IDs in ordinal order, no randomness; the core behavior) | `UniformRandomTieBreaker(IRandomSource)` (the only random code) |
+
+*Amendment:* `ITieBreaker` was first shared by every arm and injected into `OrderRoutingService`. It is now a fourth seam: `RoutingPolicy` carries it and `RoutingPolicyFactory` picks it from the `Exp4TieBreaking` arm (the treatment one is injected into the factory; control is always the deterministic core tie-breaker).
 
 AB-06 says "each arm is a separate strategy implementation behind one interface". We read that as **one interface per experiment**, which is what this option does. A single interface for all three experiments would force option 2.
 
@@ -64,6 +66,7 @@ classDiagram
         +IEffectiveRatingPolicy Rating
         +IPlanSelectionPolicy Selection
         +IUnfulfillablePolicy Unfulfillable
+        +ITieBreaker TieBreaker
         +ExperimentAssignment Assignment
     }
     class IRoutingPolicyFactory {
@@ -97,10 +100,10 @@ classDiagram
     }
     IRoutingPolicyFactory ..> RoutingPolicy : creates
     OrderRoutingService --> RoutingPolicy
-    OrderRoutingService --> ITieBreaker
     RoutingPolicy --> IEffectiveRatingPolicy
     RoutingPolicy --> IPlanSelectionPolicy
     RoutingPolicy --> IUnfulfillablePolicy
+    RoutingPolicy --> ITieBreaker
     ITieBreaker --> IRandomSource
     IEffectiveRatingPolicy <|.. UnratedLastPolicy
     IEffectiveRatingPolicy <|.. ColdStartPriorPolicy
@@ -109,6 +112,7 @@ classDiagram
     IUnfulfillablePolicy <|.. AllOrNothingPolicy
     IUnfulfillablePolicy <|.. PartialRoutingPolicy
     ITieBreaker <|.. UniformRandomTieBreaker
+    ITieBreaker <|.. DeterministicTieBreaker
 ```
 
 ### Where each seam plugs into the pipeline
@@ -123,7 +127,7 @@ flowchart TD
     S --> R[Score plans: quality uses<br/>Rating.EffectiveRating - EXP-2]
     R --> SEL[Selection.SelectBest - EXP-1<br/>keys 2-4, similarity band]
     SEL --> T{More than one plan<br/>tied on keys 1-4?}
-    T -->|yes| TB[ITieBreaker.Pick<br/>uniform random - FR-13]
+    T -->|yes| TB[TieBreaker.Pick - EXP-4<br/>lowest supplier IDs - FR-13,<br/>or uniform random in the treatment]
     T -->|no| PL[Chosen plan]
     TB --> PL
     PL --> UF[Unfulfillable.Apply - EXP-3]
@@ -145,7 +149,7 @@ Eligibility (category, ZIP, mail rules, mail-only exclusion) is **not** a policy
 - 3 seams × 2 arms = 6 small classes instead of 8 combined ones; growth is additive, not multiplicative.
 - The default `ExperimentArms` (all control) reproduces the written spec and the sentinel expectations (AB-03, SC-10).
 - `ITieBreaker.Pick` returns a `TieBreakResult` (chosen plan plus the tied candidates, and whether randomness was used) rather than a bare plan, so the decision log gets the audit data (OR-014, AB-04).
-- Randomness lives in one place (`ITieBreaker` → `IRandomSource`). Tests inject a fixed source for exact assertions (NFR-08a) and prove non-tied cases never call it (NFR-08d).
+- Randomness lives in one place, the EXP-4 treatment (`UniformRandomTieBreaker` → `IRandomSource`). Control never calls it. Tests inject a fixed source for exact assertions (NFR-08a) and prove non-tied cases never call it (NFR-08d).
 - The decision log (AB-04) records the assignment (arms, reasons, `config_version`) plus the tied candidates returned by the tie-breaker.
 - Experiments are switched on/off and re-parameterized at runtime without touching routing code (SC-25).
 

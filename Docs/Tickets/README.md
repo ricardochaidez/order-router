@@ -17,7 +17,7 @@ Tickets for the Multi-Supplier Order Router, broken out from the [technical requ
 | [OR-011](OR-011-plan-search-exact.md) | Search for the fewest-shipment plans | OR-010 |
 | [OR-012](OR-012-plan-search-guard-rails.md) | Add plan-search limits and the greedy fallback | OR-011 |
 | [OR-013](OR-013-routing-policies-control.md) | Add the routing policy seams and the control arms | OR-011 |
-| [OR-014](OR-014-random-tie-breaker.md) | Break full ties at random | OR-013 |
+| [OR-014](OR-014-random-tie-breaker.md) | Break full ties at random (superseded: EXP-4 treatment only) | OR-013 |
 | [OR-015](OR-015-routing-orchestration.md) | Wire routing end to end and map the response | OR-005, OR-009, OR-012, OR-014 |
 | [OR-016](OR-016-experiment-assignment.md) | Assign experiment arms from reloadable configuration | OR-008, OR-013, OR-015 |
 | [OR-017](OR-017-exp1-bounded-tradeoff.md) | EXP-1 treatment: allow one extra shipment for much better quality | OR-016 |
@@ -38,7 +38,7 @@ Tickets for the Multi-Supplier Order Router, broken out from the [technical requ
 1. **Foundation:** OR-001 to OR-008 (structure, data, container, auth).
 2. **Core routing (spec behaviour):** OR-009 to OR-015. At the end of this milestone the service routes orders as the spec describes, with all experiments in control.
 3. **Stored orders:** OR-026 to OR-028. POST stores each decision and returns its `id` (201); GET reads it back. Start right after OR-015.
-4. **Experiments:** OR-016 to OR-022.
+4. **Experiments:** OR-016 to OR-022. EXP-4 (deterministic tie-break, `Exp4TieBreaking`) was added afterwards and has no ticket; see [Docs/Experiments.md](../Experiments.md).
 5. **Hardening and docs:** OR-023 to OR-025.
 
 ## Not ticketed yet

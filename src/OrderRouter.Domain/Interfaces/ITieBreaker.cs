@@ -3,7 +3,7 @@ using OrderRouter.Domain.Models;
 
 namespace OrderRouter.Domain.Interfaces;
 
-/// <summary>Ranking key 5 (Technical Requirements §7.3, FR-13): chooses one plan from those still tied. Shared by every experiment arm (ADR-0001).</summary>
+/// <summary>Ranking key 5 (Technical Requirements §7.3, FR-13): chooses one plan from those still tied. The core is deterministic; the random implementation is only the EXP-4 treatment (ADR-0001).</summary>
 public interface ITieBreaker
 {
     /// <summary>Picks one plan from the tied plans.</summary>
