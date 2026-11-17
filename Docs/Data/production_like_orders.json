@@ -1,0 +1,258 @@
+[
+  {
+    "order_id": "PRD-001",
+    "customer_zip": "60610",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WK-STD-009", "quantity": 1 },
+      { "product_code": "SC-STD-053", "quantity": 1 },
+      { "product_code": "CM-BED-048", "quantity": 1 },
+      { "product_code": "IM-KNEE-110", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Post total-knee-replacement discharge kit, Chicago. Four categories, local delivery preferred."
+  },
+  {
+    "order_id": "PRD-002",
+    "customer_zip": "90210",
+    "mail_order": false,
+    "items": [
+      { "product_code": "OX-PORT-024", "quantity": 1 },
+      { "product_code": "NB-COMP-039", "quantity": 1 },
+      { "product_code": "CP-AUTO-033", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "COPD patient discharged from hospital, Beverly Hills. Oxygen + nebulizer + auto-CPAP, rush."
+  },
+  {
+    "order_id": "PRD-003",
+    "customer_zip": "30303",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "PL-ELEC-043", "quantity": 1 },
+      { "product_code": "CM-BED-048", "quantity": 1 },
+      { "product_code": "WC-STD-001", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Hospice home setup, Atlanta. Bed, lift, commode and wheelchair; must arrive same week."
+  },
+  {
+    "order_id": "PRD-004",
+    "customer_zip": "59001",
+    "mail_order": true,
+    "items": [
+      { "product_code": "GL-STD-081", "quantity": 2 },
+      { "product_code": "BP-AUTO-077", "quantity": 1 },
+      { "product_code": "CS-KH-15-085", "quantity": 4 }
+    ],
+    "priority": "standard",
+    "notes": "Rural Montana, mail order allowed. Diabetes and hypertension monitoring supplies."
+  },
+  {
+    "order_id": "PRD-005",
+    "customer_zip": "10455",
+    "mail_order": false,
+    "items": [
+      { "product_code": "RL-STD-058", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Single-item order, South Bronx. Rollator only."
+  },
+  {
+    "order_id": "PRD-006",
+    "customer_zip": "98101",
+    "mail_order": false,
+    "items": [
+      { "product_code": "KS-STD-073", "quantity": 1 },
+      { "product_code": "CR-AXL-068", "quantity": 1 },
+      { "product_code": "AB-LACE-094", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Sports-injury order, Seattle. Knee scooter, crutches and ankle brace."
+  },
+  {
+    "order_id": "PRD-007",
+    "customer_zip": "33101",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CP-STD-031", "quantity": 1 },
+      { "product_code": "CP-MSK-FF-035", "quantity": 2 },
+      { "product_code": "CP-BAR-493", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "CPAP resupply, Miami. Mixes a CPAP code and a cpap code (category spelled in two cases in the source data)."
+  },
+  {
+    "order_id": "PRD-008",
+    "customer_zip": "85001",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-STD-001", "quantity": 1 },
+      { "product_code": "WC-STD-001", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Same product on two lines (assisted-living facility ordering two wheelchairs on separate lines), Phoenix."
+  },
+  {
+    "order_id": "PRD-009",
+    "customer_zip": "80202",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CN-STD-063", "quantity": 10 },
+      { "product_code": "WK-STD-009", "quantity": 6 },
+      { "product_code": "SC-STD-053", "quantity": 8 },
+      { "product_code": "CM-BED-048", "quantity": 4 }
+    ],
+    "priority": "standard",
+    "notes": "Facility bulk order, Denver. Large quantities across four categories."
+  },
+  {
+    "order_id": "PRD-010",
+    "customer_zip": "55401",
+    "mail_order": false,
+    "items": [
+      { "product_code": "TU-DUAL-102", "quantity": 1 },
+      { "product_code": "HP-ELEC-106", "quantity": 1 },
+      { "product_code": "BB-LUM-090", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Chronic low-back-pain bundle, Minneapolis. TENS unit, heating pad, lumbar brace."
+  },
+  {
+    "order_id": "PRD-011",
+    "customer_zip": "19104",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CC-SOFT-098", "quantity": 1 },
+      { "product_code": "TD-CERV-117", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Cervical injury follow-up, Philadelphia. Collar + traction device."
+  },
+  {
+    "order_id": "PRD-012",
+    "customer_zip": "94103",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CPM-KNEE-114", "quantity": 1 },
+      { "product_code": "IM-KNEE-110", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Post-op knee rehab, San Francisco. CPM machine (category has two spellings in the source data) + ice machine."
+  },
+  {
+    "order_id": "PRD-013",
+    "customer_zip": "37203",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-SEM-017", "quantity": 1 },
+      { "product_code": "OX-STAT-025", "quantity": 1 },
+      { "product_code": "NB-ULTR-040", "quantity": 1 },
+      { "product_code": "PL-MAN-044", "quantity": 1 },
+      { "product_code": "BP-MAN-078", "quantity": 1 },
+      { "product_code": "CM-DROP-049", "quantity": 1 }
+    ],
+    "priority": "rush",
+    "notes": "Complex home-health intake, Nashville. Six categories, tests consolidation limits."
+  },
+  {
+    "order_id": "PRD-014",
+    "customer_zip": "99950",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-LW-003", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Remote Alaska ZIP, mail order NOT allowed. Few or no local suppliers expected."
+  },
+  {
+    "order_id": "PRD-015",
+    "customer_zip": "99950",
+    "mail_order": true,
+    "items": [
+      { "product_code": "WC-LW-003", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Same items as PRD-014 with mail order allowed, to compare the effect of mail_order."
+  },
+  {
+    "order_id": "PRD-016",
+    "customer_zip": "00601",
+    "mail_order": false,
+    "items": [
+      { "product_code": "HB-FUL-018", "quantity": 1 },
+      { "product_code": "CM-BED-048", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Puerto Rico (low ZIP range), local delivery only."
+  },
+  {
+    "order_id": "PRD-017",
+    "customer_zip": "77059",
+    "mail_order": false,
+    "items": [
+      { "product_code": "GL-CGM-082", "quantity": 1 },
+      { "product_code": "BP-WRS-079", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Houston ZIP 77059 is served by unrated supplier SUP-003; exercises the unrated-supplier experiment."
+  },
+  {
+    "order_id": "PRD-018",
+    "customer_zip": "60615",
+    "mail_order": false,
+    "items": [
+      { "product_code": "CN-QUAD-064", "quantity": 1 },
+      { "product_code": "SC-TRNB-054", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Chicago ZIP 60615 is served by unrated supplier SUP-015; exercises the unrated-supplier experiment."
+  },
+  {
+    "order_id": "PRD-019",
+    "customer_zip": "00098",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-STD-001", "quantity": 1 },
+      { "product_code": "WK-STD-009", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Test-only sentinel ZIP 00098: only a wheelchair-only supplier covers it, so the walker cannot be fulfilled. Exercises partial routing (EXP-3)."
+  },
+  {
+    "order_id": "PRD-020",
+    "customer_zip": "10015",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-STD-001", "quantity": 1 },
+      { "product_code": "ZZ-FAKE-999", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Real-world data quality problem: an unknown product code from an upstream system alongside a valid one."
+  },
+  {
+    "order_id": "PRD-021",
+    "customer_zip": "10015",
+    "mail_order": false,
+    "items": [
+      { "product_code": "WC-STD-001", "quantity": 1 },
+      { "product_code": "OX-PORT-024", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Same order as ORD-001 re-submitted (POST is not idempotent, so it must create a second stored decision)."
+  },
+  {
+    "order_id": "PRD-022",
+    "customer_zip": "02130",
+    "mail_order": true,
+    "items": [
+      { "product_code": "CP-BI-032", "quantity": 1 },
+      { "product_code": "NB-MESH-041", "quantity": 1 }
+    ],
+    "priority": "standard",
+    "notes": "Boston, mail order. Bi-level CPAP and mesh nebulizer; look for tied top suppliers (random tie-break)."
+  }
+]
