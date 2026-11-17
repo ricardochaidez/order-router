@@ -55,6 +55,32 @@ public class RouteValidationTests(ReferenceDataFixture fixture)
 
     [Theory]
     [MemberData(nameof(RouteApiFactory.Paths), MemberType = typeof(RouteApiFactory))]
+    public async Task Post_OrderIdOverLimit_Returns400(string path)
+    {
+        var (status, json, useCase) = await PostAsync(path, Body(orderId: $"\"{new string('A', 129)}\""));
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        AssertEnvelope(json);
+        Assert.Contains(Errors(json), error => error.StartsWith("order_id ", StringComparison.Ordinal));
+        Assert.Empty(useCase.Commands);
+    }
+
+    [Theory]
+    [MemberData(nameof(RouteApiFactory.Paths), MemberType = typeof(RouteApiFactory))]
+    public async Task Post_ProductCodeOverLimit_Returns400(string path)
+    {
+        var items = $$"""[{ "product_code": "{{new string('A', 65)}}", "quantity": 1 }]""";
+
+        var (status, json, useCase) = await PostAsync(path, Body(items: items));
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        AssertEnvelope(json);
+        Assert.Contains(Errors(json), error => error.Contains("product_code", StringComparison.Ordinal));
+        Assert.Empty(useCase.Commands);
+    }
+
+    [Theory]
+    [MemberData(nameof(RouteApiFactory.Paths), MemberType = typeof(RouteApiFactory))]
     public async Task Post_EverythingInvalid_ListsEveryErrorInRequestOrder(string path)
     {
         var (status, json, _) = await PostAsync(path, """{ "customer_zip": "x", "items": [ { "product_code": " ", "quantity": 0 }, { "quantity": 2 } ] }""");

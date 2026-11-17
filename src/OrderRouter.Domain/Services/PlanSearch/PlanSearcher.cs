@@ -135,6 +135,12 @@ public sealed class PlanSearcher
         private readonly uint[] suffixMask;
         private readonly decimal[][] suffixBest;
         private readonly int[] chosen;
+
+        // Scratch buffers reused for every cover. Evaluate and Record run once per complete cover, which is the hot loop
+        // of the search, so allocating these per call dominated the cost. Safe to share: a SizeSearch is single-threaded.
+        private readonly List<int>[] options;
+        private readonly int[] assignment;
+        private readonly PreparedCandidate[] assigned;
         private readonly NodeBudget budget;
         private readonly List<Plan> plans = [];
         private decimal bestQuality = -1m;
@@ -150,6 +156,14 @@ public sealed class PlanSearcher
             categoryCount = prepared.Categories.Count;
             totalLines = prepared.LineCounts.Sum();
             chosen = new int[size];
+            options = new List<int>[categoryCount];
+            assignment = new int[categoryCount];
+            assigned = new PreparedCandidate[categoryCount];
+
+            for (var c = 0; c < categoryCount; c++)
+            {
+                options[c] = [];
+            }
 
             // suffixMask[i]: categories the candidates from i onward can still cover.
             // suffixBest[i][c]: best rating among candidates from i onward for category c (for the bound).
@@ -251,12 +265,11 @@ public sealed class PlanSearcher
         private void Evaluate()
         {
             // Per category: the chosen supplier with the higher rating, then local; exact ties give separate plans (ADR-0003).
-            var options = new List<int>[categoryCount];
-
             for (var c = 0; c < categoryCount; c++)
             {
                 var bit = 1u << c;
-                var winners = new List<int>();
+                var winners = options[c];
+                winners.Clear();
 
                 foreach (var index in chosen)
                 {
@@ -285,19 +298,16 @@ public sealed class PlanSearcher
                         winners.Add(index);
                     }
                 }
-
-                options[c] = winners;
             }
 
-            var assignment = new int[categoryCount];
-            Expand(options, assignment, 0);
+            Expand(0);
         }
 
-        private void Expand(List<int>[] options, int[] assignment, int category)
+        private void Expand(int category)
         {
             if (category == categoryCount)
             {
-                Record(assignment);
+                Record();
 
                 return;
             }
@@ -305,20 +315,31 @@ public sealed class PlanSearcher
             foreach (var index in options[category])
             {
                 assignment[category] = index;
-                Expand(options, assignment, category + 1);
+                Expand(category + 1);
             }
         }
 
-        private void Record(int[] assignment)
+        private void Record()
         {
             // Every chosen supplier must receive a category; otherwise this is a smaller cover found earlier.
-            if (chosen.Any(index => !assignment.Contains(index)))
+            // A plain loop, not LINQ: this runs for every cover and must not allocate.
+            for (var i = 0; i < chosen.Length; i++)
             {
-                return;
+                if (Array.IndexOf(assignment, chosen[i]) < 0)
+                {
+                    return;
+                }
             }
 
-            var (quality, local) = PlanScoring.Score(prepared, assignment.Select(index => candidates[index]).ToArray());
-            var suppliers = assignment.Select(index => candidates[index].SupplierId).ToArray();
+            var suppliers = new string[categoryCount];
+
+            for (var c = 0; c < categoryCount; c++)
+            {
+                assigned[c] = candidates[assignment[c]];
+                suppliers[c] = assigned[c].SupplierId;
+            }
+
+            var (quality, local) = PlanScoring.Score(prepared, assigned);
             plans.Add(new Plan(size, quality, local, suppliers));
             bestQuality = Math.Max(bestQuality, quality);
         }

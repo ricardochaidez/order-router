@@ -17,8 +17,12 @@ namespace OrderRouter.Api.ViewModels.Request;
 /// </example>
 public sealed record RouteOrderRequestViewModel
 {
-    /// <summary>The caller's order id. Required and not blank.</summary>
+    /// <summary>Upper bound on <see cref="OrderId"/>. Every order is stored and logged, so an unbounded id is unbounded storage.</summary>
+    public const int MaxOrderIdLength = 128;
+
+    /// <summary>The caller's order id. Required, not blank, at most 128 characters.</summary>
     [Required(ErrorMessage = "is required and must not be blank.")]
+    [MaxLength(MaxOrderIdLength, ErrorMessage = "must be at most 128 characters.")]
     public string? OrderId { get; init; }
 
     /// <summary>The delivery ZIP: exactly 5 ASCII digits. <c>\z</c> (not <c>$</c>) so a trailing newline is rejected.</summary>
@@ -29,7 +33,7 @@ public sealed record RouteOrderRequestViewModel
     /// <summary>Optional. Defaults to <c>false</c>, the stricter mode (FR-08).</summary>
     public bool MailOrder { get; init; }
 
-    /// <summary>The requested line items. Required with at least one entry.</summary>
+    /// <summary>The requested line items. Required, with at least one entry and no upper bound, so large orders are fulfilled.</summary>
     [Required(ErrorMessage = "is required.")]
     [MinLength(1, ErrorMessage = "must contain at least one item.")]
     [NoNullElements(ErrorMessage = "must not contain null entries.")]

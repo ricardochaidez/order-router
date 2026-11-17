@@ -168,11 +168,21 @@ public partial class InitialCreate : Migration
             name: "ix_supplier_service_areas_start_zip_end_zip",
             table: "supplier_service_areas",
             columns: new[] { "start_zip", "end_zip" });
+
+        // EF Core cannot model expression indexes, so these are raw SQL and the model snapshot is unchanged.
+        // ProductCatalog queries lower(product_code) and lower(category), which the primary key and plain columns cannot serve.
+        // Unique: the seed file rejects case-insensitive duplicates, and the database does too. Without it a re-seed
+        // that changes only the case of a code leaves two rows, and every order with that code then fails as ambiguous.
+        migrationBuilder.Sql("CREATE UNIQUE INDEX ux_products_product_code_lower ON products (lower(product_code));");
+        migrationBuilder.Sql("CREATE INDEX ix_products_category_lower ON products (lower(category));");
     }
 
     /// <inheritdoc />
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.Sql("DROP INDEX IF EXISTS ix_products_category_lower;");
+        migrationBuilder.Sql("DROP INDEX IF EXISTS ux_products_product_code_lower;");
+
         migrationBuilder.DropTable(
             name: "products");
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using OrderRouter.Domain.Entities.ReferenceData;
 using OrderRouter.Domain.Helpers;
 using OrderRouter.Infrastructure.Providers;
@@ -133,7 +134,7 @@ public class ProductCatalogTests(ReferenceDataFixture fixture)
     }
 
     [Fact]
-    public async Task FindByKeysAsync_TwoStoredCodesDifferingOnlyByCase_ReturnsBothAndTheLookupThrows()
+    public async Task Insert_TwoCodesDifferingOnlyByCase_IsRejectedByTheDatabase()
     {
         await using var database = await ThrowawayDatabase.CreateAsync(Token);
         await using (var migrating = database.CreateContext())
@@ -141,20 +142,13 @@ public class ProductCatalogTests(ReferenceDataFixture fixture)
             await migrating.Database.MigrateAsync(Token);
         }
 
-        // Raw SQL on purpose: it bypasses the seeder's duplicate check, and this is a throwaway database.
-        await database.ExecuteAsync(
+        // Raw SQL on purpose: it bypasses the seeder's duplicate check. The unique index on lower(product_code) is what
+        // stops a re-seed from leaving two rows for one key, which would make every order with that code ambiguous.
+        var exception = await Assert.ThrowsAsync<PostgresException>(() => database.ExecuteAsync(
             "INSERT INTO products (product_code, name, category) VALUES ('ABC-1', 'One', 'cpap'), ('abc-1', 'Two', 'cpap')",
-            Token);
-        await using var context = database.CreateContext();
-        var catalog = new ProductCatalog(context);
-        var lookup = ProductCodeLookup.For(["abc-1"]);
+            Token));
 
-        var products = await catalog.FindByKeysAsync(lookup.Keys, Token);
-
-        Assert.Equal(2, products.Count);
-        var exception = Assert.Throws<InvalidOperationException>(() => lookup.Resolve(products));
-        Assert.Contains("ABC-1", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("abc-1", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, exception.SqlState);
     }
 
     // OR-020 DR-02: which rule categories exist, in one query.
