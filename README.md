@@ -179,6 +179,14 @@ Everything below is for local development only.
 
 Run these from the repository root, in this order.
 
+In a hurry? These three commands do steps 1 to 3 (`cp -n` keeps an existing `.env`):
+
+```bash
+cp -n .env.example .env
+docker compose up -d --build --wait
+dotnet test
+```
+
 1. Copy the dev-only settings: `cp .env.example .env`
 
    `.env` holds the dev API key (`DEV_API_KEY`, default `dev-only-change-me`). Every request to the API except `GET /health` must send it in the `X-Api-Key` header; a missing or wrong key returns `401`. Compose passes it to the API as `Authentication__DevApiKey`, and it only works when `ASPNETCORE_ENVIRONMENT=Development` (see [Authentication](#authentication)). If you run the API with `dotnet run` instead of Docker, set it with `dotnet user-secrets set "Authentication:DevApiKey" "dev-only-change-me" --project src/OrderRouter.Api`.
